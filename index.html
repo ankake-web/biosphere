@@ -292,6 +292,7 @@ button{font-family:inherit;cursor:pointer;}
     <button class="tbtn" id="exploreBtn" title="ランダムに1種へ旅する">🎲</button>
     <button class="tbtn gbif" id="gbifBtn" aria-pressed="true" title="GBIF実観測データの表示切替">🛰️</button>
     <button class="tbtn" id="globeBtn" aria-pressed="true" title="地球儀 / 平面 切替">🌐</button>
+    <button class="tbtn" id="atlasBtn" aria-pressed="false" title="地形（アトラス）表示の切替">🏔️</button>
     <button class="tbtn" id="homeBtn" title="全体表示にもどる">⌂</button>
   </div>
 </header>
@@ -1028,6 +1029,7 @@ function gbifTileURL(taxonKey, year){
 const $=(s)=>document.querySelector(s);
 let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true, A3toA2={};
 let gbifOn=true, currentAnimal=null, currentMode={type:'overview'};
+let atlasOn=false;   // アトラス表示（地形relief）のON/OFF。スタイルは入れ替えず重畳トグル
 const SEEN = new Set(JSON.parse(localStorage.getItem('biosphere_seen')||'[]'));
 const filterState = {biome:null, q:'', facet:''};   // 環境/検索/分類傾向の絞り込みを一元管理
 let gbifYear=null;   // GBIF分布の年代フィルタ（&year=...）。null=全期間。動物を切り替えても保持
@@ -1070,7 +1072,14 @@ map.on('load', async ()=>{
   map.addLayer({id:'c-active',type:'line',source:'countries',paint:{'line-color':'#34d8c6','line-width':1.4,'line-opacity':0}});
   map.addLayer({id:'c-hover',type:'line',source:'countries',paint:{'line-color':'#ffffff','line-width':1.1,'line-opacity':.55},filter:['==',['get',CODE_PROP],'__none__']});
 
+  // アトラス用：事前レンダリング済みの地形relief（Esri・CORS可）。国境/分布の下に重ね、🏔️でトグル
+  try{
+    map.addSource('relief',{type:'raster',tiles:['https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:13,attribution:'地形: Esri'});
+    map.addLayer({id:'relief',type:'raster',source:'relief',layout:{visibility:'none'},paint:{'raster-opacity':.22,'raster-saturation':-.4,'raster-brightness-max':.62,'raster-contrast':.12,'raster-fade-duration':300}},'c-fill');
+  }catch(e){}
+
   mapReady=true; drawOverview(); bindMap(); updateDex();
+  if(atlasOn) setAtlas(true);
   $('#boot').classList.add('gone'); spinLoop();
   const deeplink=location.hash.replace('#','');
   if(deeplink && ANIMALS.some(a=>a.id===deeplink)){ selectAnimal(deeplink); }
@@ -1408,6 +1417,11 @@ $('#gbifBtn').addEventListener('click',()=>{ gbifOn=!gbifOn; $('#gbifBtn').setAt
 $('#exploreBtn').addEventListener('click',explore);
 $('#homeBtn').addEventListener('click',resetAll);
 $('#yearSlider').addEventListener('input',(e)=>applyYear(+e.target.value));
+// アトラス（地形relief）表示トグル：スタイルは入れ替えず relief レイヤーの可視性だけ切替（分布/GBIF/国境は不変）
+function setAtlas(on){ atlasOn=on; if(mapReady && map.getLayer('relief')) map.setLayoutProperty('relief','visibility',on?'visible':'none');
+  const b=$('#atlasBtn'); if(b)b.setAttribute('aria-pressed',String(on)); }
+$('#atlasBtn').addEventListener('click',()=>{ setAtlas(!atlasOn);
+  toast(atlasOn?'🏔️':'🗺️', atlasOn?'アトラス表示：地形と地名で旅する':'ミニマル表示にもどしました',1900); });
 $('#dex').addEventListener('click',()=>{ const t=ANIMALS.length,n=SEEN.size; toast(n>=t?'🏆':'🧭', n>=t?'図鑑コンプリート！全種を旅しました':`図鑑 ${n}/${t} 種を発見。🎲で続きを旅しよう`,2600); });
 $('#dex').addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#dex').click(); } });
 
