@@ -165,7 +165,10 @@ button{font-family:inherit;cursor:pointer;}
 .rare{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:13px;margin-bottom:15px;border:1px solid var(--line);position:relative;overflow:hidden;}
 .rare .glowbar{position:absolute;left:0;top:0;bottom:0;width:4px;}
 .rare .rk{font-size:15px;font-weight:800;}
-.rare .iucn{margin-left:auto;text-align:right;line-height:1.2;}
+.rare .popwrap{display:flex;flex-direction:column;line-height:1.15;min-width:0;}
+.rare .poplabel{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);font-weight:700;}
+.rare .popval{font-size:15px;font-weight:800;margin-top:2px;}
+.rare .iucn{margin-left:auto;text-align:right;line-height:1.2;flex:0 0 auto;}
 .rare .iucn .code{font-size:11px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:6px;color:#06121a;}
 .rare .iucn .jp{font-size:11px;color:var(--muted);margin-top:3px;display:block;}
 .rare .gem{font-size:18px;}
@@ -269,7 +272,7 @@ button{font-family:inherit;cursor:pointer;}
 
 <div class="modepill" id="modepill"><span class="dot"></span><span id="modetext">世界ぜんたいの分布ヒートマップ</span></div>
 
-<aside class="legend" id="legend"><div class="lt">レア度（保全状況）</div></aside>
+<aside class="legend" id="legend"><div class="lt">生息数のめやす（IUCN保全状況）</div></aside>
 
 <div class="dock">
   <div>
@@ -300,14 +303,34 @@ button{font-family:inherit;cursor:pointer;}
    実データ層：GBIF — 学名→taxonKey を解決し、実観測タイルを地図に重ねる。
    ===================================================================== */
 
+// rank（コモン/レア…）は内部表現として温存。画面には band（生息数のめやす）を出す。
 const RARITY = {
-  LC:{rank:'コモン',        jp:'軽度懸念',   en:'Least Concern',         color:'#7aa884', gem:'⬡'},
-  NT:{rank:'アンコモン',    jp:'準絶滅危惧', en:'Near Threatened',       color:'#2dd4bf', gem:'◆'},
-  VU:{rank:'レア',          jp:'危急',       en:'Vulnerable',            color:'#4f9bff', gem:'◆'},
-  EN:{rank:'スーパーレア',  jp:'絶滅危惧',   en:'Endangered',            color:'#b072ff', gem:'✦'},
-  CR:{rank:'レジェンダリー',jp:'近絶滅',     en:'Critically Endangered', color:'#ffb02e', gem:'★'},
-  DD:{rank:'データ不足',    jp:'データ不足', en:'Data Deficient',        color:'#94a3b8', gem:'·'},
+  LC:{rank:'コモン',        band:'多い（安定）', jp:'軽度懸念',   en:'Least Concern',         color:'#7aa884', gem:'⬡'},
+  NT:{rank:'アンコモン',    band:'やや減少',     jp:'準絶滅危惧', en:'Near Threatened',       color:'#2dd4bf', gem:'◆'},
+  VU:{rank:'レア',          band:'少ない',       jp:'危急',       en:'Vulnerable',            color:'#4f9bff', gem:'◆'},
+  EN:{rank:'スーパーレア',  band:'ごくわずか',   jp:'絶滅危惧',   en:'Endangered',            color:'#b072ff', gem:'✦'},
+  CR:{rank:'レジェンダリー',band:'絶滅寸前',     jp:'近絶滅',     en:'Critically Endangered', color:'#ffb02e', gem:'★'},
+  DD:{rank:'データ不足',    band:'不明',         jp:'データ不足', en:'Data Deficient',        color:'#94a3b8', gem:'·'},
 };
+// 推定生息数（野生・おおよそ。出典/年により幅あり）
+const POP = {
+  lion:'約2万〜2.5万頭', elephant:'約35万頭（減少中）', polarbear:'約2.2万〜3.1万頭', penguin:'約25万つがい',
+  kangaroo:'豊富（数千万頭）', panda:'約1,860頭', tiger:'約4,500〜5,500頭', wolf:'約20万〜30万頭',
+  jaguar:'約17万頭（減少中）', snowleopard:'約4,000〜6,500頭', gorilla:'約30万頭（急減中）', koala:'約33万頭（推定）',
+  giraffe:'約11.7万頭', cheetah:'約6,500〜7,000頭', zebra:'約50万頭', hippo:'約11万〜13万頭',
+  orangutan:'約10万頭（急減中）', redpanda:'約1万頭未満', komodo:'約3,000〜3,400頭', bison:'約3万〜4万頭',
+  eagle:'約30万羽以上（回復）', anteater:'推定 数万頭（減少中）', condor:'約6,700羽', otter:'約12.5万頭',
+  whale:'約13.5万頭（回復）', arcticfox:'数十万頭（地域差大）', macaque:'約11万頭（日本）', crane:'約3,000羽',
+  rhino:'約6,400頭', leopard:'推定 数十万頭（減少中）', asianelephant:'約4万〜5万頭', moose:'約150万頭以上',
+  raccoon:'豊富（数百万以上）', beaver:'約1,000万〜1,500万頭', capybara:'豊富（数百万）', sloth:'安定（数は不明）',
+  toucan:'安定（数十万以上）', flamingo:'約55万〜68万羽', shoebill:'約5,000〜8,000羽', galapagostortoise:'約2万頭（回復中）',
+  alligator:'約500万頭（回復）', greenturtle:'推定 数十万頭（成熟個体は減少）', whaleshark:'推定 減少中（数は不明）', orca:'約5万頭以上（推定）',
+  greatwhite:'推定 希少（数は不明）', albatross:'約2万羽', humboldtpenguin:'約2万〜3万羽', platypus:'推定 数万〜数十万頭',
+  tasmaniandevil:'約2万〜2.5万頭（激減）', kiwi:'約3.5万羽', redfox:'豊富（数百万以上）', brownbear:'約20万頭',
+  walrus:'約22万〜25万頭', narwhal:'約12万〜17万頭', meerkat:'安定（数十万）', okapi:'約1万〜5万頭（推定）',
+  axolotl:'野生1,000頭未満（ほぼ絶滅）', loggerhead:'推定 数十万頭（成熟個体は減少）', slothbear:'約7,000〜2万頭', kingpenguin:'約160万つがい',
+};
+const popOf = (id)=>POP[id]||'データ不足';
 const BIOMES = {
   'サバンナ':{e:'🌾', g:['#caa24a','#7a5a1e']},
   '森林':    {e:'🌲', g:['#3f9d6b','#1c4a33']},
@@ -863,7 +886,7 @@ const allBtn=document.createElement('button'); allBtn.className='bm'; allBtn.inn
 (function(){
   const used=[...new Set(ANIMALS.map(a=>a.status))].sort((a,b)=>'LC NT VU EN CR DD'.indexOf(a)-'LC NT VU EN CR DD'.indexOf(b));
   used.forEach(s=>{const r=RARITY[s];const d=document.createElement('div');d.className='lr';d.style.color=r.color;
-    d.innerHTML=`<span class="sw" style="background:${r.color}"></span><b>${r.rank}</b><span style="margin-left:auto;color:var(--muted-2)">${s}</span>`;legendEl.appendChild(d);});
+    d.innerHTML=`<span class="sw" style="background:${r.color}"></span><b>${r.band}</b><span style="margin-left:auto;color:var(--muted-2)">${s}</span>`;legendEl.appendChild(d);});
   const f=document.createElement('div');f.className='lf';f.innerHTML='地図の<b>黄〜赤のメッシュ</b>は GBIF の実観測地点。<b>ズームで細かく</b>なります。🛰️で表示切替。';legendEl.appendChild(f);
 })();
 
@@ -963,8 +986,9 @@ function renderAnimalCard(a){
       <div class="row1"><span class="tax">🧬 ${a.taxon}</span><span class="tax">${BIOMES[a.biome].e} ${a.biome}</span><button class="tax pshare" onclick="shareAnimal('${a.id}')">🔗 共有</button></div>
       <div class="rare" style="background:${hexA(r.color,.1)}">
         <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
-        <span class="gem" style="color:${r.color}">${r.gem}</span><span class="rk" style="color:${r.color}">${r.rank}</span>
-        <span class="iucn"><span class="code" style="background:${r.color}">${a.status}</span><span class="jp">${r.jp}・${r.en}</span></span>
+        <span class="gem" style="color:${r.color}">${r.gem}</span>
+        <span class="popwrap"><span class="poplabel">推定生息数（野生）</span><span class="popval" style="color:${r.color}">${popOf(a.id)}</span></span>
+        <span class="iucn"><span class="code" style="background:${r.color}">${a.status}</span><span class="jp">${r.jp}・${r.band}</span></span>
       </div>
       <div class="stats">
         <div class="stat"><div class="k">📏 大きさ</div><div class="v">${a.stats.size}</div></div>
@@ -983,7 +1007,7 @@ function renderCountryCard(code,animals){
   const rows=animals.length? animals.map(a=>{const r=RARITY[a.status];
     return `<button class="cc-item" onclick="selectAnimal('${a.id}')">${avatar(a)}
       <span class="info"><span class="n">${a.nameJa}</span><span class="s">${a.nameSci}</span></span>
-      <span class="rkbadge" style="background:${r.color}">${r.rank}</span></button>`;}).join('')
+      <span class="rkbadge" style="background:${r.color}">${r.band}</span></button>`;}).join('')
     : `<div class="cc-empty">図鑑の${ANIMALS.length}種ではこの地域の登録がありません。<br>下の<b>GBIF実データ</b>には、その土地で実際に記録された生きものが出ます。</div>`;
   panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
     <div class="cc-head"><div class="lbl">この土地に棲む</div>
