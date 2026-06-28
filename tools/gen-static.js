@@ -88,7 +88,11 @@ function speciesPage(a,prev,next){
     `<a href="../zukan.html">図鑑インデックス</a>`,
     next?`<a href="${next.id}.html">${esc(next.nameJa)} →</a>`:'<span></span>',
   ].join('');
-  return HEAD(title,desc,canon,a.photo)+SITEHEAD('../')+`<main class="wrap">
+  const ld=`<script type="application/ld+json">${JSON.stringify({"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+    {"@type":"ListItem","position":1,"name":"BIOSPHERE","item":SITE+"/"},
+    {"@type":"ListItem","position":2,"name":"図鑑インデックス","item":SITE+"/zukan.html"},
+    {"@type":"ListItem","position":3,"name":a.nameJa,"item":canon}]})}</script>\n`;
+  return HEAD(title,desc,canon,a.photo,ld)+SITEHEAD('../')+`<main class="wrap">
 <img class="hero" src="${a.photo}" alt="${esc(a.nameJa)}の写真" loading="lazy">
 <p class="cred">📷 ${esc(credOf(a))}（Wikimedia Commons）</p>
 <h1>${esc(a.nameJa)}<span class="sci">${esc(a.nameSci)}</span></h1>
