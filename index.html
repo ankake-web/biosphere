@@ -376,6 +376,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
     <button class="tbtn gbif" id="gbifBtn" aria-pressed="true" title="GBIF実観測データの表示切替">🛰️</button>
     <button class="tbtn" id="globeBtn" aria-pressed="true" title="地球儀 / 平面 切替">🌐</button>
     <button class="tbtn" id="atlasBtn" aria-pressed="false" title="地形（アトラス）表示の切替">🏔️</button>
+    <button class="tbtn" id="d3dBtn" aria-pressed="false" title="分布を3D（立体）で表示（試験）">🧊</button>
     <button class="tbtn" id="homeBtn" title="全体表示にもどる">⌂</button>
     <button class="tbtn" id="aboutBtn" title="このサイトについて・出典">ℹ️</button>
   </div>
@@ -1262,6 +1263,7 @@ const $=(s)=>document.querySelector(s);
 let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true, A3toA2={};
 let gbifOn=true, currentAnimal=null, currentMode={type:'overview'};
 let atlasOn=false;   // アトラス表示（地形relief）のON/OFF。スタイルは入れ替えず重畳トグル
+let dist3D=false;    // 分布の3D（立体）表示。GBIF MVTヘックス＋fill-extrusion（試験的）
 // 低モーション/通信節約：自動回転を止めて電力・CPU・通信を節約（モバイル配慮＋アクセシビリティ）
 const LOW_MOTION=(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)||!!(navigator.connection&&navigator.connection.saveData);
 const SEEN = new Set(JSON.parse(localStorage.getItem('biosphere_seen')||'[]'));
@@ -1341,11 +1343,32 @@ function setActive(codes,color){
   map.setPaintProperty('c-active','line-opacity',.95); map.setPaintProperty('c-glow','line-opacity',.55);
 }
 function gbifLoading(on){ const b=$('#gbifBtn'); if(b) b.classList.toggle('loading',!!on); }   // 🛰️ボタンにスピナー
-function removeGbif(){ if(!mapReady)return; if(map.getLayer('gbif'))map.removeLayer('gbif'); if(map.getSource('gbif'))map.removeSource('gbif'); gbifLoading(false); }
+function removeGbif(){ if(!mapReady)return;
+  if(map.getLayer('gbif'))map.removeLayer('gbif'); if(map.getLayer('gbif-glow'))map.removeLayer('gbif-glow');
+  if(map.getLayer('gbif3d'))map.removeLayer('gbif3d'); if(map.getSource('gbif3d'))map.removeSource('gbif3d');
+  if(map.getSource('gbif'))map.removeSource('gbif'); gbifLoading(false); }
 function addGbif(key){
   if(!mapReady)return; removeGbif(); gbifLoading(true);
+  if(dist3D){ addGbif3D(key); return; }                              // 3D（立体）モードのときは押し出しレイヤーへ
   map.addSource('gbif',{type:'raster',tiles:[gbifTileURL(key, gbifYear)],tileSize:512,attribution:'観測点: GBIF.org'});
-  map.addLayer({id:'gbif',type:'raster',source:'gbif',paint:{'raster-opacity':.96,'raster-resampling':'nearest'}},'c-glow');
+  // 下層：にじみグロー（線形リサンプルでぼかし、密度の高い所がぼうっと発光＝立体感。低密度も視認しやすく）
+  map.addLayer({id:'gbif-glow',type:'raster',source:'gbif',paint:{'raster-opacity':.5,'raster-resampling':'linear','raster-saturation':.25,'raster-fade-duration':260}},'c-glow');
+  // 上層：くっきりヘックス＋彩度/コントラストを上げ「色の濃さ」を強調
+  map.addLayer({id:'gbif',type:'raster',source:'gbif',paint:{'raster-opacity':.98,'raster-resampling':'nearest','raster-saturation':.35,'raster-contrast':.18}},'c-glow');
+}
+// 3D（立体）分布：GBIFのMVTヘックス（プロパティ total=観測数）を fill-extrusion で高さ表現。試験的トグル。
+function gbif3dURL(key){
+  return 'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}.mvt?srs=EPSG:3857&taxonKey='+key
+       +'&bin=hex&hexPerTile=45&basisOfRecord=HUMAN_OBSERVATION'+(gbifYear?('&year='+gbifYear):'');
+}
+function addGbif3D(key){
+  map.addSource('gbif3d',{type:'vector',tiles:[gbif3dURL(key)],minzoom:0,maxzoom:14,attribution:'観測点: GBIF.org'});
+  map.addLayer({id:'gbif3d',type:'fill-extrusion',source:'gbif3d','source-layer':'occurrence',paint:{
+    'fill-extrusion-color':['interpolate',['linear'],['get','total'],1,'#1fb6a6',8,'#7CFC55',40,'#ffd54a',180,'#ff8c1a',900,'#ff3322'],
+    'fill-extrusion-height':['interpolate',['linear'],['get','total'],1,30000,40,180000,400,500000,4000,1400000],
+    'fill-extrusion-opacity':.82,'fill-extrusion-base':0,'fill-extrusion-vertical-gradient':true
+  }},'c-glow');
+  map.once('idle',()=>gbifLoading(false));
 }
 // 時系列スライダー（GBIF &year=）。動物選択中＆GBIF ON のときだけ表示
 function showYearbar(on){
@@ -1779,8 +1802,11 @@ function bindMap(){
 /* ---------- ツール ---------- */
 $('#search').addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); applyFilters(); });
 let isGlobe=true;
-$('#globeBtn').addEventListener('click',()=>{ isGlobe=!isGlobe; try{ map.setProjection({type:isGlobe?'globe':'mercator'}); }catch(e){}
-  $('#globeBtn').setAttribute('aria-pressed',String(isGlobe)); $('#globeBtn').textContent=isGlobe?'🌐':'🗺️'; toast(isGlobe?'🌐':'🗺️',isGlobe?'地球儀表示':'平面表示',1500);});
+function syncGlobeBtn(){ const g=$('#globeBtn'); if(g){ g.setAttribute('aria-pressed',String(isGlobe)); g.textContent=isGlobe?'🌐':'🗺️'; } }
+$('#globeBtn').addEventListener('click',()=>{
+  if(dist3D){ setDist3D(false); return; }                            // 3D（平面専用）中はまず3D解除＝地球儀に戻る
+  isGlobe=!isGlobe; try{ map.setProjection({type:isGlobe?'globe':'mercator'}); }catch(e){}
+  syncGlobeBtn(); toast(isGlobe?'🌐':'🗺️',isGlobe?'地球儀表示':'平面表示',1500);});
 $('#gbifBtn').addEventListener('click',()=>{ gbifOn=!gbifOn; $('#gbifBtn').setAttribute('aria-pressed',String(gbifOn));
   toast('🛰️', gbifOn?'GBIF実観測データ：ON':'実観測データ：OFF（手描き分布）',1900);
   if(currentAnimal) paintAnimal(currentAnimal); else removeGbif();
@@ -1795,6 +1821,18 @@ function setAtlas(on){ atlasOn=on; if(mapReady && map.getLayer('relief')) map.se
   const b=$('#atlasBtn'); if(b)b.setAttribute('aria-pressed',String(on)); }
 $('#atlasBtn').addEventListener('click',()=>{ setAtlas(!atlasOn);
   toast(atlasOn?'🏔️':'🗺️', atlasOn?'アトラス表示：地形と地名で旅する':'ミニマル表示にもどしました',1900); });
+// 分布3D（立体）トグル：fill-extrusionはglobeでは描画されないため、3D中は自動で平面(mercator)＋傾きにし、
+// OFFで地球儀に復帰。地球儀を主役に保ちつつ「立体で詳しく見る」没入オプションとして提供。
+function setDist3D(on){ dist3D=on; const b=$('#d3dBtn'); if(b)b.setAttribute('aria-pressed',String(on));
+  try{
+    if(on){ isGlobe=false; map.setProjection({type:'mercator'}); syncGlobeBtn(); map.easeTo({pitch:55, duration:700}); }
+    else  { map.easeTo({pitch:0, duration:500}); isGlobe=true; map.setProjection({type:'globe'}); syncGlobeBtn(); }
+  }catch(e){}
+  if(currentAnimal && gbifOn && currentAnimal.gbif) addGbif(currentAnimal.gbif); }
+$('#d3dBtn').addEventListener('click',()=>{
+  if(!currentAnimal && !dist3D){ toast('🧊','まず動物を選ぶと、その分布を3D（立体）で見られます',2400); return; }
+  setDist3D(!dist3D);
+  toast(dist3D?'🧊':'🌐', dist3D?'分布を3D（立体）で表示：高い柱ほど観測が多い（平面表示）':'地球儀にもどしました',2400); });
 $('#dex').addEventListener('click',()=>{ const t=ANIMALS.length,n=SEEN.size; toast(n>=t?'🏆':'🧭', n>=t?'図鑑コンプリート！全種を旅しました':`図鑑 ${n}/${t} 種を発見。🎲で続きを旅しよう`,2600); });
 $('#dex').addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#dex').click(); } });
 $('#aboutBtn').addEventListener('click',openAbout);
