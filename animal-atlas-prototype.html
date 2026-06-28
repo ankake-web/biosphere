@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>いきもの分布図 — 試作</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<style>
+  :root{
+    --ocean:#0e2a33;
+    --surface:#14323b;
+    --surface-2:#1b3a43;
+    --line:#2c4d56;
+    --sand:#d8cba8;
+    --amber:#e8843c;
+    --gold:#f2c14e;
+    --ink:#eaf2f2;
+    --muted:#8aa6a6;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--ocean);color:var(--ink);
+    font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:780px;margin:0 auto;padding:18px 16px 40px;}
+
+  .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;}
+  h1{margin:4px 0 2px;font-size:26px;font-weight:800;letter-spacing:-.01em;
+    display:flex;align-items:center;gap:8px;}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 16px;line-height:1.5;}
+
+  .label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;margin:18px 0 8px;}
+
+  /* animal chips */
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:thin;}
+  .chip{flex:0 0 auto;display:flex;align-items:center;gap:6px;
+    background:var(--surface);border:1px solid var(--line);color:var(--ink);
+    border-radius:999px;padding:9px 14px;font-size:14px;font-weight:600;
+    cursor:pointer;white-space:nowrap;transition:border-color .15s,background .15s;}
+  .chip .e{font-size:18px;line-height:1;}
+  .chip:hover{border-color:var(--sand);}
+  .chip[aria-pressed="true"]{background:var(--amber);border-color:var(--amber);color:#231206;}
+  .chip:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+
+  /* biome row */
+  .biomes{display:flex;flex-wrap:wrap;gap:7px;}
+  .bm{background:transparent;border:1px solid var(--line);color:var(--muted);
+    border-radius:7px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer;
+    transition:all .15s;}
+  .bm:hover{color:var(--ink);border-color:var(--sand);}
+  .bm[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#2a2204;}
+  .bm:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+
+  /* map */
+  .mapcard{margin-top:10px;border:1px solid var(--line);border-radius:14px;
+    overflow:hidden;background:var(--ocean);}
+  #map{width:100%;height:46vh;min-height:320px;}
+
+  /* readout */
+  .readout{margin-top:12px;background:var(--surface);border:1px solid var(--line);
+    border-radius:12px;padding:15px 16px;min-height:84px;}
+  .readhead{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .readhead .e{font-size:30px;line-height:1;}
+  .readhead .name{font-size:19px;font-weight:800;}
+  .tag{display:inline-block;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--sand);font-size:11px;font-weight:700;letter-spacing:.04em;
+    padding:3px 9px;border-radius:6px;}
+  .rk{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+    font-weight:600;margin:10px 0 4px;}
+  .rv{font-size:13.5px;color:var(--ink);line-height:1.6;}
+  .countrylist{font-size:12.5px;color:var(--muted);line-height:1.7;}
+  .here{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;}
+  .here .h{display:flex;align-items:center;gap:5px;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600;}
+  .here .h .e{font-size:16px;}
+  .hint{color:var(--muted);font-size:13px;line-height:1.6;}
+  .hint b{color:var(--sand);font-weight:700;}
+
+  .foot{margin-top:22px;border-top:1px solid var(--line);padding-top:14px;
+    color:var(--muted);font-size:12px;line-height:1.6;}
+  .foot b{color:var(--sand);}
+  @media (prefers-reduced-motion: reduce){*{transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">世界・いきもの分布図</div>
+  <h1><span>🗺️</span> どこに、なにが棲む</h1>
+  <p class="sub">動物を選べば分布が地図に出る。地図をタップすればそこの住人が出る。環境でしぼることもできる。<br>ぜんぶ<b style="color:var(--sand)">ひとつのデータ</b>から。— 試作（サンプル8種）</p>
+
+  <div class="label">① 動物を選ぶ → 分布が出る</div>
+  <div class="chips" id="chips" role="group" aria-label="動物を選ぶ"></div>
+
+  <div class="label">② 環境でしぼる</div>
+  <div class="biomes" id="biomes" role="group" aria-label="生息環境でしぼる"></div>
+
+  <div class="mapcard"><div id="map"></div></div>
+
+  <div class="readout" id="readout"></div>
+
+  <div class="foot">
+    いまデータは8種ベタ書き。本番はこの差し込み口を <b>GBIF API</b>（世界中の観測データ）に替えるだけ — 地図とUIは作り直さない。<br>
+    点で出すか面で塗るか、国単位かメッシュか、はあとで選べる。
+  </div>
+</div>
+
+<script>
+const ANIMALS = [
+  { jp:'ライオン', e:'🦁', biome:'サバンナ', countries:['Kenya','Tanzania','South Africa','Botswana','Zambia','Zimbabwe','Namibia','Mozambique','India'] },
+  { jp:'アフリカゾウ', e:'🐘', biome:'サバンナ', countries:['Kenya','Tanzania','Botswana','Zimbabwe','Zambia','South Africa','Namibia','Mozambique','Democratic Republic of the Congo','Gabon'] },
+  { jp:'ホッキョクグマ', e:'🐻‍❄️', biome:'極地', countries:['Canada','Russia','Greenland','Norway','United States'] },
+  { jp:'ペンギン', e:'🐧', biome:'極地・海', countries:['Antarctica','Argentina','Chile','South Africa','Australia','New Zealand'] },
+  { jp:'カンガルー', e:'🦘', biome:'乾燥地', countries:['Australia'] },
+  { jp:'ジャイアントパンダ', e:'🐼', biome:'森林', countries:['China'] },
+  { jp:'トラ', e:'🐯', biome:'森林', countries:['India','Bangladesh','Nepal','Bhutan','Russia','China','Thailand','Malaysia','Indonesia'] },
+  { jp:'ハイイロオオカミ', e:'🐺', biome:'寒帯林', countries:['Canada','United States','Russia','China','Mongolia','Kazakhstan','Finland','Sweden','Norway','Poland'] },
+];
+
+// --- derive shared structures ---
+const countryCount = {};        // country -> # animals (the "data footprint" heat)
+ANIMALS.forEach(a => a.countries.forEach(c => countryCount[c] = (countryCount[c]||0)+1));
+const ALL_COUNTRIES = Object.keys(countryCount);
+const BIOMES = [...new Set(ANIMALS.map(a => a.biome))];
+
+let mode = { type:'overview', key:null };
+
+const GEO = {
+  scope:'world',
+  projection:{type:'natural earth'},
+  showland:true, landcolor:'#193b44',
+  showocean:true, oceancolor:'#0e2a33',
+  showcountries:true, countrycolor:'#2c4d56',
+  showcoastlines:true, coastlinecolor:'#33545d',
+  showframe:false, bgcolor:'rgba(0,0,0,0)',
+  lataxis:{range:[-58,85]}, lonaxis:{range:[-170,180]},
+};
+const LAYOUT = {
+  geo:GEO, margin:{l:0,r:0,t:0,b:0},
+  paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+  dragmode:false,
+};
+const CFG = {displayModeBar:false, responsive:true};
+
+function trace(locations, z, scale, zmax){
+  return [{
+    type:'choropleth', locationmode:'country names',
+    locations, z, zmin:0, zmax:zmax,
+    colorscale:scale, showscale:false,
+    marker:{line:{color:'#0e2a33', width:.6}},
+    hovertemplate:'%{location}<extra></extra>',
+  }];
+}
+
+// color ramps
+const HEAT = [[0,'#cdbfa2'],[1,'#d8cba8']];                  // footprint (flat-ish sand)
+const HEAT_GRAD = [[0,'#7e8e7a'],[0.5,'#bdb189'],[1,'#e0d2a6']];
+const AMBER = [[0,'#cdbfa2'],[0.49,'#cdbfa2'],[0.5,'#e8843c'],[1,'#e8843c']];
+const GOLD  = [[0,'#cdbfa2'],[0.49,'#cdbfa2'],[0.5,'#f2c14e'],[1,'#f2c14e']];
+
+function drawOverview(){
+  const z = ALL_COUNTRIES.map(c => countryCount[c]);
+  const zmax = Math.max(...z);
+  Plotly.react('map', trace(ALL_COUNTRIES, z, HEAT_GRAD, zmax), LAYOUT, CFG);
+}
+function drawAnimal(a){
+  const z = ALL_COUNTRIES.map(c => a.countries.includes(c) ? 1 : 0);
+  Plotly.react('map', trace(ALL_COUNTRIES, z, AMBER, 1), LAYOUT, CFG);
+}
+function drawBiome(b){
+  const set = new Set();
+  ANIMALS.filter(a=>a.biome===b).forEach(a=>a.countries.forEach(c=>set.add(c)));
+  const z = ALL_COUNTRIES.map(c => set.has(c) ? 1 : 0);
+  Plotly.react('map', trace(ALL_COUNTRIES, z, GOLD, 1), LAYOUT, CFG);
+}
+
+// --- readout panel ---
+const readout = document.getElementById('readout');
+function showOverviewText(){
+  readout.innerHTML = `<div class="hint">上の動物を選ぶと、その分布が<b>地図にオレンジで</b>出る。<br>地図の<b>色のついた国をタップ</b>すると、そこに棲む動物が出る。</div>`;
+}
+function showAnimal(a){
+  readout.innerHTML = `
+    <div class="readhead"><span class="e">${a.e}</span><span class="name">${a.jp}</span>
+      <span class="tag">${a.biome}</span></div>
+    <div class="rk">分布（${a.countries.length}地域）</div>
+    <div class="countrylist">${a.countries.join(' · ')}</div>`;
+}
+function showCountry(c){
+  const here = ANIMALS.filter(a => a.countries.includes(c));
+  if(!here.length){
+    readout.innerHTML = `<div class="readhead"><span class="e">🗺️</span><span class="name">${c}</span></div>
+      <div class="hint">この地域には、サンプル8種の登録なし。<br>本番ならGBIFの全種から拾える。</div>`;
+    return;
+  }
+  readout.innerHTML = `
+    <div class="readhead"><span class="e">🗺️</span><span class="name">${c}</span></div>
+    <div class="rk">ここに棲む</div>
+    <div class="here">${here.map(a=>`<span class="h"><span class="e">${a.e}</span>${a.jp}</span>`).join('')}</div>`;
+}
+
+// --- chips ---
+const chipsEl = document.getElementById('chips');
+ANIMALS.forEach((a,i)=>{
+  const b=document.createElement('button');
+  b.className='chip'; b.setAttribute('aria-pressed','false');
+  b.innerHTML=`<span class="e">${a.e}</span>${a.jp}`;
+  b.dataset.i=i;
+  b.onclick=()=>selectAnimal(i);
+  chipsEl.appendChild(b);
+});
+const biomesEl = document.getElementById('biomes');
+BIOMES.forEach(bm=>{
+  const b=document.createElement('button');
+  b.className='bm'; b.setAttribute('aria-pressed','false'); b.textContent=bm;
+  b.dataset.bm=bm;
+  b.onclick=()=>selectBiome(bm);
+  biomesEl.appendChild(b);
+});
+const resetBm=document.createElement('button');
+resetBm.className='bm'; resetBm.textContent='ぜんぶ'; resetBm.onclick=resetAll;
+biomesEl.appendChild(resetBm);
+
+function clearPressed(){
+  chipsEl.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed','false'));
+  biomesEl.querySelectorAll('.bm').forEach(c=>c.setAttribute('aria-pressed','false'));
+}
+function filterChips(bm){
+  chipsEl.querySelectorAll('.chip').forEach(c=>{
+    const a=ANIMALS[c.dataset.i];
+    c.style.display = (!bm || a.biome===bm) ? '' : 'none';
+  });
+}
+function selectAnimal(i){
+  clearPressed(); filterChips(null);
+  chipsEl.querySelector(`.chip[data-i="${i}"]`).setAttribute('aria-pressed','true');
+  mode={type:'animal',key:i};
+  drawAnimal(ANIMALS[i]); showAnimal(ANIMALS[i]);
+}
+function selectBiome(bm){
+  clearPressed(); filterChips(bm);
+  biomesEl.querySelector(`.bm[data-bm="${CSS.escape(bm)}"]`).setAttribute('aria-pressed','true');
+  mode={type:'biome',key:bm};
+  drawBiome(bm);
+  const list=ANIMALS.filter(a=>a.biome===bm);
+  readout.innerHTML=`<div class="readhead"><span class="e">🌿</span><span class="name">${bm}</span></div>
+    <div class="rk">この環境の住人</div>
+    <div class="here">${list.map(a=>`<span class="h"><span class="e">${a.e}</span>${a.jp}</span>`).join('')}</div>`;
+}
+function resetAll(){
+  clearPressed(); filterChips(null); mode={type:'overview',key:null};
+  drawOverview(); showOverviewText();
+}
+
+// --- init + map click ---
+drawOverview(); showOverviewText();
+document.getElementById('map').on('plotly_click', ev=>{
+  if(ev.points && ev.points.length) showCountry(ev.points[0].location);
+});
+</script>
+</body>
+</html>

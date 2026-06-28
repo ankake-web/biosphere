@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>BIOSPHERE — 世界いきもの分布アトラス</title>
+<meta name="description" content="世界の生きものの分布を地球儀で旅する。GBIFの実観測データで本物の分布を、図鑑で詳細を。" />
+
+<link href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#070b11; --bg2:#0a1019;
+  --glass:rgba(13,19,28,.72); --glass-strong:rgba(11,16,24,.86);
+  --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.16);
+  --ink:#eef4f7; --muted:#8497a7; --muted-2:#5c6e7c;
+  --gold:#f2c14e; --teal:#34d8c6;
+  --shadow:0 18px 50px -12px rgba(0,0,0,.7); --r:18px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font-family:"Outfit","Noto Sans JP",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;}
+button{font-family:inherit;cursor:pointer;}
+::selection{background:var(--teal);color:#04201d;}
+
+#map{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 0%, #0d1726 0%, #070b11 70%);}
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:2;
+  background:radial-gradient(130% 100% at 50% 42%, transparent 52%, rgba(2,5,9,.55) 100%);}
+.maplibregl-ctrl-attrib{background:rgba(8,12,18,.6)!important;font-size:10px;}
+.maplibregl-ctrl-attrib a{color:#7c8d9b!important;}
+.maplibregl-ctrl-bottom-right{margin-bottom:142px;}
+
+/* ===== 上部バー ===== */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:12px;
+  padding:13px 16px;background:linear-gradient(180deg, rgba(7,11,17,.92) 0%, rgba(7,11,17,.5) 60%, transparent 100%);}
+.brand{display:flex;align-items:center;gap:11px;min-width:0;}
+.logo{width:38px;height:38px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
+  background:conic-gradient(from 210deg,#1b3a43,#0f5e57,#34d8c6,#1b3a43);
+  box-shadow:0 0 0 1px rgba(255,255,255,.12),0 8px 22px -6px rgba(52,216,198,.4);font-size:20px;}
+.brand .t{line-height:1.05;min-width:0;}
+.brand .t b{font-weight:800;font-size:17px;letter-spacing:.04em;display:block;}
+.brand .t span{font-size:10.5px;letter-spacing:.30em;text-transform:uppercase;color:var(--muted);}
+.spacer{flex:1;}
+
+/* 図鑑コンプ率 */
+.dex{display:flex;align-items:center;gap:9px;background:var(--glass);border:1px solid var(--line);
+  border-radius:12px;padding:7px 12px;backdrop-filter:blur(14px);white-space:nowrap;}
+.dex .ring{--p:0;width:26px;height:26px;border-radius:50%;flex:0 0 auto;
+  background:conic-gradient(var(--teal) calc(var(--p)*1%), rgba(255,255,255,.1) 0);
+  display:grid;place-items:center;}
+.dex .ring i{width:18px;height:18px;border-radius:50%;background:var(--bg2);display:grid;place-items:center;
+  font-size:10px;font-style:normal;}
+.dex .lab{line-height:1.1;}
+.dex .lab b{font-size:13px;font-weight:700;}
+.dex .lab span{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:block;}
+
+.search{position:relative;width:min(300px,34vw);}
+.search input{width:100%;background:var(--glass);border:1px solid var(--line);color:var(--ink);
+  border-radius:12px;padding:10px 14px 10px 38px;font-size:14px;outline:none;backdrop-filter:blur(14px);
+  transition:border-color .2s,box-shadow .2s;}
+.search input::placeholder{color:var(--muted-2);}
+.search input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(52,216,198,.16);}
+.search .ic{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;}
+
+.tools{display:flex;gap:8px;}
+.tbtn{width:40px;height:40px;border-radius:12px;background:var(--glass);border:1px solid var(--line);
+  color:var(--ink);display:grid;place-items:center;font-size:16px;backdrop-filter:blur(14px);
+  transition:border-color .2s,background .2s,transform .1s;position:relative;}
+.tbtn:hover{border-color:var(--line-2);background:var(--glass-strong);}
+.tbtn:active{transform:scale(.94);}
+.tbtn[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#04201d;}
+.tbtn.gbif[aria-pressed="true"]{background:#ffb02e;border-color:#ffb02e;}
+
+.modepill{position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:18;
+  display:flex;align-items:center;gap:8px;background:var(--glass);border:1px solid var(--line);
+  border-radius:999px;padding:7px 15px;font-size:12.5px;color:var(--muted);backdrop-filter:blur(14px);
+  box-shadow:var(--shadow);max-width:90vw;transition:opacity .3s;}
+.modepill b{color:var(--ink);font-weight:600;}
+.modepill .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 10px var(--teal);}
+
+/* ===== 下部ドック ===== */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:16;padding:34px 14px 14px;
+  background:linear-gradient(0deg, rgba(7,11,17,.94) 0%, rgba(7,11,17,.6) 55%, transparent 100%);
+  display:flex;flex-direction:column;gap:10px;}
+.dock .lab{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted-2);font-weight:600;margin:0 4px 1px;}
+.biomes{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+.biomes::-webkit-scrollbar{display:none;}
+.bm{flex:0 0 auto;background:rgba(20,28,38,.7);border:1px solid var(--line);color:var(--muted);
+  border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:600;white-space:nowrap;
+  backdrop-filter:blur(10px);transition:all .16s;display:flex;align-items:center;gap:6px;}
+.bm .e{font-size:14px;}
+.bm:hover{color:var(--ink);border-color:var(--line-2);}
+.bm[aria-pressed="true"]{color:#06201d;}
+.bm:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+
+.chips{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:thin;scroll-snap-type:x proximity;}
+.chips::-webkit-scrollbar{height:5px;}
+.chips::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px;}
+.chip{flex:0 0 auto;scroll-snap-align:start;position:relative;display:flex;align-items:center;gap:10px;
+  background:var(--glass);border:1px solid var(--line);color:var(--ink);border-radius:14px;
+  padding:9px 14px 9px 10px;min-width:150px;backdrop-filter:blur(14px);
+  transition:transform .15s,border-color .15s;text-align:left;animation:rise .4s both;}
+@keyframes rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+.chip:hover{transform:translateY(-3px);border-color:var(--line-2);}
+.chip[aria-pressed="true"]{transform:translateY(-3px);}
+.chip:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+.chip .av{width:40px;height:40px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
+  font-size:22px;position:relative;overflow:hidden;}
+.chip .av .ph{position:absolute;inset:0;object-fit:cover;width:100%;height:100%;opacity:0;transition:opacity .4s;}
+.chip .av .ph.loaded{opacity:1;}
+.chip .meta{min-width:0;line-height:1.15;}
+.chip .meta .n{font-weight:700;font-size:14px;white-space:nowrap;}
+.chip .meta .s{font-size:10px;color:var(--muted);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
+.chip .rk{position:absolute;top:7px;right:8px;width:8px;height:8px;border-radius:50%;}
+.chip .seen{position:absolute;bottom:7px;right:8px;font-size:10px;color:var(--teal);opacity:0;transition:opacity .2s;}
+.chip.is-seen .seen{opacity:1;}
+
+/* ===== 詳細パネル ===== */
+.panel{position:fixed;z-index:30;background:var(--glass-strong);border:1px solid var(--line);
+  backdrop-filter:blur(22px);box-shadow:var(--shadow);overflow:hidden;
+  transition:transform .42s cubic-bezier(.16,1,.3,1),opacity .3s;}
+@media(min-width:861px){
+  .panel{top:72px;right:14px;width:386px;max-height:calc(100dvh - 200px);border-radius:var(--r);transform:translateX(440px);opacity:0;overflow-y:auto;}
+  .panel.open{transform:translateX(0);opacity:1;}
+}
+@media(max-width:860px){
+  .panel{left:0;right:0;bottom:0;border-radius:20px 20px 0 0;max-height:80dvh;overflow-y:auto;transform:translateY(110%);opacity:1;}
+  .panel.open{transform:translateY(0);}
+  .grab{width:42px;height:4px;border-radius:99px;background:var(--line-2);margin:9px auto 2px;}
+}
+.panel::-webkit-scrollbar{width:6px;}
+.panel::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px;}
+.pclose{position:absolute;top:12px;right:12px;z-index:4;width:32px;height:32px;border-radius:9px;
+  background:rgba(0,0,0,.4);border:1px solid var(--line);color:var(--ink);font-size:15px;display:grid;place-items:center;backdrop-filter:blur(6px);}
+.pclose:hover{background:rgba(0,0,0,.6);}
+
+.hero{position:relative;height:200px;display:flex;align-items:flex-end;padding:16px;overflow:hidden;}
+.hero .bgph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s;transform:scale(1.05);animation:kb 14s ease-out forwards;}
+.hero .bgph.loaded{opacity:.95;}
+@keyframes kb{from{transform:scale(1.12);}to{transform:scale(1);}}
+.hero .emojibg{position:absolute;inset:0;display:grid;place-items:center;font-size:96px;opacity:.9;}
+.hero .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,12,18,.12) 0%,rgba(8,12,18,.32) 45%,rgba(11,16,24,.96) 100%);}
+.hero .no{position:absolute;top:14px;left:16px;font-size:11px;letter-spacing:.18em;color:rgba(255,255,255,.82);font-weight:600;background:rgba(0,0,0,.34);padding:3px 9px;border-radius:7px;backdrop-filter:blur(4px);}
+.hero .htext{position:relative;z-index:2;}
+.hero .htext .nm{font-size:26px;font-weight:800;line-height:1.05;text-shadow:0 2px 16px rgba(0,0,0,.7);}
+.hero .htext .sci{font-size:13px;font-style:italic;color:#cdd9df;margin-top:2px;text-shadow:0 1px 8px rgba(0,0,0,.8);}
+
+.pbody{padding:15px 16px 22px;}
+.row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.tax{font-size:12px;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--line);padding:4px 10px;border-radius:7px;font-weight:600;display:flex;align-items:center;gap:5px;}
+.rare{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:13px;margin-bottom:15px;border:1px solid var(--line);position:relative;overflow:hidden;}
+.rare .glowbar{position:absolute;left:0;top:0;bottom:0;width:4px;}
+.rare .rk{font-size:15px;font-weight:800;}
+.rare .iucn{margin-left:auto;text-align:right;line-height:1.2;}
+.rare .iucn .code{font-size:11px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:6px;color:#06121a;}
+.rare .iucn .jp{font-size:11px;color:var(--muted);margin-top:3px;display:block;}
+.rare .gem{font-size:18px;}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:15px;}
+.stat{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:11px;padding:10px 12px;}
+.stat .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);font-weight:700;display:flex;align-items:center;gap:5px;}
+.stat .v{font-size:14px;font-weight:600;margin-top:4px;}
+.flavor{font-size:13.5px;line-height:1.75;color:#d2dde3;background:rgba(255,255,255,.03);border-left:2px solid var(--teal);padding:11px 14px;border-radius:0 10px 10px 0;margin-bottom:16px;}
+.seclab{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:0 0 9px;display:flex;align-items:center;gap:7px;}
+.seclab .ln{flex:1;height:1px;background:var(--line);}
+.geos{display:flex;flex-wrap:wrap;gap:7px;}
+.geo{background:rgba(255,255,255,.05);border:1px solid var(--line);color:#cdd9df;border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:500;transition:all .15s;display:flex;align-items:center;gap:5px;}
+.geo:hover{border-color:var(--teal);color:#fff;background:rgba(52,216,198,.1);}
+.geo .fl{font-size:13px;}
+.gbifnote{margin-top:14px;font-size:11px;color:var(--muted-2);line-height:1.6;display:flex;align-items:center;gap:6px;}
+.gbifnote b{color:#ffb02e;}
+
+.cc-head{padding:18px 16px 6px;}
+.cc-head .lbl{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+.cc-head .cname{font-size:24px;font-weight:800;margin-top:3px;display:flex;align-items:center;gap:10px;}
+.cc-head .cflag{font-size:26px;}
+.cc-head .cnt{font-size:12.5px;color:var(--muted);margin-top:5px;}
+.cc-list{padding:8px 12px 18px;display:flex;flex-direction:column;gap:8px;}
+.cc-item{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:13px;padding:9px 11px;text-align:left;color:var(--ink);transition:all .15s;width:100%;}
+.cc-item:hover{border-color:var(--line-2);background:rgba(255,255,255,.07);transform:translateX(3px);}
+.cc-item .av{width:42px;height:42px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;font-size:23px;overflow:hidden;position:relative;}
+.cc-item .av .ph{position:absolute;inset:0;object-fit:cover;width:100%;height:100%;opacity:0;transition:opacity .4s;}
+.cc-item .av .ph.loaded{opacity:1;}
+.cc-item .info{min-width:0;flex:1;}
+.cc-item .info .n{font-weight:700;font-size:15px;}
+.cc-item .info .s{font-size:11px;color:var(--muted);font-style:italic;}
+.cc-item .rkbadge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;color:#06121a;flex:0 0 auto;}
+.cc-empty{padding:6px 18px 24px;color:var(--muted);font-size:13.5px;line-height:1.7;}
+.cc-empty b{color:var(--teal);}
+
+.legend{position:fixed;z-index:14;left:14px;bottom:188px;background:var(--glass);border:1px solid var(--line);border-radius:13px;padding:11px 13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);max-width:210px;}
+.legend .lt{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin-bottom:8px;}
+.legend .lr{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px;color:var(--muted);}
+.legend .lr .sw{width:11px;height:11px;border-radius:3px;flex:0 0 auto;box-shadow:0 0 8px -1px currentColor;}
+.legend .lr b{color:var(--ink);font-weight:600;font-size:11.5px;}
+.legend .lf{margin-top:9px;padding-top:8px;border-top:1px solid var(--line);font-size:10.5px;color:var(--muted-2);line-height:1.5;}
+.legend .lf b{color:#ffb02e;}
+@media(max-width:860px){.legend{display:none;}}
+
+.toast{position:fixed;top:66px;left:50%;transform:translateX(-50%) translateY(-12px);z-index:40;background:var(--glass-strong);border:1px solid var(--line);border-radius:12px;padding:11px 17px;font-size:13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;display:flex;align-items:center;gap:9px;max-width:88vw;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast .e{font-size:16px;}
+.maptip{position:fixed;z-index:12;pointer-events:none;background:rgba(8,12,18,.92);border:1px solid var(--line-2);border-radius:9px;padding:6px 11px;font-size:12.5px;font-weight:600;opacity:0;transform:translateY(4px);transition:opacity .12s;white-space:nowrap;box-shadow:0 8px 20px -6px rgba(0,0,0,.6);}
+.maptip.show{opacity:1;transform:translateY(0);}
+.maptip .sub{display:block;font-size:10.5px;color:var(--muted);font-weight:500;margin-top:2px;}
+
+#boot{position:fixed;inset:0;z-index:60;background:radial-gradient(120% 120% at 50% 30%,#0d1726,#070b11);display:grid;place-items:center;transition:opacity .6s;}
+#boot.gone{opacity:0;pointer-events:none;}
+.orb{width:74px;height:74px;border-radius:50%;margin:0 auto 20px;position:relative;background:conic-gradient(from 0deg,#0f5e57,#34d8c6,#1b3a43,#0f5e57);animation:spin 2.4s linear infinite;box-shadow:0 0 40px -6px rgba(52,216,198,.5);}
+.orb::after{content:"🌍";position:absolute;inset:0;display:grid;place-items:center;font-size:34px;animation:spin 2.4s linear infinite reverse;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.bootwrap{text-align:center;}
+.bootwrap .bt{font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+.bootwrap .bs{font-size:11px;color:var(--muted-2);margin-top:8px;}
+
+@media (prefers-reduced-motion: reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important;}}
+@media(max-width:640px){.search{display:none;} .brand .t span{display:none;} .dex .lab span{display:none;}}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="vignette"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">🐾</div>
+    <div class="t"><b>BIOSPHERE</b><span>いきもの分布アトラス</span></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="dex" id="dex" title="図鑑コンプ率">
+    <div class="ring"><i id="dexEmoji">🧭</i></div>
+    <div class="lab"><b id="dexNum">0/28</b><span>図鑑</span></div>
+  </div>
+  <div class="search">
+    <span class="ic">🔍</span>
+    <input id="search" type="search" placeholder="動物・学名・環境で検索…" autocomplete="off" aria-label="動物を検索" />
+  </div>
+  <div class="tools">
+    <button class="tbtn" id="exploreBtn" title="ランダムに1種へ旅する">🎲</button>
+    <button class="tbtn gbif" id="gbifBtn" aria-pressed="true" title="GBIF実観測データの表示切替">🛰️</button>
+    <button class="tbtn" id="globeBtn" aria-pressed="true" title="地球儀 / 平面 切替">🌐</button>
+    <button class="tbtn" id="homeBtn" title="全体表示にもどる">⌂</button>
+  </div>
+</header>
+
+<div class="modepill" id="modepill"><span class="dot"></span><span id="modetext">世界ぜんたいの分布ヒートマップ</span></div>
+
+<aside class="legend" id="legend"><div class="lt">レア度（保全状況）</div></aside>
+
+<div class="dock">
+  <div>
+    <div class="lab">環境でしぼる</div>
+    <div class="biomes" id="biomes" role="group" aria-label="生息環境でしぼる"></div>
+  </div>
+  <div>
+    <div class="lab">いきものを選ぶ → 棲む土地へ飛ぶ</div>
+    <div class="chips" id="chips" role="group" aria-label="動物を選ぶ"></div>
+  </div>
+</div>
+
+<section class="panel" id="panel" aria-live="polite"></section>
+<div class="maptip" id="maptip"></div>
+<div class="toast" id="toast"></div>
+
+<div id="boot"><div class="bootwrap">
+  <div class="orb"></div>
+  <div class="bt">Biosphere</div>
+  <div class="bs">地球をよみこんでいます…</div>
+</div></div>
+
+<script>
+/* =====================================================================
+   BIOSPHERE — 世界いきもの分布アトラス
+   UIは AnimalDataSource(=DATA) だけに依存（seam）。
+   v1 = MockDataSource（28種ベタ書き）。
+   実データ層：GBIF — 学名→taxonKey を解決し、実観測タイルを地図に重ねる。
+   ===================================================================== */
+
+const RARITY = {
+  LC:{rank:'コモン',        jp:'軽度懸念',   en:'Least Concern',         color:'#7aa884', gem:'⬡'},
+  NT:{rank:'アンコモン',    jp:'準絶滅危惧', en:'Near Threatened',       color:'#2dd4bf', gem:'◆'},
+  VU:{rank:'レア',          jp:'危急',       en:'Vulnerable',            color:'#4f9bff', gem:'◆'},
+  EN:{rank:'スーパーレア',  jp:'絶滅危惧',   en:'Endangered',            color:'#b072ff', gem:'✦'},
+  CR:{rank:'レジェンダリー',jp:'近絶滅',     en:'Critically Endangered', color:'#ffb02e', gem:'★'},
+  DD:{rank:'データ不足',    jp:'データ不足', en:'Data Deficient',        color:'#94a3b8', gem:'·'},
+};
+const BIOMES = {
+  'サバンナ':{e:'🌾', g:['#caa24a','#7a5a1e']},
+  '森林':    {e:'🌲', g:['#3f9d6b','#1c4a33']},
+  '熱帯雨林':{e:'🌴', g:['#2fae6b','#0f3d28']},
+  '草原':    {e:'🌿', g:['#a8b85a','#5a6a28']},
+  '寒帯林':  {e:'🌲', g:['#4a8fb3','#1c3a4a']},
+  '高山':    {e:'🏔️', g:['#8aa0c2','#3a4a66']},
+  '乾燥地':  {e:'🏜️', g:['#d08a4a','#6e3a1e']},
+  '湿地':    {e:'🪷', g:['#4aa98f','#1c4a44']},
+  '海':      {e:'🌊', g:['#2f8fd0','#0e3a5a']},
+  '極地':    {e:'❄️', g:['#9fd2ec','#3a6a86']},
+};
+const CC = {
+  KEN:['ケニア','🇰🇪'],TZA:['タンザニア','🇹🇿'],ZAF:['南アフリカ','🇿🇦'],BWA:['ボツワナ','🇧🇼'],
+  ZMB:['ザンビア','🇿🇲'],ZWE:['ジンバブエ','🇿🇼'],NAM:['ナミビア','🇳🇦'],MOZ:['モザンビーク','🇲🇿'],
+  AGO:['アンゴラ','🇦🇴'],ETH:['エチオピア','🇪🇹'],SSD:['南スーダン','🇸🇸'],IND:['インド','🇮🇳'],
+  COD:['コンゴ民主共和国','🇨🇩'],COG:['コンゴ共和国','🇨🇬'],GAB:['ガボン','🇬🇦'],CMR:['カメルーン','🇨🇲'],
+  GNQ:['赤道ギニア','🇬🇶'],CAF:['中央アフリカ','🇨🇫'],CAN:['カナダ','🇨🇦'],RUS:['ロシア','🇷🇺'],
+  GRL:['グリーンランド','🇬🇱'],NOR:['ノルウェー','🇳🇴'],USA:['アメリカ','🇺🇸'],ATA:['南極大陸','🇦🇶'],
+  AUS:['オーストラリア','🇦🇺'],CHN:['中国','🇨🇳'],BGD:['バングラデシュ','🇧🇩'],NPL:['ネパール','🇳🇵'],
+  BTN:['ブータン','🇧🇹'],THA:['タイ','🇹🇭'],MMR:['ミャンマー','🇲🇲'],MYS:['マレーシア','🇲🇾'],
+  IDN:['インドネシア','🇮🇩'],MNG:['モンゴル','🇲🇳'],KAZ:['カザフスタン','🇰🇿'],FIN:['フィンランド','🇫🇮'],
+  SWE:['スウェーデン','🇸🇪'],POL:['ポーランド','🇵🇱'],BRA:['ブラジル','🇧🇷'],PER:['ペルー','🇵🇪'],
+  COL:['コロンビア','🇨🇴'],VEN:['ベネズエラ','🇻🇪'],BOL:['ボリビア','🇧🇴'],MEX:['メキシコ','🇲🇽'],
+  ARG:['アルゼンチン','🇦🇷'],PRY:['パラグアイ','🇵🇾'],ECU:['エクアドル','🇪🇨'],PAK:['パキスタン','🇵🇰'],
+  AFG:['アフガニスタン','🇦🇫'],KGZ:['キルギス','🇰🇬'],TJK:['タジキスタン','🇹🇯'],
+  UGA:['ウガンダ','🇺🇬'],TCD:['チャド','🇹🇩'],IRN:['イラン','🇮🇷'],CHL:['チリ','🇨🇱'],
+  JPN:['日本','🇯🇵'],NZL:['ニュージーランド','🇳🇿'],ISL:['アイスランド','🇮🇸'],KOR:['韓国','🇰🇷'],
+};
+const ccName=(c)=>CC[c]?CC[c][0]:c;
+const ccFlag=(c)=>CC[c]?CC[c][1]:'📍';
+
+/* ---------- シードデータ（28種）---------- */
+const ANIMALS = [
+ {id:'lion',nameJa:'ライオン',nameSci:'Panthera leo',emoji:'🦁',taxon:'ネコ科',biome:'サバンナ',status:'VU',
+  stats:{size:'体長1.7–2.5m',weight:'120–250kg',diet:'肉食',life:'10–14年'},
+  desc:'群れ「プライド」で暮らす、唯一はっきり社会性をもつネコ科。狩りはおもにメスたちが連携しておこなう。',
+  range:['KEN','TZA','ZAF','BWA','ZMB','ZWE','NAM','MOZ','AGO','ETH','SSD','IND'],focus:{c:[30,-4],z:2.55},
+  gbif:5219404,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg/960px-020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg'},
+
+ {id:'elephant',nameJa:'アフリカゾウ',nameSci:'Loxodonta africana',emoji:'🐘',taxon:'ゾウ科',biome:'サバンナ',status:'EN',
+  stats:{size:'体高2.5–4m',weight:'4–7t',diet:'草食',life:'60–70年'},
+  desc:'陸上最大の動物。高い知能と長い記憶をもち、家族の絆が強い。鼻は数万の筋肉でできた万能の道具。',
+  range:['KEN','TZA','BWA','ZWE','ZMB','ZAF','NAM','MOZ','COD','GAB','AGO','CMR'],focus:{c:[26,-7],z:2.45},
+  gbif:2435350,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/178_Male_African_bush_elephant_in_Etosha_National_Park_Photo_by_Giles_Laurent.jpg/960px-178_Male_African_bush_elephant_in_Etosha_National_Park_Photo_by_Giles_Laurent.jpg'},
+
+ {id:'polarbear',nameJa:'ホッキョクグマ',nameSci:'Ursus maritimus',emoji:'🐻‍❄️',taxon:'クマ科',biome:'極地',status:'VU',
+  stats:{size:'体長2–2.5m',weight:'350–680kg',diet:'肉食',life:'25–30年'},
+  desc:'北極海の流氷を旅する世界最大の陸生肉食獣。黒い皮膚と透明な毛で、わずかな陽ざしを効率よく取り込む。',
+  range:['CAN','RUS','GRL','NOR','USA'],focus:{c:[-30,74],z:1.8},
+  gbif:2433451,photo:'https://upload.wikimedia.org/wikipedia/commons/6/66/Polar_Bear_-_Alaska_%28cropped%29.jpg'},
+
+ {id:'penguin',nameJa:'コウテイペンギン',nameSci:'Aptenodytes forsteri',emoji:'🐧',taxon:'ペンギン科',biome:'極地',status:'NT',
+  stats:{size:'体高約1.2m',weight:'22–45kg',diet:'肉食（魚・イカ）',life:'15–20年'},
+  desc:'氷点下60℃のブリザードのなか、オスが足の上で卵を温め抜く。現生ペンギン最大種。',
+  range:['ATA'],focus:{c:[0,-74],z:2.1},
+  gbif:2481661,photo:'https://upload.wikimedia.org/wikipedia/commons/a/a3/Aptenodytes_forsteri_-Snow_Hill_Island%2C_Antarctica_-adults_and_juvenile-8.jpg'},
+
+ {id:'kangaroo',nameJa:'アカカンガルー',nameSci:'Osphranter rufus',emoji:'🦘',taxon:'カンガルー科',biome:'乾燥地',status:'LC',
+  stats:{size:'体長1–1.6m',weight:'55–90kg',diet:'草食',life:'12–18年'},
+  desc:'オーストラリア最大の有袋類。時速60kmで跳ね、乾いた大地を巧みに生き抜く。',
+  range:['AUS'],focus:{c:[134,-25],z:2.8},
+  gbif:12019022,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Red_kangaroo_-_melbourne_zoo.jpg/960px-Red_kangaroo_-_melbourne_zoo.jpg'},
+
+ {id:'panda',nameJa:'ジャイアントパンダ',nameSci:'Ailuropoda melanoleuca',emoji:'🐼',taxon:'クマ科',biome:'森林',status:'VU',
+  stats:{size:'体長1.2–1.8m',weight:'70–125kg',diet:'草食（竹）',life:'18–20年'},
+  desc:'一日の大半を竹を食べて過ごす。肉食の祖先をもつが、いまはほぼ竹だけで生きる、霧深い竹林の住人。',
+  range:['CHN'],focus:{c:[103,30],z:3.1},
+  gbif:2433399,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Grosser_Panda.JPG/960px-Grosser_Panda.JPG'},
+
+ {id:'tiger',nameJa:'トラ',nameSci:'Panthera tigris',emoji:'🐯',taxon:'ネコ科',biome:'森林',status:'EN',
+  stats:{size:'体長2.5–3.9m',weight:'90–310kg',diet:'肉食',life:'15–18年'},
+  desc:'現生最大のネコ科。一頭ごとに異なる縞模様をもち、単独で広大な縄張りを巡る森の王者。',
+  range:['IND','BGD','NPL','BTN','RUS','CHN','THA','MMR','MYS','IDN'],focus:{c:[96,18],z:2.5},
+  gbif:5219416,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg/960px-Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg'},
+
+ {id:'wolf',nameJa:'ハイイロオオカミ',nameSci:'Canis lupus',emoji:'🐺',taxon:'イヌ科',biome:'寒帯林',status:'LC',
+  stats:{size:'体長1–1.6m',weight:'30–60kg',diet:'肉食',life:'8–13年'},
+  desc:'群れ「パック」で連携して狩る、イヌの祖先。遠吠えで仲間と語り合い、北半球の森を駆ける。',
+  range:['CAN','USA','RUS','CHN','MNG','KAZ','FIN','SWE','NOR','POL'],focus:{c:[55,57],z:1.7},
+  gbif:5219173,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Eurasian_wolf_2.jpg/960px-Eurasian_wolf_2.jpg'},
+
+ {id:'jaguar',nameJa:'ジャガー',nameSci:'Panthera onca',emoji:'🐆',taxon:'ネコ科',biome:'熱帯雨林',status:'NT',
+  stats:{size:'体長1.1–1.9m',weight:'45–115kg',diet:'肉食',life:'12–15年'},
+  desc:'アメリカ大陸最大のネコ科。あごの力は全ネコ中最強で、獲物の頭骨さえ砕く。泳ぎも得意。',
+  range:['BRA','PER','COL','VEN','BOL','MEX','ARG','PRY','ECU'],focus:{c:[-60,-8],z:2.4},
+  gbif:5219426,photo:'https://upload.wikimedia.org/wikipedia/commons/0/0a/Standing_jaguar.jpg'},
+
+ {id:'snowleopard',nameJa:'ユキヒョウ',nameSci:'Panthera uncia',emoji:'🐆',taxon:'ネコ科',biome:'高山',status:'VU',
+  stats:{size:'体長1–1.3m',weight:'25–55kg',diet:'肉食',life:'15–18年'},
+  desc:'標高3000–5000mの高山に棲む「山の幽霊」。長い尾でバランスをとり、断崖を音もなく駆ける。',
+  range:['CHN','IND','NPL','BTN','PAK','AFG','KAZ','KGZ','TJK','MNG'],focus:{c:[80,36],z:2.9},
+  gbif:5787213,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Irbis4.JPG/960px-Irbis4.JPG'},
+
+ {id:'gorilla',nameJa:'ニシゴリラ',nameSci:'Gorilla gorilla',emoji:'🦍',taxon:'ヒト科',biome:'熱帯雨林',status:'CR',
+  stats:{size:'体高1.4–1.8m',weight:'70–230kg',diet:'草食（果実）',life:'35–40年'},
+  desc:'森の穏やかな巨人。家族「グループ」をシルバーバックが率いる。果実を好み、深い熱帯雨林に暮らす。',
+  range:['CMR','GAB','COG','GNQ','CAF','AGO'],focus:{c:[15,1],z:3.3},
+  gbif:2436441,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Male_gorilla_in_SF_zoo.jpg/960px-Male_gorilla_in_SF_zoo.jpg'},
+
+ {id:'koala',nameJa:'コアラ',nameSci:'Phascolarctos cinereus',emoji:'🐨',taxon:'コアラ科',biome:'森林',status:'VU',
+  stats:{size:'体長60–85cm',weight:'4–15kg',diet:'草食（ユーカリ）',life:'13–18年'},
+  desc:'一日20時間を眠って過ごす。毒のあるユーカリの葉だけを消化できる、特殊な体をもつ東オーストラリアの住人。',
+  range:['AUS'],focus:{c:[149,-31],z:3.4},
+  gbif:2440012,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Koala_climbing_tree.jpg/960px-Koala_climbing_tree.jpg'},
+
+ {id:'giraffe',nameJa:'キリン',nameSci:'Giraffa camelopardalis',emoji:'🦒',taxon:'キリン科',biome:'サバンナ',status:'VU',
+  stats:{size:'体高4.3–5.7m',weight:'800–1200kg',diet:'草食',life:'20–25年'},
+  desc:'地上で最も背が高い動物。長い首と紫色の舌で、とげのあるアカシアの葉を器用に食べる。',
+  range:['KEN','TZA','ZAF','BWA','NAM','ZMB','ZWE','ETH','SSD','TCD'],focus:{c:[32,-2],z:2.6},
+  gbif:2441205,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Rothschild%27s_giraffe_%28Giraffa_camelopardalis_rothschildi%29_-_Murchison_Falls_National_Park.jpg/960px-Rothschild%27s_giraffe_%28Giraffa_camelopardalis_rothschildi%29_-_Murchison_Falls_National_Park.jpg'},
+
+ {id:'cheetah',nameJa:'チーター',nameSci:'Acinonyx jubatus',emoji:'🐆',taxon:'ネコ科',biome:'サバンナ',status:'VU',
+  stats:{size:'体長1.1–1.5m',weight:'35–65kg',diet:'肉食',life:'10–12年'},
+  desc:'地上最速の動物。時速100km超で短距離を駆け抜けるが、持久力はなく狩りは一瞬の勝負。',
+  range:['KEN','TZA','ZAF','BWA','NAM','ZWE','ETH','IRN'],focus:{c:[25,-12],z:2.5},
+  gbif:2435270,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Male_cheetah_facing_left_in_South_Africa.jpg/960px-Male_cheetah_facing_left_in_South_Africa.jpg'},
+
+ {id:'zebra',nameJa:'サバンナシマウマ',nameSci:'Equus quagga',emoji:'🦓',taxon:'ウマ科',biome:'サバンナ',status:'NT',
+  stats:{size:'体長2–2.5m',weight:'230–450kg',diet:'草食',life:'20–30年'},
+  desc:'一頭ごとに異なる縞模様をもつ。大群でサバンナを移動し、縞は虫よけや体温調節にも役立つ。',
+  range:['KEN','TZA','ZAF','BWA','NAM','ZMB','ZWE'],focus:{c:[30,-10],z:2.8},
+  gbif:2440892,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Equus_quagga_burchellii_-_Etosha%2C_2014.jpg/960px-Equus_quagga_burchellii_-_Etosha%2C_2014.jpg'},
+
+ {id:'hippo',nameJa:'カバ',nameSci:'Hippopotamus amphibius',emoji:'🦛',taxon:'カバ科',biome:'サバンナ',status:'VU',
+  stats:{size:'体長3.3–5m',weight:'1.5–3.2t',diet:'草食',life:'40–50年'},
+  desc:'昼は水中で過ごし、夜に陸で草を食む。見た目に反し、アフリカ有数の危険動物として知られる。',
+  range:['KEN','TZA','ZMB','ZWE','UGA','MOZ','COD','ETH'],focus:{c:[32,-3],z:2.8},
+  gbif:2441247,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Portrait_Hippopotamus_in_the_water.jpg/960px-Portrait_Hippopotamus_in_the_water.jpg'},
+
+ {id:'orangutan',nameJa:'ボルネオオランウータン',nameSci:'Pongo pygmaeus',emoji:'🦧',taxon:'ヒト科',biome:'熱帯雨林',status:'CR',
+  stats:{size:'体高1.2–1.5m',weight:'30–90kg',diet:'草食（果実）',life:'35–45年'},
+  desc:'「森の人」を意味する樹上生活者。道具を使い、母子の絆が長く続く。森林減少で危機に瀕する。',
+  range:['IDN','MYS'],focus:{c:[113,0],z:3.6},
+  gbif:5219532,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Tanjung_Puting30477.jpg/960px-Tanjung_Puting30477.jpg'},
+
+ {id:'redpanda',nameJa:'レッサーパンダ',nameSci:'Ailurus fulgens',emoji:'🦝',taxon:'レッサーパンダ科',biome:'森林',status:'EN',
+  stats:{size:'体長50–65cm',weight:'3–6kg',diet:'草食（竹）',life:'8–14年'},
+  desc:'ヒマラヤの竹林にすむ赤い樹上動物。パンダの名をもつが独自の科に属す、単独行動の夕暮れ族。',
+  range:['NPL','IND','BTN','CHN','MMR'],focus:{c:[90,28],z:3.2},
+  gbif:5219446,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Red_Panda%2C_Gentle_Tree-Dweller_of_the_Himalayas.jpg/960px-Red_Panda%2C_Gentle_Tree-Dweller_of_the_Himalayas.jpg'},
+
+ {id:'komodo',nameJa:'コモドオオトカゲ',nameSci:'Varanus komodoensis',emoji:'🦎',taxon:'オオトカゲ科',biome:'乾燥地',status:'EN',
+  stats:{size:'体長2–3m',weight:'70–90kg',diet:'肉食',life:'約30年'},
+  desc:'現生最大のトカゲ。強力な噛みつきと毒で大型の獲物を倒す、インドネシアの島の頂点捕食者。',
+  range:['IDN'],focus:{c:[119,-8.6],z:4.2},
+  gbif:2470854,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/202306_Varanus_komodoensis.jpg/960px-202306_Varanus_komodoensis.jpg'},
+
+ {id:'bison',nameJa:'アメリカバイソン',nameSci:'Bison bison',emoji:'🦬',taxon:'ウシ科',biome:'草原',status:'NT',
+  stats:{size:'体長2–3.5m',weight:'360–1000kg',diet:'草食',life:'15–20年'},
+  desc:'北米最大の陸生動物。かつて数千万頭が大平原を覆った草原の象徴。絶滅寸前から復活した。',
+  range:['USA','CAN'],focus:{c:[-100,45],z:2.8},
+  gbif:2441176,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/American_bison_k5680-1.jpg/960px-American_bison_k5680-1.jpg'},
+
+ {id:'eagle',nameJa:'ハクトウワシ',nameSci:'Haliaeetus leucocephalus',emoji:'🦅',taxon:'タカ科',biome:'森林',status:'LC',
+  stats:{size:'翼開長1.8–2.3m',weight:'3–6.3kg',diet:'肉食（魚）',life:'20–30年'},
+  desc:'アメリカの国鳥。水辺で魚をさらう白い頭の猛禽。一度は激減したが保護で回復した成功例。',
+  range:['USA','CAN','MEX'],focus:{c:[-110,52],z:2.2},
+  gbif:2480446,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Bald_eagle_about_to_fly_in_Alaska_%282016%29.jpg/960px-Bald_eagle_about_to_fly_in_Alaska_%282016%29.jpg'},
+
+ {id:'anteater',nameJa:'オオアリクイ',nameSci:'Myrmecophaga tridactyla',emoji:'🐜',taxon:'アリクイ科',biome:'草原',status:'VU',
+  stats:{size:'体長1.8–2.2m',weight:'22–40kg',diet:'食虫',life:'14–16年'},
+  desc:'長い舌で一日に数万匹のアリやシロアリを舐め取る。歯をもたず、南米の草原と森を歩く。',
+  range:['BRA','ARG','PRY','BOL','COL','VEN','PER'],focus:{c:[-58,-15],z:2.6},
+  gbif:2436346,photo:'https://upload.wikimedia.org/wikipedia/commons/3/3b/Myresluger2.jpg'},
+
+ {id:'condor',nameJa:'アンデスコンドル',nameSci:'Vultur gryphus',emoji:'🪶',taxon:'コンドル科',biome:'高山',status:'VU',
+  stats:{size:'翼開長2.7–3.2m',weight:'11–15kg',diet:'腐肉食',life:'50–70年'},
+  desc:'世界最大級の飛ぶ鳥。アンデスの上昇気流に乗り、ほとんど羽ばたかずに数百kmを舞う。',
+  range:['ARG','CHL','PER','BOL','ECU','COL'],focus:{c:[-70,-30],z:2.8},
+  gbif:2481907,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/AndeanCondorMale.jpg/960px-AndeanCondorMale.jpg'},
+
+ {id:'otter',nameJa:'ラッコ',nameSci:'Enhydra lutris',emoji:'🦦',taxon:'イタチ科',biome:'海',status:'EN',
+  stats:{size:'体長1–1.5m',weight:'14–45kg',diet:'肉食（貝）',life:'10–20年'},
+  desc:'体毛の密度は動物界最高。腹の上で石を使い貝を割る、北太平洋の海に浮かぶ道具使い。',
+  range:['USA','RUS','CAN','JPN'],focus:{c:[-160,54],z:2.2},
+  gbif:2433670,photo:'https://upload.wikimedia.org/wikipedia/commons/0/02/Sea_Otter_%28Enhydra_lutris%29_%2825169790524%29_crop.jpg'},
+
+ {id:'whale',nameJa:'ザトウクジラ',nameSci:'Megaptera novaeangliae',emoji:'🐋',taxon:'ナガスクジラ科',biome:'海',status:'LC',
+  stats:{size:'体長12–16m',weight:'25–30t',diet:'肉食（オキアミ）',life:'45–100年'},
+  desc:'複雑な「歌」を歌う大型クジラ。大海原を数千km回遊し、豪快に海面へ跳ねる姿で知られる。',
+  range:['AUS','USA','JPN','NOR','ARG','ZAF','MEX','CAN','NZL'],focus:{c:[155,-22],z:1.7},
+  gbif:5220086,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Humpback_Whale_underwater_shot.jpg/960px-Humpback_Whale_underwater_shot.jpg'},
+
+ {id:'arcticfox',nameJa:'ホッキョクギツネ',nameSci:'Vulpes lagopus',emoji:'🦊',taxon:'イヌ科',biome:'極地',status:'LC',
+  stats:{size:'体長46–68cm',weight:'3–8kg',diet:'雑食',life:'3–6年'},
+  desc:'冬は純白、夏は褐色に衣替え。氷点下50℃にも耐える、極北のツンドラに生きる小さなキツネ。',
+  range:['CAN','RUS','GRL','NOR','USA','ISL','SWE','FIN'],focus:{c:[-40,72],z:1.9},
+  gbif:5219303,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Vulpes_lagopus_in_Iceland_%28cropped_3%29.jpg/960px-Vulpes_lagopus_in_Iceland_%28cropped_3%29.jpg'},
+
+ {id:'macaque',nameJa:'ニホンザル',nameSci:'Macaca fuscata',emoji:'🐒',taxon:'オナガザル科',biome:'森林',status:'LC',
+  stats:{size:'体長47–60cm',weight:'8–11kg',diet:'雑食',life:'22–27年'},
+  desc:'世界最北に暮らすサル。雪の中で温泉につかる姿で知られる、日本固有の賢い群れの動物。',
+  range:['JPN'],focus:{c:[138,37],z:4.2},
+  gbif:2436608,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Japanese_Snow_Monkey_%28Macaque%29_Mother_Grooms_Her_Young.jpg/960px-Japanese_Snow_Monkey_%28Macaque%29_Mother_Grooms_Her_Young.jpg'},
+
+ {id:'crane',nameJa:'タンチョウ',nameSci:'Grus japonensis',emoji:'🕊️',taxon:'ツル科',biome:'湿地',status:'VU',
+  stats:{size:'体高1.5–1.6m',weight:'7–10kg',diet:'雑食',life:'30–40年'},
+  desc:'純白に黒と赤をまとう「湿原の神」。雪原で翼を広げて舞う、つがいの求愛ダンスが有名。',
+  range:['JPN','CHN','RUS','KOR'],focus:{c:[134,44],z:3.4},
+  gbif:2474944,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Grus_japonensis_-Hokkaido%2C_Japan_-several-8_%281%29.jpg/960px-Grus_japonensis_-Hokkaido%2C_Japan_-several-8_%281%29.jpg'},
+];
+ANIMALS.forEach((a,i)=>a.no=i+1);
+
+/* ---------- データ層インターフェース（seam）---------- */
+const MockDataSource = {
+  listAnimals: async()=>ANIMALS,
+  getAnimal: async(id)=>ANIMALS.find(a=>a.id===id),
+  getAnimalsByCountry: async(iso)=>ANIMALS.filter(a=>a.range.includes(iso)),
+  getAnimalsByBiome: async(b)=>ANIMALS.filter(a=>a.biome===b),
+};
+const DATA = MockDataSource;   // ← 将来：GbifDataSource 等に差し替え
+
+/* 実データ層（GBIF）：学名→taxonKeyは取得済み。実観測タイルのURLを返す。 */
+function gbifTileURL(taxonKey){
+  return 'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png'
+       + '?srs=EPSG:3857&taxonKey=' + taxonKey
+       + '&bin=hex&hexPerTile=55&style=classic-noborder.poly';
+}
+
+/* ===================================================================== */
+const $=(s)=>document.querySelector(s);
+let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true;
+let gbifOn=true, currentAnimal=null, currentMode={type:'overview'};
+const SEEN = new Set(JSON.parse(localStorage.getItem('biosphere_seen')||'[]'));
+
+const map = window.map = new maplibregl.Map({
+  container:'map',
+  style:{version:8,
+    sources:{carto:{type:'raster',
+      tiles:['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png','https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png','https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png','https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'],
+      tileSize:256, attribution:'© OpenStreetMap © CARTO'}},
+    layers:[{id:'bg',type:'background',paint:{'background-color':'#070b11'}},
+      {id:'carto',type:'raster',source:'carto',paint:{'raster-opacity':.9,'raster-saturation':-.1,'raster-contrast':.05}}]},
+  center:[18,16], zoom:1.45, minZoom:.7, maxZoom:8, attributionControl:false, dragRotate:true, pitchWithRotate:false
+});
+map.addControl(new maplibregl.AttributionControl({compact:true, customAttribution:'観測点: GBIF.org'}), 'bottom-right');
+map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'bottom-right');
+
+map.on('load', async ()=>{
+  try{ map.setProjection({type:'globe'}); }catch(e){}
+  try{ map.setSky({'sky-color':'#0a1320','horizon-color':'#16324a','fog-color':'#070b11','sky-horizon-blend':.6,'horizon-fog-blend':.5,'fog-ground-blend':.7,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.85,4,.4,7,0]}); }catch(e){}
+  try{
+    const res=await fetch('https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson');
+    countryGeo=await res.json();
+  }catch(e){ bootFail('国境データを読み込めませんでした。'); return; }
+  const p0=countryGeo.features[0].properties;
+  CODE_PROP=['ADM0_A3','ISO_A3_EH','ISO_A3','iso_a3','adm0_a3'].find(k=>k in p0)||'ADM0_A3';
+
+  map.addSource('countries',{type:'geojson',data:countryGeo});
+  map.addLayer({id:'c-fill',type:'fill',source:'countries',paint:{'fill-color':'rgba(0,0,0,0)','fill-opacity':.72}});
+  map.addLayer({id:'c-glow',type:'line',source:'countries',layout:{'line-join':'round'},paint:{'line-color':'#34d8c6','line-width':7,'line-blur':6,'line-opacity':0}});
+  map.addLayer({id:'c-active',type:'line',source:'countries',paint:{'line-color':'#34d8c6','line-width':1.4,'line-opacity':0}});
+  map.addLayer({id:'c-hover',type:'line',source:'countries',paint:{'line-color':'#ffffff','line-width':1.1,'line-opacity':.55},filter:['==',['get',CODE_PROP],'__none__']});
+
+  mapReady=true; drawOverview(); bindMap(); updateDex();
+  $('#boot').classList.add('gone'); spinLoop();
+  toast('🌍','地球をドラッグして回せます。🎲で気ままに旅へ。',4200);
+});
+map.on('error',()=>{});
+
+/* ---------- 描画 ---------- */
+function setFill(expr){ if(mapReady) map.setPaintProperty('c-fill','fill-color',expr); }
+function clearActive(){
+  if(!mapReady)return;
+  map.setPaintProperty('c-active','line-opacity',0); map.setPaintProperty('c-glow','line-opacity',0);
+  map.setFilter('c-active',['==',['get',CODE_PROP],'__none__']); map.setFilter('c-glow',['==',['get',CODE_PROP],'__none__']);
+}
+function setActive(codes,color){
+  if(!mapReady)return;
+  const f=['in',['get',CODE_PROP],['literal',codes]];
+  map.setFilter('c-active',f); map.setFilter('c-glow',f);
+  map.setPaintProperty('c-active','line-color',color); map.setPaintProperty('c-glow','line-color',color);
+  map.setPaintProperty('c-active','line-opacity',.95); map.setPaintProperty('c-glow','line-opacity',.55);
+}
+function removeGbif(){ if(!mapReady)return; if(map.getLayer('gbif'))map.removeLayer('gbif'); if(map.getSource('gbif'))map.removeSource('gbif'); }
+function addGbif(key){
+  if(!mapReady)return; removeGbif();
+  map.addSource('gbif',{type:'raster',tiles:[gbifTileURL(key)],tileSize:512,attribution:'観測点: GBIF.org'});
+  map.addLayer({id:'gbif',type:'raster',source:'gbif',paint:{'raster-opacity':.92,'raster-resampling':'linear'}},'c-glow');
+}
+
+function drawOverview(){
+  currentMode={type:'overview'}; currentAnimal=null; removeGbif();
+  const count={}; ANIMALS.forEach(a=>a.range.forEach(c=>count[c]=(count[c]||0)+1));
+  const max=Math.max(1,...Object.values(count)); const pairs=[];
+  Object.entries(count).forEach(([c,n])=>pairs.push(c,heatColor(n/max)));
+  setFill(['match',['get',CODE_PROP],...pairs,'rgba(0,0,0,0)']); clearActive();
+  setMode('世界ぜんたいの分布ヒートマップ');
+}
+function heatColor(t){
+  const stops=[[0,[26,74,60]],[.5,[33,170,140]],[1,[242,193,78]]];
+  for(let i=0;i<stops.length-1;i++){const [t0,c0]=stops[i],[t1,c1]=stops[i+1];
+    if(t<=t1){const k=(t-t0)/(t1-t0||1);
+      return `rgba(${Math.round(c0[0]+(c1[0]-c0[0])*k)},${Math.round(c0[1]+(c1[1]-c0[1])*k)},${Math.round(c0[2]+(c1[2]-c0[2])*k)},.82)`;}}
+  return 'rgba(242,193,78,.85)';
+}
+function paintAnimal(a){
+  const col=RARITY[a.status].color;
+  const fillA = gbifOn ? .28 : .7;   // GBIF表示時は国塗りを控えめにして実データを主役に
+  setFill(['case',['in',['get',CODE_PROP],['literal',a.range]],hexA(col,fillA),'rgba(0,0,0,0)']);
+  setActive(a.range,col);
+  if(gbifOn && a.gbif) addGbif(a.gbif); else removeGbif();
+}
+function paintBiome(b){
+  removeGbif();
+  const set=new Set(); ANIMALS.filter(a=>a.biome===b).forEach(a=>a.range.forEach(c=>set.add(c)));
+  const codes=[...set]; const col=BIOMES[b]?BIOMES[b].g[0]:'#34d8c6';
+  setFill(['case',['in',['get',CODE_PROP],['literal',codes]],hexA(col,.6),'rgba(0,0,0,0)']); setActive(codes,col);
+}
+function paintCountry(code){
+  removeGbif();
+  setFill(['case',['==',['get',CODE_PROP],code],'rgba(52,216,198,.45)','rgba(0,0,0,0)']); setActive([code],'#34d8c6');
+}
+function flyTo(c,z){ stopSpin(); map.flyTo({center:c,zoom:z,speed:.85,curve:1.5,essential:true}); }
+function hexA(hex,a){const n=hex.replace('#','');return `rgba(${parseInt(n.slice(0,2),16)},${parseInt(n.slice(2,4),16)},${parseInt(n.slice(4,6),16)},${a})`;}
+function spinLoop(){ if(!spinning)return; const c=map.getCenter(); c.lng-=0.12; map.setCenter(c); requestAnimationFrame(spinLoop); }
+function stopSpin(){ spinning=false; }
+['mousedown','touchstart','wheel','dragstart'].forEach(ev=>map.on(ev,stopSpin));
+
+/* ---------- UI構築 ---------- */
+const chipsEl=$('#chips'), biomesEl=$('#biomes'), legendEl=$('#legend');
+function avatar(a,cls=''){
+  const g=BIOMES[a.biome]?BIOMES[a.biome].g:['#1b3a43','#0d1b22'];
+  return `<span class="av ${cls}" style="background:linear-gradient(140deg,${g[0]},${g[1]})"><span>${a.emoji}</span>`
+    +`<img class="ph" loading="lazy" src="${a.photo}" alt="" onload="this.classList.add('loaded')" onerror="this.remove()"></span>`;
+}
+ANIMALS.forEach((a,i)=>{
+  const b=document.createElement('button');
+  b.className='chip'+(SEEN.has(a.id)?' is-seen':''); b.style.animationDelay=(i*22)+'ms';
+  b.setAttribute('aria-pressed','false'); b.dataset.id=a.id; b.dataset.biome=a.biome;
+  b.dataset.q=(a.nameJa+' '+a.nameSci+' '+a.taxon+' '+a.biome).toLowerCase();
+  b.innerHTML=avatar(a)+`<span class="meta"><span class="n">${a.nameJa}</span><span class="s">${a.nameSci}</span></span>`
+    +`<span class="rk" style="background:${RARITY[a.status].color};box-shadow:0 0 8px ${RARITY[a.status].color}"></span>`
+    +`<span class="seen">✓</span>`;
+  b.onclick=()=>selectAnimal(a.id);
+  chipsEl.appendChild(b);
+});
+Object.keys(BIOMES).forEach(bm=>{
+  const b=document.createElement('button');
+  b.className='bm'; b.setAttribute('aria-pressed','false'); b.dataset.bm=bm;
+  b.innerHTML=`<span class="e">${BIOMES[bm].e}</span>${bm}`; b.onclick=()=>selectBiome(bm);
+  biomesEl.appendChild(b);
+});
+const allBtn=document.createElement('button'); allBtn.className='bm'; allBtn.innerHTML='✺ ぜんぶ'; allBtn.onclick=resetAll; biomesEl.appendChild(allBtn);
+(function(){
+  const used=[...new Set(ANIMALS.map(a=>a.status))].sort((a,b)=>'LC NT VU EN CR DD'.indexOf(a)-'LC NT VU EN CR DD'.indexOf(b));
+  used.forEach(s=>{const r=RARITY[s];const d=document.createElement('div');d.className='lr';d.style.color=r.color;
+    d.innerHTML=`<span class="sw" style="background:${r.color}"></span><b>${r.rank}</b><span style="margin-left:auto;color:var(--muted-2)">${s}</span>`;legendEl.appendChild(d);});
+  const f=document.createElement('div');f.className='lf';f.innerHTML='地図の<b>黄〜赤のメッシュ</b>は GBIF の実観測地点（数百万件）。🛰️で表示切替。';legendEl.appendChild(f);
+})();
+
+/* ---------- セレクション ---------- */
+function pressChip(id){ chipsEl.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.id===id?'true':'false')); }
+function pressBiome(bm){ biomesEl.querySelectorAll('.bm').forEach(c=>c.setAttribute('aria-pressed',c.dataset.bm===bm?'true':'false')); }
+function filterChips(bm){ chipsEl.querySelectorAll('.chip').forEach(c=>{c.style.display=(!bm||c.dataset.biome===bm)?'':'none';}); }
+function markSeen(id){ if(!SEEN.has(id)){ SEEN.add(id); localStorage.setItem('biosphere_seen',JSON.stringify([...SEEN])); const ch=chipsEl.querySelector(`.chip[data-id="${id}"]`); if(ch)ch.classList.add('is-seen'); updateDex(); } }
+function updateDex(){ const n=SEEN.size,t=ANIMALS.length; $('#dexNum').textContent=`${n}/${t}`; $('#dex').querySelector('.ring').style.setProperty('--p',Math.round(n/t*100)); $('#dexEmoji').textContent=n>=t?'🏆':(n>0?'🐾':'🧭'); }
+
+async function selectAnimal(id){
+  const a=await DATA.getAnimal(id); if(!a)return;
+  currentMode={type:'animal',id}; currentAnimal=a;
+  pressChip(id); pressBiome(null); filterChips(null);
+  paintAnimal(a); flyTo(a.focus.c,a.focus.z); renderAnimalCard(a); markSeen(id);
+  setMode(`${a.emoji} ${a.nameJa} の分布（${a.range.length}地域）${gbifOn?' ・GBIF実データ':''}`);
+}
+async function selectBiome(bm){
+  currentMode={type:'biome',bm}; currentAnimal=null;
+  pressBiome(bm); pressChip(null); filterChips(bm); paintBiome(bm); closePanel();
+  const list=await DATA.getAnimalsByBiome(bm);
+  setMode(`${BIOMES[bm].e} ${bm} の住人 ${list.length}種`);
+  if(list[0]) flyTo(list[0].focus.c, Math.max(1.6,list[0].focus.z-0.8));
+}
+async function showCountry(code){
+  if(!code)return; currentMode={type:'country',code}; currentAnimal=null; pressChip(null);
+  const animals=await DATA.getAnimalsByCountry(code); paintCountry(code); renderCountryCard(code,animals);
+  setMode(`${ccFlag(code)} ${ccName(code)} に棲むいきもの`);
+}
+function resetAll(){ pressChip(null); pressBiome(null); filterChips(null); closePanel(); drawOverview();
+  map.flyTo({center:[18,16],zoom:1.45,speed:.7,curve:1.5,essential:true}); }
+function explore(){
+  // まだ見ていない種を優先してランダムに（全部見たら全体から）
+  const pool = ANIMALS.filter(a=>!SEEN.has(a.id));
+  const from = pool.length ? pool : ANIMALS;
+  const pick = from[Math.floor(Math.random()*from.length)];
+  toast('🎲', `気ままに ${pick.nameJa} の世界へ…`, 2200);
+  selectAnimal(pick.id);
+}
+
+/* ---------- パネル ---------- */
+const panelEl=$('#panel');
+function openPanel(){ panelEl.classList.add('open'); }
+function closePanel(){ panelEl.classList.remove('open'); }
+function renderAnimalCard(a){
+  const r=RARITY[a.status], g=BIOMES[a.biome]?BIOMES[a.biome].g:['#1b3a43','#0d1b22'];
+  panelEl.innerHTML=`
+    <button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button>
+    <div class="grab"></div>
+    <div class="hero" style="background:linear-gradient(140deg,${g[0]},${g[1]})">
+      <div class="emojibg">${a.emoji}</div>
+      <img class="bgph" src="${a.photo}" alt="${a.nameJa}" onload="this.classList.add('loaded')" onerror="this.remove()">
+      <div class="scrim"></div>
+      <div class="no">№ ${String(a.no).padStart(3,'0')}</div>
+      <div class="htext"><div class="nm">${a.nameJa}</div><div class="sci">${a.nameSci}</div></div>
+    </div>
+    <div class="pbody">
+      <div class="row1"><span class="tax">🧬 ${a.taxon}</span><span class="tax">${BIOMES[a.biome].e} ${a.biome}</span></div>
+      <div class="rare" style="background:${hexA(r.color,.1)}">
+        <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
+        <span class="gem" style="color:${r.color}">${r.gem}</span><span class="rk" style="color:${r.color}">${r.rank}</span>
+        <span class="iucn"><span class="code" style="background:${r.color}">${a.status}</span><span class="jp">${r.jp}・${r.en}</span></span>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="k">📏 大きさ</div><div class="v">${a.stats.size}</div></div>
+        <div class="stat"><div class="k">⚖️ 体重</div><div class="v">${a.stats.weight}</div></div>
+        <div class="stat"><div class="k">🍖 食性</div><div class="v">${a.stats.diet}</div></div>
+        <div class="stat"><div class="k">⏳ 寿命</div><div class="v">${a.stats.life}</div></div>
+      </div>
+      <div class="flavor">${a.desc}</div>
+      <div class="seclab">生息地 — ${a.range.length}地域 <span class="ln"></span></div>
+      <div class="geos">${a.range.map(c=>`<button class="geo" onclick="showCountry('${c}')"><span class="fl">${ccFlag(c)}</span>${ccName(c)}</button>`).join('')}</div>
+      <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝GBIFの実観測地点（${a.nameSci}）。だれかが実際にこの生きものを見た場所です。</div>
+    </div>`;
+  openPanel();
+}
+function renderCountryCard(code,animals){
+  const rows=animals.length? animals.map(a=>{const r=RARITY[a.status];
+    return `<button class="cc-item" onclick="selectAnimal('${a.id}')">${avatar(a)}
+      <span class="info"><span class="n">${a.nameJa}</span><span class="s">${a.nameSci}</span></span>
+      <span class="rkbadge" style="background:${r.color}">${r.rank}</span></button>`;}).join('')
+    : `<div class="cc-empty">サンプル${ANIMALS.length}種ではこの地域に登録がありません。<br>実データ層（<b>GBIF</b>）に繋げば、その土地のいきものをまるごと拾えます。</div>`;
+  panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
+    <div class="cc-head"><div class="lbl">この土地に棲む</div>
+      <div class="cname"><span class="cflag">${ccFlag(code)}</span>${ccName(code)}</div>
+      <div class="cnt">${animals.length?`${animals.length}種が確認されています`:'登録なし'}</div></div>
+    <div class="cc-list">${rows}</div>`;
+  openPanel();
+}
+window.closePanel=closePanel; window.showCountry=showCountry; window.selectAnimal=selectAnimal;
+
+/* ---------- 地図インタラクション ---------- */
+function bindMap(){
+  map.on('click','c-fill',(e)=>showCountry(e.features[0].properties[CODE_PROP]));
+  map.on('click',(e)=>{ if(!map.queryRenderedFeatures(e.point,{layers:['c-fill']}).length) closePanel(); });
+  const tip=$('#maptip');
+  map.on('mousemove','c-fill',(e)=>{
+    const f=e.features[0], code=f.properties[CODE_PROP];
+    map.setFilter('c-hover',['==',['get',CODE_PROP],code]); map.getCanvas().style.cursor='pointer';
+    const name=f.properties.NAME_JA||(CC[code]?CC[code][0]:null)||f.properties.NAME||f.properties.ADMIN||code;
+    const here=ANIMALS.filter(a=>a.range.includes(code));
+    tip.innerHTML=`${ccFlag(code)} ${name}`+(here.length?`<span class="sub">${here.map(a=>a.emoji).join(' ')} ${here.length}種</span>`:`<span class="sub">サンプル登録なし</span>`);
+    tip.classList.add('show');
+  });
+  map.on('mousemove',(e)=>{const t=$('#maptip');t.style.left=(e.originalEvent.clientX+14)+'px';t.style.top=(e.originalEvent.clientY+14)+'px';});
+  map.on('mouseleave','c-fill',()=>{ map.setFilter('c-hover',['==',['get',CODE_PROP],'__none__']); map.getCanvas().style.cursor=''; $('#maptip').classList.remove('show'); });
+}
+
+/* ---------- ツール ---------- */
+$('#search').addEventListener('input',(e)=>{const q=e.target.value.trim().toLowerCase();
+  chipsEl.querySelectorAll('.chip').forEach(c=>{c.style.display=(!q||c.dataset.q.includes(q))?'':'none';});});
+let isGlobe=true;
+$('#globeBtn').addEventListener('click',()=>{ isGlobe=!isGlobe; try{ map.setProjection({type:isGlobe?'globe':'mercator'}); }catch(e){}
+  $('#globeBtn').setAttribute('aria-pressed',String(isGlobe)); $('#globeBtn').textContent=isGlobe?'🌐':'🗺️'; toast(isGlobe?'🌐':'🗺️',isGlobe?'地球儀表示':'平面表示',1500);});
+$('#gbifBtn').addEventListener('click',()=>{ gbifOn=!gbifOn; $('#gbifBtn').setAttribute('aria-pressed',String(gbifOn));
+  toast('🛰️', gbifOn?'GBIF実観測データ：ON':'実観測データ：OFF（手描き分布）',1900);
+  if(currentAnimal) paintAnimal(currentAnimal); else removeGbif();
+  if(currentAnimal) setMode(`${currentAnimal.emoji} ${currentAnimal.nameJa} の分布（${currentAnimal.range.length}地域）${gbifOn?' ・GBIF実データ':''}`);});
+$('#exploreBtn').addEventListener('click',explore);
+$('#homeBtn').addEventListener('click',resetAll);
+$('#dex').addEventListener('click',()=>{ const t=ANIMALS.length,n=SEEN.size; toast(n>=t?'🏆':'🧭', n>=t?'図鑑コンプリート！全種を旅しました':`図鑑 ${n}/${t} 種を発見。🎲で続きを旅しよう`,2600); });
+
+function setMode(t){ $('#modetext').textContent=t; }
+let toastT; function toast(e,msg,ms=2600){const t=$('#toast');t.innerHTML=`<span class="e">${e}</span>${msg}`;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms);}
+function bootFail(msg){$('#boot').innerHTML=`<div class="bootwrap"><div style="font-size:40px">📡</div><div class="bt" style="margin-top:14px">読み込みエラー</div><div class="bs" style="max-width:280px;line-height:1.6">${msg}<br>ネット接続を確認して再読み込みしてください。</div></div>`;}
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') closePanel(); });
+</script>
+</body>
+</html>
