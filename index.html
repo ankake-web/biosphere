@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>BIOSPHERE — 世界いきもの分布アトラス</title>
 <meta name="description" content="世界の生きものの分布を地球儀で旅する。GBIFの実観測データで本物の分布を、図鑑で詳細を。" />
 <meta property="og:title" content="BIOSPHERE — 世界いきもの分布アトラス" />
@@ -36,6 +36,8 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);co
   -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;}
 button{font-family:inherit;cursor:pointer;}
 ::selection{background:var(--teal);color:#04201d;}
+/* アクセシビリティ：キーボード操作時の可視フォーカスリング（要素ごとの指定が無いものへ既定を付与） */
+:where(button,a,input,select,[tabindex],.maplibregl-ctrl button):focus-visible{outline:2px solid var(--teal);outline-offset:2px;border-radius:8px;}
 
 #map{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 0%, #0d1726 0%, #070b11 70%);}
 #vignette{position:fixed;inset:0;pointer-events:none;z-index:2;
@@ -278,7 +280,7 @@ button{font-family:inherit;cursor:pointer;}
     <div class="t"><b>BIOSPHERE</b><span>いきもの分布アトラス</span></div>
   </div>
   <div class="spacer"></div>
-  <div class="dex" id="dex" title="図鑑コンプ率">
+  <div class="dex" id="dex" title="図鑑コンプ率" role="button" tabindex="0" aria-label="図鑑コンプリート率">
     <div class="ring"><i id="dexEmoji">🧭</i></div>
     <div class="lab"><b id="dexNum">0/92</b><span>図鑑</span></div>
   </div>
@@ -1407,6 +1409,7 @@ $('#exploreBtn').addEventListener('click',explore);
 $('#homeBtn').addEventListener('click',resetAll);
 $('#yearSlider').addEventListener('input',(e)=>applyYear(+e.target.value));
 $('#dex').addEventListener('click',()=>{ const t=ANIMALS.length,n=SEEN.size; toast(n>=t?'🏆':'🧭', n>=t?'図鑑コンプリート！全種を旅しました':`図鑑 ${n}/${t} 種を発見。🎲で続きを旅しよう`,2600); });
+$('#dex').addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#dex').click(); } });
 
 function setMode(t){ $('#modetext').textContent=t; }
 let toastT; function toast(e,msg,ms=2600){const t=$('#toast');t.innerHTML=`<span class="e">${e}</span>${msg}`;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms);}
