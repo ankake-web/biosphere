@@ -6,13 +6,13 @@
 <title>BIOSPHERE — 世界いきもの分布アトラス</title>
 <meta name="description" content="世界の生きものの分布を地球儀で旅する。GBIFの実観測データで本物の分布を、図鑑で詳細を。" />
 <meta property="og:title" content="BIOSPHERE — 世界いきもの分布アトラス" />
-<meta property="og:description" content="地球儀でGBIFの実観測データの動物分布を旅する。82種の図鑑、ズームで細密化する詳細分布。" />
+<meta property="og:description" content="地球儀でGBIFの実観測データの動物分布を旅する。92種の図鑑、ズームで細密化する詳細分布。" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://ankake-web.github.io/biosphere/" />
 <meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg/1200px-020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="BIOSPHERE — 世界いきもの分布アトラス" />
-<meta name="twitter:description" content="地球儀でGBIFの実観測データの動物分布を旅する。82種の図鑑。" />
+<meta name="twitter:description" content="地球儀でGBIFの実観測データの動物分布を旅する。92種の図鑑。" />
 
 <link href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
@@ -280,7 +280,7 @@ button{font-family:inherit;cursor:pointer;}
   <div class="spacer"></div>
   <div class="dex" id="dex" title="図鑑コンプ率">
     <div class="ring"><i id="dexEmoji">🧭</i></div>
-    <div class="lab"><b id="dexNum">0/82</b><span>図鑑</span></div>
+    <div class="lab"><b id="dexNum">0/92</b><span>図鑑</span></div>
   </div>
   <div class="search">
     <span class="ic">🔍</span>
@@ -369,7 +369,7 @@ const POP = {
 const popOf = (a)=>(a&&a.pop)||(a&&POP[a.id])||'データ不足';
 // 個体数トレンド（↑増加/↓減少/→横ばい/–不明）。回復種だけ明示し、他はIUCN状況から導出。
 const TREND_UP=['panda','tiger','eagle','bison','alligator','whale','beaver','galapagostortoise','otter','raccoon','arabianoryx','przewalski','whiterhino'];
-const TREND_DOWN=['monarch'];
+const TREND_DOWN=['monarch','firefly'];
 function trendOf(a){
   if(TREND_UP.includes(a.id)) return 'up';
   if(TREND_DOWN.includes(a.id)) return 'down';
@@ -939,6 +939,66 @@ const ANIMALS = [
   desc:'オスが鮮やかな飾り羽を扇状に広げて求愛する。南アジアの森の宝石。',
   range:['IND','LKA','NPL'],focus:{c:[78,20],z:3.0},
   gbif:9451184,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Peacock_on_tree_%2852077240794%29.jpg/960px-Peacock_on_tree_%2852077240794%29.jpg'},
+
+ {id:'octopus',nameJa:'ミズダコ',nameSci:'Enteroctopus dofleini',emoji:'🐙',taxon:'タコ科',biome:'海',status:'LC',pop:'安定（数は不明）',
+  stats:{size:'腕長3–5m',weight:'10–50kg',diet:'肉食',life:'3–5年'},
+  desc:'世界最大のタコ。北太平洋の冷たい海にすみ、高い知能と巧みな擬態で知られる軟体動物。',
+  range:['JPN','USA','RUS','CAN','KOR'],focus:{c:[160,45],z:1.9},
+  gbif:2289485,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Enteroctopus_dolfeini.jpg/960px-Enteroctopus_dolfeini.jpg'},
+
+ {id:'nautilus',nameJa:'オウムガイ',nameSci:'Nautilus pompilius',emoji:'🐚',taxon:'オウムガイ科',biome:'海',status:'DD',pop:'評価困難（殻目的で乱獲）',
+  stats:{size:'殻径16–20cm',weight:'1–1.3kg',diet:'肉食',life:'約20年'},
+  desc:'数億年すがたを変えない“生きた化石”。らせんの殻に空気をため、深海を漂う頭足類。',
+  range:['PHL','IDN','AUS','PNG'],focus:{c:[125,-5],z:2.2},
+  gbif:2289202,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Nautilus_pompilius_%28detail%29.jpg/960px-Nautilus_pompilius_%28detail%29.jpg'},
+
+ {id:'spidercrab',nameJa:'タカアシガニ',nameSci:'Macrocheira kaempferi',emoji:'🦀',taxon:'クモガニ科',biome:'海',status:'LC',pop:'安定（数は不明）',
+  stats:{size:'脚を広げ最大3.8m',weight:'最大19kg',diet:'雑食',life:'最大100年'},
+  desc:'脚を広げると4m近い世界最大の節足動物。日本近海の深海底をゆっくり歩く。',
+  range:['JPN'],focus:{c:[138,34],z:3.6},
+  gbif:5729749,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Macrocheira_kaempferi.jpg/960px-Macrocheira_kaempferi.jpg'},
+
+ {id:'honeybee',nameJa:'セイヨウミツバチ',nameSci:'Apis mellifera',emoji:'🐝',taxon:'ミツバチ科',biome:'草原',status:'DD',pop:'管理下に多数（野生は不明）',
+  stats:{size:'体長12–15mm',weight:'約0.1g',diet:'植食（花蜜・花粉）',life:'働き蜂 約6週'},
+  desc:'花を受粉させ、人類の食を支える送粉者。高度な社会をもち、ダンスで蜜源を伝える。',
+  range:['ESP','ITA','DEU','GRC','TUR','ZAF','USA'],focus:{c:[15,40],z:1.8},
+  gbif:1341976,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Apis_mellifera_Western_honey_bee.jpg/960px-Apis_mellifera_Western_honey_bee.jpg'},
+
+ {id:'firefly',nameJa:'ゲンジボタル',nameSci:'Luciola cruciata',emoji:'🪲',taxon:'ホタル科',biome:'湿地',status:'LC',pop:'局所的に減少',
+  stats:{size:'体長12–18mm',weight:'数十mg',diet:'幼虫は肉食（カワニナ）',life:'成虫 約2週'},
+  desc:'清流に舞い、淡い光で愛を語る日本のホタル。きれいな水でしか育たない指標生物。',
+  range:['JPN'],focus:{c:[135,35],z:4.2},
+  gbif:6990480,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Luciola_cruciata.jpg/960px-Luciola_cruciata.jpg'},
+
+ {id:'baobab',nameJa:'グランディディエバオバブ',nameSci:'Adansonia grandidieri',emoji:'🌳',taxon:'アオイ科',biome:'乾燥地',status:'EN',pop:'成木は減少（再生困難）',
+  stats:{size:'高さ25–30m',weight:'—',diet:'独立栄養（光合成）',life:'1,000年以上'},
+  desc:'幹に水をたくわえる“逆さの木”。マダガスカルのバオバブ並木で有名な巨木。',
+  range:['MDG'],focus:{c:[44,-20],z:4.2},
+  gbif:5663154,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Adansonia_grandidieri04.jpg/960px-Adansonia_grandidieri04.jpg'},
+
+ {id:'sequoia',nameJa:'セコイアデンドロン',nameSci:'Sequoiadendron giganteum',emoji:'🌲',taxon:'ヒノキ科',biome:'森林',status:'EN',pop:'野生 約8万本（限られた林分）',
+  stats:{size:'高さ50–85m',weight:'最大1,200t',diet:'独立栄養（光合成）',life:'3,000年以上'},
+  desc:'体積で地球最大の生物。シエラネバダの限られた山地林にそびえる巨大樹。',
+  range:['USA'],focus:{c:[-118.7,36.5],z:4.6},
+  gbif:2684120,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Grizzly_Giant_Mariposa_Grove.jpg/960px-Grizzly_Giant_Mariposa_Grove.jpg'},
+
+ {id:'rafflesia',nameJa:'ラフレシア',nameSci:'Rafflesia arnoldii',emoji:'🌺',taxon:'ラフレシア科',biome:'熱帯雨林',status:'EN',pop:'希少（生息地破壊で激減）',
+  stats:{size:'花径 最大1m',weight:'最大11kg',diet:'寄生植物',life:'花は数日'},
+  desc:'世界最大の花。葉も茎もなくつるに寄生し、肉の腐ったような匂いで虫を呼ぶ。',
+  range:['IDN','MYS'],focus:{c:[101,-1],z:3.8},
+  gbif:7279683,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Rafflesia_arnoldii%2C_Sumatra.jpg/960px-Rafflesia_arnoldii%2C_Sumatra.jpg'},
+
+ {id:'echidna',nameJa:'ハリモグラ',nameSci:'Tachyglossus aculeatus',emoji:'🦔',taxon:'ハリモグラ科',biome:'森林',status:'LC',pop:'安定（広く分布）',
+  stats:{size:'体長30–45cm',weight:'2–7kg',diet:'食虫（アリ・シロアリ）',life:'最大50年'},
+  desc:'卵を産む数少ない哺乳類（単孔類）。針に覆われ、長い舌でアリを食べる。',
+  range:['AUS','PNG'],focus:{c:[134,-25],z:2.6},
+  gbif:2433378,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Wild_shortbeak_echidna.jpg/960px-Wild_shortbeak_echidna.jpg'},
+
+ {id:'wombat',nameJa:'ウォンバット',nameSci:'Vombatus ursinus',emoji:'🦡',taxon:'ウォンバット科',biome:'草原',status:'LC',pop:'安定',
+  stats:{size:'体長0.9–1.2m',weight:'22–39kg',diet:'草食',life:'15–20年'},
+  desc:'四角いフンをする穴掘りの名手。がっしりした体のオーストラリアの有袋類。',
+  range:['AUS'],focus:{c:[148,-37],z:4.0},
+  gbif:2440301,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Vombatus_ursinus_-Maria_Island_National_Park.jpg/960px-Vombatus_ursinus_-Maria_Island_National_Park.jpg'},
 ];
 ANIMALS.forEach((a,i)=>a.no=i+1);
 
