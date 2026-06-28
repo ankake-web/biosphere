@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>BIOSPHERE — 世界いきもの分布アトラス</title>
 <meta name="description" content="世界の生きものの分布を地球儀で旅する。GBIFの実観測データで本物の分布を、図鑑で詳細を。" />
+<meta property="og:title" content="BIOSPHERE — 世界いきもの分布アトラス" />
+<meta property="og:description" content="地球儀でGBIFの実観測データの動物分布を旅する。60種の図鑑、ズームで細密化する詳細分布。" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://ankake-web.github.io/biosphere/" />
+<meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg/1200px-020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="BIOSPHERE — 世界いきもの分布アトラス" />
+<meta name="twitter:description" content="地球儀でGBIFの実観測データの動物分布を旅する。60種の図鑑。" />
 
 <link href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
@@ -198,6 +206,10 @@ button{font-family:inherit;cursor:pointer;}
 .locrow:hover{background:rgba(255,176,46,.14);border-color:rgba(255,176,46,.4);}
 .locrow .ln2{font-style:italic;font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .locrow .cnt2{font-size:11px;font-weight:700;color:#ffb02e;white-space:nowrap;}
+.locrow .locav{width:30px;height:30px;border-radius:8px;flex:0 0 auto;display:grid;place-items:center;font-size:14px;overflow:hidden;background:rgba(255,255,255,.06);}
+.locrow .locav img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s;}
+.pshare{cursor:pointer;}
+.pshare:hover{border-color:var(--teal);color:#fff;background:rgba(52,216,198,.12);}
 
 .legend{position:fixed;z-index:14;left:14px;bottom:188px;background:var(--glass);border:1px solid var(--line);border-radius:13px;padding:11px 13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);max-width:210px;}
 .legend .lt{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin-bottom:8px;}
@@ -241,7 +253,7 @@ button{font-family:inherit;cursor:pointer;}
   <div class="spacer"></div>
   <div class="dex" id="dex" title="図鑑コンプ率">
     <div class="ring"><i id="dexEmoji">🧭</i></div>
-    <div class="lab"><b id="dexNum">0/50</b><span>図鑑</span></div>
+    <div class="lab"><b id="dexNum">0/60</b><span>図鑑</span></div>
   </div>
   <div class="search">
     <span class="ic">🔍</span>
@@ -330,7 +342,8 @@ const CC = {
   PAN:['パナマ','🇵🇦'],NIC:['ニカラグア','🇳🇮'],ESP:['スペイン','🇪🇸'],PRT:['ポルトガル','🇵🇹'],
   ARE:['アラブ首長国連邦','🇦🇪'],ITA:['イタリア','🇮🇹'],GRC:['ギリシャ','🇬🇷'],NLD:['オランダ','🇳🇱'],
   TUR:['トルコ','🇹🇷'],PHL:['フィリピン','🇵🇭'],ATF:['仏領南方・南極','🇹🇫'],GBR:['イギリス','🇬🇧'],
-  FLK:['フォークランド諸島','🇫🇰'],
+  FLK:['フォークランド諸島','🇫🇰'],CHE:['スイス','🇨🇭'],ROU:['ルーマニア','🇷🇴'],
+  DZA:['アルジェリア','🇩🇿'],TUN:['チュニジア','🇹🇳'],
 };
 const ccName=(c)=>CC[c]?CC[c][0]:c;
 const ccFlag=(c)=>CC[c]?CC[c][1]:'📍';
@@ -636,6 +649,66 @@ const ANIMALS = [
   desc:'翼が退化した飛べない夜行性の鳥。長いくちばしの先の鼻で地中の虫を探す。',
   range:['NZL'],focus:{c:[175,-39],z:4.4},
   gbif:2495144,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/TeTuatahianui.jpg/960px-TeTuatahianui.jpg'},
+
+ {id:'redfox',nameJa:'アカギツネ',nameSci:'Vulpes vulpes',emoji:'🦊',taxon:'イヌ科',biome:'森林',status:'LC',
+  stats:{size:'体長46–90cm',weight:'3–14kg',diet:'雑食',life:'3–5年'},
+  desc:'北半球に最も広く分布する食肉類。都市から極北まで、賢く順応して暮らす。',
+  range:['CHE','ESP','GBR','AUS','NLD','USA','DEU','DNK','SWE','ISR'],focus:{c:[10,55],z:1.7},
+  gbif:5219243,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Portrait_of_a_red_fox_in_Rautas_fj%C3%A4llurskog_%28cropped%29.jpg/960px-Portrait_of_a_red_fox_in_Rautas_fj%C3%A4llurskog_%28cropped%29.jpg'},
+
+ {id:'brownbear',nameJa:'ヒグマ',nameSci:'Ursus arctos',emoji:'🐻',taxon:'クマ科',biome:'寒帯林',status:'LC',
+  stats:{size:'体長1.4–2.8m',weight:'80–600kg',diet:'雑食',life:'20–30年'},
+  desc:'北半球の森と山に広く分布する大型のクマ。川でサケを獲り、冬は冬眠する。',
+  range:['USA','SWE','CAN','RUS','EST','JPN','ESP','ROU','UKR'],focus:{c:[80,58],z:1.7},
+  gbif:2433433,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/2010-kodiak-bear-1.jpg/960px-2010-kodiak-bear-1.jpg'},
+
+ {id:'walrus',nameJa:'セイウチ',nameSci:'Odobenus rosmarus',emoji:'🦭',taxon:'セイウチ科',biome:'極地',status:'VU',
+  stats:{size:'体長2.7–3.6m',weight:'800–1700kg',diet:'肉食（貝）',life:'30–40年'},
+  desc:'長い牙で氷上に這い上がり、海底の貝を吸い取る北極海の巨体。',
+  range:['USA','RUS','CAN','GRL','NOR'],focus:{c:[-60,75],z:1.9},
+  gbif:5218819,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Walrus_in_the_Russian_Arctic_National_Park%2C_Novaya_Zemlya_2015-2.jpg/960px-Walrus_in_the_Russian_Arctic_National_Park%2C_Novaya_Zemlya_2015-2.jpg'},
+
+ {id:'narwhal',nameJa:'イッカク',nameSci:'Monodon monoceros',emoji:'🐋',taxon:'イッカク科',biome:'極地',status:'LC',
+  stats:{size:'体長4–5.5m',weight:'800–1600kg',diet:'肉食',life:'約50年'},
+  desc:'オスの長い「角」は実は突き出た歯。北極の氷の海をめぐる“海のユニコーン”。',
+  range:['CAN','GRL','RUS','USA','NOR'],focus:{c:[-50,78],z:1.9},
+  gbif:5220008,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/%D0%9D%D0%B0%D1%80%D0%B2%D0%B0%D0%BB_%D0%B2_%D1%80%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9_%D0%90%D1%80%D0%BA%D1%82%D0%B8%D0%BA%D0%B5.jpg/960px-%D0%9D%D0%B0%D1%80%D0%B2%D0%B0%D0%BB_%D0%B2_%D1%80%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9_%D0%90%D1%80%D0%BA%D1%82%D0%B8%D0%BA%D0%B5.jpg'},
+
+ {id:'meerkat',nameJa:'ミーアキャット',nameSci:'Suricata suricatta',emoji:'🐾',taxon:'マングース科',biome:'乾燥地',status:'LC',
+  stats:{size:'体長25–35cm',weight:'0.6–1kg',diet:'食虫',life:'10–14年'},
+  desc:'立ち上がって見張りをする協力的な群れ。南部アフリカの乾いた大地に巣穴を掘る。',
+  range:['ZAF','BWA','NAM'],focus:{c:[22,-27],z:3.0},
+  gbif:2434126,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Meerkat_%28Suricata_suricatta%29_Tswalu.jpg/960px-Meerkat_%28Suricata_suricatta%29_Tswalu.jpg'},
+
+ {id:'okapi',nameJa:'オカピ',nameSci:'Okapia johnstoni',emoji:'🦓',taxon:'キリン科',biome:'熱帯雨林',status:'EN',
+  stats:{size:'体長2–2.5m',weight:'200–350kg',diet:'草食',life:'20–30年'},
+  desc:'キリンの仲間ながら森にひそむ。シマウマ模様の脚をもつ“森のユニコーン”。',
+  range:['COD','COG'],focus:{c:[27,1],z:3.2},
+  gbif:2441207,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Saint-Aignan_%28Loir-et-Cher%29._Okapi.jpg/960px-Saint-Aignan_%28Loir-et-Cher%29._Okapi.jpg'},
+
+ {id:'axolotl',nameJa:'アホロートル',nameSci:'Ambystoma mexicanum',emoji:'🦎',taxon:'トラフサンショウウオ科',biome:'湿地',status:'CR',
+  stats:{size:'全長15–45cm',weight:'60–230g',diet:'肉食',life:'10–15年'},
+  desc:'一生を幼形のまま水中で過ごし、失った手足を再生する。メキシコの湖の固有種。',
+  range:['MEX'],focus:{c:[-99.1,19.4],z:6.2},
+  gbif:2431950,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Axolotl_ganz.jpg/960px-Axolotl_ganz.jpg'},
+
+ {id:'loggerhead',nameJa:'アカウミガメ',nameSci:'Caretta caretta',emoji:'🐢',taxon:'ウミガメ科',biome:'海',status:'VU',
+  stats:{size:'甲長0.7–1m',weight:'80–200kg',diet:'肉食',life:'50–70年'},
+  desc:'大きな頭と強いあごで貝や甲殻類を砕く。外洋を回遊し、砂浜に産卵する。',
+  range:['USA','ESP','PRT','AUS','JPN','ITA','COL','GRC','DZA','TUN'],focus:{c:[135,30],z:1.6},
+  gbif:8894817,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Loggerhead_sea_turtle.jpg/960px-Loggerhead_sea_turtle.jpg'},
+
+ {id:'slothbear',nameJa:'ナマケグマ',nameSci:'Melursus ursinus',emoji:'🐻',taxon:'クマ科',biome:'森林',status:'VU',
+  stats:{size:'体長1.4–1.9m',weight:'55–145kg',diet:'食虫',life:'20–25年'},
+  desc:'長い爪と強い吸引力でシロアリを食べる。インドの森にすむ、もじゃもじゃのクマ。',
+  range:['IND','NPL','LKA'],focus:{c:[80,21],z:3.2},
+  gbif:2433395,photo:'https://upload.wikimedia.org/wikipedia/commons/4/46/Sloth_bear_stand.jpg'},
+
+ {id:'kingpenguin',nameJa:'キングペンギン',nameSci:'Aptenodytes patagonicus',emoji:'🐧',taxon:'ペンギン科',biome:'極地',status:'LC',
+  stats:{size:'体高85–95cm',weight:'9.3–18kg',diet:'肉食（魚）',life:'20–26年'},
+  desc:'コウテイペンギンに次ぐ大きさ。亜南極の島々に巨大な繁殖コロニーを作る。',
+  range:['ATA','AUS','ZAF','ATF','FLK','ARG','CHL'],focus:{c:[-30,-54],z:2.2},
+  gbif:2481660,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/SGI-2016-South_Georgia_%28Fortuna_Bay%29%E2%80%93King_penguin_%28Aptenodytes_patagonicus%29_04.jpg/960px-SGI-2016-South_Georgia_%28Fortuna_Bay%29%E2%80%93King_penguin_%28Aptenodytes_patagonicus%29_04.jpg'},
 ];
 ANIMALS.forEach((a,i)=>a.no=i+1);
 
@@ -655,7 +728,7 @@ function gbifTileURL(taxonKey){
   return 'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png'
        + '?srs=EPSG:3857&taxonKey=' + taxonKey
        + '&bin=hex&hexPerTile=71&style=classic-noborder.poly'
-       + '&basisOfRecord=HUMAN_OBSERVATION';   // 野外の目撃を中心に（標本ノイズを抑制）
+       + '&basisOfRecord=HUMAN_OBSERVATION';   // 野外目撃中心（標本ノイズ抑制）。ヘックスはズーム階層ごとに細密化
 }
 
 /* ===================================================================== */
@@ -697,7 +770,9 @@ map.on('load', async ()=>{
 
   mapReady=true; drawOverview(); bindMap(); updateDex();
   $('#boot').classList.add('gone'); spinLoop();
-  toast('🌍','動物を選ぶ→棲む土地へ。ズームで分布が細かく見えます。🎲で旅へ。',4600);
+  const deeplink=location.hash.replace('#','');
+  if(deeplink && ANIMALS.some(a=>a.id===deeplink)){ selectAnimal(deeplink); }
+  else { toast('🌍','動物を選ぶ→棲む土地へ。ズームで分布が細かく見えます。🎲で旅へ。',4600); }
 });
 map.on('error',()=>{});
 
@@ -804,6 +879,7 @@ async function selectAnimal(id){
   currentMode={type:'animal',id}; currentAnimal=a;
   pressChip(id); pressBiome(null); filterChips(null);
   paintAnimal(a); flyTo(a.focus.c,a.focus.z); renderAnimalCard(a); markSeen(id);
+  try{ history.replaceState(null,'','#'+id); }catch(e){}   // 共有用ディープリンク
   setMode(`${a.emoji} ${a.nameJa} の分布（${a.range.length}地域）${gbifOn?' ・GBIF実データ':''}`);
 }
 async function selectBiome(bm){
@@ -844,7 +920,15 @@ async function fetchLocalSpecies(code){
     if(document.getElementById('localspecies')!==el) return; // 別の国に切り替わっていたら中断
     if(!counts.length){ el.innerHTML='<span class="muted">記録が見つかりませんでした。</span>'; return; }
     el.innerHTML=counts.map(c=>{const disp=c.name.split(' ').slice(0,2).join(' ');
-      return `<a class="locrow" target="_blank" rel="noopener" href="https://www.gbif.org/occurrence/search?country=${a2}&q=${encodeURIComponent(c.name)}"><span class="ln2">${disp}</span><span class="cnt2">${fmtN(c.count)}件 ↗</span></a>`;}).join('');
+      return `<a class="locrow" target="_blank" rel="noopener" href="https://www.gbif.org/occurrence/search?country=${a2}&q=${encodeURIComponent(c.name)}"><span class="locav" data-sci="${encodeURIComponent(disp)}">🐾</span><span class="ln2">${disp}</span><span class="cnt2">${fmtN(c.count)}件 ↗</span></a>`;}).join('');
+    // iNaturalistから実写真サムネを後追いで挿入
+    el.querySelectorAll('.locav').forEach(async av=>{
+      try{ const sci=decodeURIComponent(av.dataset.sci);
+        const d=await (await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(sci)}&rank=species&per_page=1`)).json();
+        const ph=d.results&&d.results[0]&&d.results[0].default_photo&&d.results[0].default_photo.square_url;
+        if(ph){ av.innerHTML=`<img src="${ph}" alt="" onload="this.style.opacity=1">`; }
+      }catch(e){}
+    });
   }catch(e){ el.innerHTML='<span class="muted">実データ取得に失敗しました（オフライン？）。</span>'; }
 }
 function fmtN(n){ return n>=1000? (n/1000).toFixed(n>=10000?0:1)+'k' : String(n); }
@@ -876,7 +960,7 @@ function renderAnimalCard(a){
       <div class="htext"><div class="nm">${a.nameJa}</div><div class="sci">${a.nameSci}</div></div>
     </div>
     <div class="pbody">
-      <div class="row1"><span class="tax">🧬 ${a.taxon}</span><span class="tax">${BIOMES[a.biome].e} ${a.biome}</span></div>
+      <div class="row1"><span class="tax">🧬 ${a.taxon}</span><span class="tax">${BIOMES[a.biome].e} ${a.biome}</span><button class="tax pshare" onclick="shareAnimal('${a.id}')">🔗 共有</button></div>
       <div class="rare" style="background:${hexA(r.color,.1)}">
         <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
         <span class="gem" style="color:${r.color}">${r.gem}</span><span class="rk" style="color:${r.color}">${r.rank}</span>
@@ -911,7 +995,14 @@ function renderCountryCard(code,animals){
     <div id="localspecies" class="locsp">実データを取得中…</div>`;
   openPanel();
 }
+function shareAnimal(id){
+  const url = location.origin + location.pathname + '#' + id;
+  if(navigator.share){ navigator.share({title:'BIOSPHERE — いきもの分布アトラス', url}).catch(()=>{}); }
+  else if(navigator.clipboard){ navigator.clipboard.writeText(url).then(()=>toast('🔗','リンクをコピーしました',1900)).catch(()=>toast('🔗',url,3200)); }
+  else { toast('🔗',url,3200); }
+}
 window.closePanel=closePanel; window.showCountry=showCountry; window.selectAnimal=selectAnimal;
+window.flyCountry=flyCountry; window.shareAnimal=shareAnimal;
 
 /* ---------- 地図インタラクション ---------- */
 function bindMap(){
