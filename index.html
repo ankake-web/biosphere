@@ -186,6 +186,25 @@ button{font-family:inherit;cursor:pointer;}
 .hero .htext{position:relative;z-index:2;}
 .hero .htext .nm{font-size:26px;font-weight:800;line-height:1.05;text-shadow:0 2px 16px rgba(0,0,0,.7);}
 .hero .htext .sci{font-size:13px;font-style:italic;color:#cdd9df;margin-top:2px;text-shadow:0 1px 8px rgba(0,0,0,.8);}
+.hero .phcred{position:absolute;bottom:7px;right:9px;z-index:3;font-size:9.5px;color:rgba(255,255,255,.72);background:rgba(0,0,0,.42);padding:2px 7px;border-radius:6px;backdrop-filter:blur(4px);text-decoration:none;max-width:78%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hero .phcred:hover{color:#fff;background:rgba(0,0,0,.62);}
+.popsrc{font-size:10px;color:var(--muted-2);margin-top:5px;display:flex;gap:11px;flex-wrap:wrap;align-items:center;}
+.popsrc a{color:var(--teal);text-decoration:none;font-weight:700;}
+.popsrc a:hover{text-decoration:underline;}
+
+/* About / 出典モーダル */
+.modal{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:18px;}
+.modal[hidden]{display:none;}
+.modal-bg{position:absolute;inset:0;background:rgba(2,5,9,.66);backdrop-filter:blur(4px);}
+.modal-card{position:relative;z-index:1;width:min(560px,94vw);max-height:86dvh;overflow-y:auto;background:var(--glass-strong);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:22px 22px 26px;backdrop-filter:blur(22px);}
+.modal-card h2{margin:0 0 6px;font-size:20px;font-weight:800;}
+.modal-card h3{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-2);margin:18px 0 8px;}
+.modal-card p{font-size:13px;line-height:1.7;color:#cdd9df;margin:0 0 8px;}
+.modal-card ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:7px;}
+.modal-card li{font-size:12.5px;line-height:1.6;color:#cdd9df;}
+.modal-card a{color:var(--teal);text-decoration:none;font-weight:600;}
+.modal-card a:hover{text-decoration:underline;}
+.modal-card .note{font-size:11px;color:var(--muted-2);margin-top:14px;border-top:1px solid var(--line);padding-top:12px;}
 
 .pbody{padding:15px 16px 22px;}
 .row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
@@ -308,6 +327,7 @@ button{font-family:inherit;cursor:pointer;}
     <button class="tbtn" id="globeBtn" aria-pressed="true" title="地球儀 / 平面 切替">🌐</button>
     <button class="tbtn" id="atlasBtn" aria-pressed="false" title="地形（アトラス）表示の切替">🏔️</button>
     <button class="tbtn" id="homeBtn" title="全体表示にもどる">⌂</button>
+    <button class="tbtn" id="aboutBtn" title="このサイトについて・出典">ℹ️</button>
   </div>
 </header>
 
@@ -339,6 +359,27 @@ button{font-family:inherit;cursor:pointer;}
 </div>
 
 <section class="panel" id="panel" aria-live="polite"></section>
+
+<div class="modal" id="about" hidden role="dialog" aria-modal="true" aria-label="このサイトについて・出典">
+  <div class="modal-bg" onclick="closeAbout()"></div>
+  <div class="modal-card">
+    <button class="pclose" onclick="closeAbout()" aria-label="閉じる">✕</button>
+    <h2>🐾 BIOSPHERE について</h2>
+    <p>世界のいきものの分布を3D地球儀で旅する図鑑。分布・写真・地図はすべて実在のオープンソースに基づいています。</p>
+    <h3>データ・地図の出典</h3>
+    <ul>
+      <li><b>分布データ</b>：<a href="https://www.gbif.org/" target="_blank" rel="noopener">GBIF</a>（Global Biodiversity Information Facility）の実観測データ。各種カードの「GBIF ↗」から種ページへ。</li>
+      <li><b>保全状況・生息数のめやす</b>：<a href="https://www.iucnredlist.org/" target="_blank" rel="noopener">IUCN レッドリスト</a> 等を参考に編集（数値は推定・出典年により幅があります）。</li>
+      <li><b>写真</b>：<a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a>。各写真の撮影者・ライセンスは図鑑カード（📷）に明記。</li>
+      <li><b>ベースマップ</b>：<a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> Dark（© OpenStreetMap contributors © CARTO）。</li>
+      <li><b>地形（アトラス表示 🏔️）</b>：<a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> World Hillshade。</li>
+      <li><b>国境</b>：<a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>（パブリックドメイン）。</li>
+      <li><b>逆引きの実写真</b>：<a href="https://www.inaturalist.org/" target="_blank" rel="noopener">iNaturalist</a>。<b>地図ライブラリ</b>：<a href="https://maplibre.org/" target="_blank" rel="noopener">MapLibre GL JS</a>。</li>
+    </ul>
+    <p class="note">※写真はファイルごとにライセンス（CC BY／CC BY-SA／パブリックドメイン等）と帰属条件が異なります。本サイトを商用利用する場合、NC（非営利）条件の素材やIUCN APIの利用可否に注意が必要です。</p>
+  </div>
+</div>
+
 <div class="maptip" id="maptip"></div>
 <div class="toast" id="toast"></div>
 
@@ -1019,6 +1060,107 @@ const ANIMALS = [
 ];
 ANIMALS.forEach((a,i)=>a.no=i+1);
 
+/* 写真クレジット（Wikimedia Commons API から取得した撮影者・ライセンス）。出典明記=ライセンス遵守 */
+const PHOTO_CRED={
+  lion:{by:'Giles Laurent',lic:'CC BY-SA 4.0'},
+  elephant:{by:'Giles Laurent',lic:'CC BY-SA 4.0'},
+  polarbear:{by:'Alan Wilson',lic:'CC BY-SA 3.0'},
+  penguin:{by:'Ian Duffy from UK',lic:'CC BY 2.0'},
+  kangaroo:{by:'fir0002 / flagstaffotos',lic:'GFDL 1.2'},
+  panda:{by:'J. Patrick Fischer',lic:'CC BY-SA 3.0'},
+  tiger:{by:'Charles J. Sharp',lic:'CC BY-SA 4.0'},
+  wolf:{by:'User:Mas3cf',lic:'CC BY-SA 4.0'},
+  jaguar:{by:'USFWS',lic:'Public domain'},
+  snowleopard:{by:'Irbis1983',lic:'Public domain'},
+  gorilla:{by:'Brocken Inaglory',lic:'CC BY-SA 3.0'},
+  koala:{by:'Diliff',lic:'CC BY-SA 3.0'},
+  giraffe:{by:'Thomas Fuhrmann',lic:'CC BY-SA 4.0'},
+  cheetah:{by:'AfricanConservation',lic:'CC BY-SA 4.0'},
+  zebra:{by:'Yathin S Krishnappa',lic:'CC BY-SA 3.0'},
+  hippo:{by:'Muhammad Mahdi Karim',lic:'CC BY-SA 4.0'},
+  orangutan:{by:'Nanosanchez',lic:'CC BY-SA 4.0'},
+  redpanda:{by:'Sunuwargr',lic:'CC BY-SA 4.0'},
+  komodo:{by:'James Jolokia',lic:'CC BY 4.0'},
+  bison:{by:'Jack Dykinga',lic:'Public domain'},
+  eagle:{by:'Andy Morffew',lic:'CC BY 2.0'},
+  anteater:{by:'Malene Thyssen',lic:'CC BY-SA 3.0'},
+  condor:{by:'Greg Hume',lic:'CC BY-SA 3.0'},
+  otter:{by:'Marshal Hedin',lic:'CC BY-SA 2.0'},
+  whale:{by:'Wikimedia Commons',lic:'Public domain'},
+  arcticfox:{by:'Jonatan Pie',lic:'CC0'},
+  macaque:{by:'Rocktendo & Adam Gman',lic:'CC BY-SA 4.0'},
+  crane:{by:'Alastair Rae',lic:'CC BY-SA 2.0'},
+  rhino:{by:'AfricanConservation',lic:'CC BY-SA 4.0'},
+  leopard:{by:'Sumeet Moghe',lic:'CC BY-SA 4.0'},
+  asianelephant:{by:'Yathin S Krishnappa',lic:'CC BY-SA 3.0'},
+  moose:{by:'Paxson Woelber',lic:'CC BY-SA 4.0'},
+  raccoon:{by:'Rhododendrites',lic:'CC BY-SA 4.0'},
+  beaver:{by:'Steve (Washington, DC)',lic:'CC BY-SA 2.0'},
+  capybara:{by:'Giles Laurent',lic:'CC BY-SA 4.0'},
+  sloth:{by:'Stefan Laube',lic:'Public domain'},
+  toucan:{by:'Giles Laurent',lic:'CC BY-SA 4.0'},
+  flamingo:{by:'Giles Laurent',lic:'CC BY-SA 4.0'},
+  shoebill:{by:'Bob Owen',lic:'CC BY 2.0'},
+  galapagostortoise:{by:'Matthew Field',lic:'CC BY-SA 3.0'},
+  alligator:{by:'User:Postdlf',lic:'CC BY-SA 3.0'},
+  greenturtle:{by:'Charles J. Sharp',lic:'CC BY-SA 4.0'},
+  whaleshark:{by:'Abe Khao Lak',lic:'CC BY-SA 4.0'},
+  orca:{by:'Robert Pittman',lic:'Public domain'},
+  greatwhite:{by:'Terry Goss',lic:'CC BY 2.5'},
+  albatross:{by:'JJ Harrison',lic:'CC BY-SA 3.0'},
+  humboldtpenguin:{by:'Christian Ursilva',lic:'CC BY-SA 4.0'},
+  platypus:{by:'Charles J. Sharp',lic:'CC BY-SA 4.0'},
+  tasmaniandevil:{by:'JJ Harrison',lic:'CC BY-SA 3.0'},
+  kiwi:{by:'Maungatautari Ecological Island Trust',lic:'Public domain'},
+  redfox:{by:'ClaudiaTen',lic:'CC BY-SA 4.0'},
+  brownbear:{by:'Yathin S Krishnappa',lic:'CC BY-SA 3.0'},
+  walrus:{by:'Nixette',lic:'CC BY-SA 4.0'},
+  narwhal:{by:'Gazprom Neft press service',lic:'CC BY-SA 4.0'},
+  meerkat:{by:'Charles J. Sharp',lic:'CC BY-SA 4.0'},
+  okapi:{by:'Daniel Jolivet',lic:'CC BY 2.0'},
+  axolotl:{by:'LoKiLeCh',lic:'CC BY-SA 3.0'},
+  loggerhead:{by:'ukanda',lic:'CC BY 2.0'},
+  slothbear:{by:'mape_s',lic:'CC BY 2.0'},
+  kingpenguin:{by:'Godot13',lic:'CC BY-SA 4.0'},
+  whiterhino:{by:'Giles Laurent',lic:'CC BY-SA 4.0'},
+  wildebeest:{by:'Muhammad Mahdi Karim',lic:'GFDL 1.2'},
+  lemur:{by:'Charles J. Sharp',lic:'CC BY-SA 4.0'},
+  chimp:{by:'Giles Laurent',lic:'CC BY-SA 4.0'},
+  dugong:{by:'Gejuni',lic:'CC BY-SA 3.0 de'},
+  beluga:{by:'Javier Yaya Tur',lic:'CC BY 2.0'},
+  spermwhale:{by:'Gabriel Barathieu',lic:'CC BY-SA 2.0'},
+  fennec:{by:'Drew Avery',lic:'CC BY 2.0'},
+  arabianoryx:{by:'Charles J. Sharp',lic:'CC BY-SA 3.0'},
+  przewalski:{by:'Claudia Feh',lic:'CC BY-SA 4.0'},
+  kingcobra:{by:'Michael Allen Smith',lic:'CC BY-SA 2.0'},
+  marineiguana:{by:'RAF-YYC',lic:'CC BY-SA 2.0'},
+  chameleon:{by:'Charles J. Sharp',lic:'CC BY-SA 4.0'},
+  giantsalamander:{by:'Salamandra2021',lic:'CC BY-SA 4.0'},
+  dartfrog:{by:'Rhododendrites',lic:'CC BY-SA 4.0'},
+  monarch:{by:'Derek Ramsey',lic:'GFDL 1.2'},
+  clownfish:{by:'Ritiks',lic:'CC BY-SA 3.0'},
+  mantaray:{by:'Shiyam ElkCloner',lic:'CC BY-SA 3.0'},
+  seahorse:{by:'Emőke Dénes',lic:'CC BY-SA 4.0'},
+  ostrich:{by:'Yathin S Krishnappa',lic:'CC BY-SA 4.0'},
+  steller:{by:'Michael Pinczolits',lic:'CC BY 2.0'},
+  peafowl:{by:'Kandukuru Nagarjun',lic:'CC BY 2.0'},
+  octopus:{by:'NOAA / R. N. Lea',lic:'Public domain'},
+  nautilus:{by:'Hans Hillewaert',lic:'CC BY-SA 4.0'},
+  spidercrab:{by:'Hans Hillewaert',lic:'CC BY 2.5'},
+  honeybee:{by:'Andreas Trepte',lic:'CC BY-SA 2.5'},
+  firefly:{by:'Alpsdake',lic:'CC BY-SA 4.0'},
+  baobab:{by:'Bernard Gagnon',lic:'CC BY-SA 3.0'},
+  sequoia:{by:'Mike Murphy',lic:'CC BY-SA 3.0'},
+  rafflesia:{by:'LukeTriton',lic:'CC BY-SA 4.0'},
+  echidna:{by:'User:Fir0002',lic:'GFDL 1.2'},
+  wombat:{by:'JJ Harrison',lic:'CC BY-SA 3.0'},
+};
+// 出典URLヘルパー（写真＝Commonsファイルページ / 保全状況=IUCN / 観測=GBIF種ページ）
+function commonsFile(url){ let m=url.match(/commons\/thumb\/[^/]+\/[^/]+\/([^/]+)\//)||url.match(/commons\/[^/]+\/[^/]+\/([^/?]+)$/); return m?m[1]:null; }
+function commonsPageURL(url){ const f=commonsFile(url); return f?('https://commons.wikimedia.org/wiki/File:'+f):'https://commons.wikimedia.org/'; }
+function iucnURL(a){ return 'https://www.iucnredlist.org/search?query='+encodeURIComponent(a.nameSci)+'&searchType=species'; }
+function gbifURL(a){ return 'https://www.gbif.org/species/'+a.gbif; }
+
 /* ---------- データ層インターフェース（seam）---------- */
 const MockDataSource = {
   listAnimals: async()=>ANIMALS,
@@ -1385,6 +1527,7 @@ function openPanel(){ panelEl.classList.add('open'); }
 function closePanel(){ panelEl.classList.remove('open'); }
 function renderAnimalCard(a){
   const r=RARITY[a.status], g=BIOMES[a.biome]?BIOMES[a.biome].g:['#1b3a43','#0d1b22'], tm=TREND_META[trendOf(a)];
+  const cred=PHOTO_CRED[a.id]||{by:'Wikimedia Commons',lic:''};
   panelEl.innerHTML=`
     <button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button>
     <div class="grab"></div>
@@ -1394,13 +1537,14 @@ function renderAnimalCard(a){
       <div class="scrim"></div>
       <div class="no">№ ${String(a.no).padStart(3,'0')}</div>
       <div class="htext"><div class="nm">${a.nameJa}</div><div class="sci">${a.nameSci}</div></div>
+      <a class="phcred" href="${commonsPageURL(a.photo)}" target="_blank" rel="noopener" title="写真の出典（Wikimedia Commons）">📷 ${cred.by}${cred.lic?(' · '+cred.lic):''}</a>
     </div>
     <div class="pbody">
       <div class="row1"><span class="tax">🧬 ${a.taxon}</span><span class="tax">${BIOMES[a.biome].e} ${a.biome}</span><button class="tax pshare" onclick="shareAnimal('${a.id}')">🔗 共有</button></div>
       <div class="rare" style="background:${hexA(r.color,.1)}">
         <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
         <span class="gem" style="color:${r.color}">${r.gem}</span>
-        <span class="popwrap"><span class="poplabel">推定生息数（野生）</span><span class="popline"><span class="popval" style="color:${r.color}">${popOf(a)}</span><span class="trend" style="color:${tm.c}">${tm.a} ${tm.t}</span></span></span>
+        <span class="popwrap"><span class="poplabel">推定生息数（野生）</span><span class="popline"><span class="popval" style="color:${r.color}">${popOf(a)}</span><span class="trend" style="color:${tm.c}">${tm.a} ${tm.t}</span></span><span class="popsrc">出典 <a href="${iucnURL(a)}" target="_blank" rel="noopener">IUCN ↗</a><a href="${gbifURL(a)}" target="_blank" rel="noopener">GBIF ↗</a></span></span>
         <span class="iucn"><span class="code" style="background:${r.color}">${a.status}</span><span class="jp">${r.jp}・${r.band}</span></span>
       </div>
       <div class="stats">
@@ -1438,8 +1582,10 @@ function shareAnimal(id){
   else if(navigator.clipboard){ navigator.clipboard.writeText(url).then(()=>toast('🔗','リンクをコピーしました',1900)).catch(()=>toast('🔗',url,3200)); }
   else { toast('🔗',url,3200); }
 }
+function openAbout(){ $('#about').removeAttribute('hidden'); }
+function closeAbout(){ $('#about').setAttribute('hidden',''); }
 window.closePanel=closePanel; window.showCountry=showCountry; window.selectAnimal=selectAnimal;
-window.flyCountry=flyCountry; window.shareAnimal=shareAnimal;
+window.flyCountry=flyCountry; window.shareAnimal=shareAnimal; window.closeAbout=closeAbout;
 
 /* ---------- 地図インタラクション ---------- */
 function bindMap(){
@@ -1478,11 +1624,12 @@ $('#atlasBtn').addEventListener('click',()=>{ setAtlas(!atlasOn);
   toast(atlasOn?'🏔️':'🗺️', atlasOn?'アトラス表示：地形と地名で旅する':'ミニマル表示にもどしました',1900); });
 $('#dex').addEventListener('click',()=>{ const t=ANIMALS.length,n=SEEN.size; toast(n>=t?'🏆':'🧭', n>=t?'図鑑コンプリート！全種を旅しました':`図鑑 ${n}/${t} 種を発見。🎲で続きを旅しよう`,2600); });
 $('#dex').addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#dex').click(); } });
+$('#aboutBtn').addEventListener('click',openAbout);
 
 function setMode(t){ $('#modetext').textContent=t; }
 let toastT; function toast(e,msg,ms=2600){const t=$('#toast');t.innerHTML=`<span class="e">${e}</span>${msg}`;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms);}
 function bootFail(msg){$('#boot').innerHTML=`<div class="bootwrap"><div style="font-size:40px">📡</div><div class="bt" style="margin-top:14px">読み込みエラー</div><div class="bs" style="max-width:280px;line-height:1.6">${msg}<br>ネット接続を確認して再読み込みしてください。</div></div>`;}
-document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') closePanel(); });
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape'){ closeAbout(); closePanel(); } });
 </script>
 </body>
 </html>
