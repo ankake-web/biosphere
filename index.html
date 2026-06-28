@@ -143,6 +143,19 @@ button{font-family:inherit;cursor:pointer;}
 .chip .rk{position:absolute;top:7px;right:8px;width:8px;height:8px;border-radius:50%;}
 .chip .seen{position:absolute;bottom:7px;right:8px;font-size:10px;color:var(--teal);opacity:0;transition:opacity .2s;}
 .chip.is-seen .seen{opacity:1;}
+/* 未発見＝シルエット＋名前ぼかし（ホバー/フォーカスで覗ける＝自由閲覧は維持。クリックで発見） */
+.chip:not(.is-seen) .av{filter:saturate(.25) brightness(.62);}
+.chip:not(.is-seen) .av .ph{opacity:0!important;}
+.chip:not(.is-seen) .av>span{filter:brightness(0) opacity(.5);}
+.chip:not(.is-seen) .meta .n{filter:blur(3px);opacity:.78;transition:filter .25s,opacity .25s;}
+.chip:not(.is-seen):hover .meta .n,.chip:not(.is-seen):focus-visible .meta .n{filter:blur(0);opacity:1;}
+.chip:not(.is-seen) .meta .s{opacity:0;}
+.chip:not(.is-seen) .rk{display:none;}
+.chip .undisc{position:absolute;top:6px;right:9px;font-size:11px;color:var(--muted);font-weight:800;}
+.chip.is-seen .undisc{display:none;}
+/* 全種コンプの紙吹雪 */
+.confetti{position:fixed;top:-14px;width:9px;height:14px;border-radius:2px;z-index:50;pointer-events:none;animation:fall 2.8s linear forwards;}
+@keyframes fall{to{transform:translateY(106vh) rotate(680deg);opacity:.15;}}
 
 /* ===== 詳細パネル ===== */
 .panel{position:fixed;z-index:30;background:var(--glass-strong);border:1px solid var(--line);
@@ -1032,6 +1045,7 @@ let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true, A3toA2=
 let gbifOn=true, currentAnimal=null, currentMode={type:'overview'};
 let atlasOn=false;   // アトラス表示（地形relief）のON/OFF。スタイルは入れ替えず重畳トグル
 const SEEN = new Set(JSON.parse(localStorage.getItem('biosphere_seen')||'[]'));
+const BADGES = new Set(JSON.parse(localStorage.getItem('biosphere_badges')||'[]'));   // 達成済みのコンプ演出（再表示しない）
 const filterState = {biome:null, q:'', facet:''};   // 環境/検索/分類傾向の絞り込みを一元管理
 let gbifYear=null;   // GBIF分布の年代フィルタ（&year=...）。null=全期間。動物を切り替えても保持
 const YEAR_STOPS=[
@@ -1084,7 +1098,7 @@ map.on('load', async ()=>{
   $('#boot').classList.add('gone'); spinLoop();
   const deeplink=location.hash.replace('#','');
   if(deeplink && ANIMALS.some(a=>a.id===deeplink)){ selectAnimal(deeplink); }
-  else { toast('🌍','動物を選ぶ→棲む土地へ。ズームで分布が細かく見えます。🎲で旅へ。',4600); }
+  else { toast('🌍','動物を選ぶと図鑑に登録（未発見はシルエット）。地図の土地を選ぶと住人が出ます。🎲で旅へ。',5200); }
 });
 // GBIFタイルの読み込み完了/失敗を検知してスピナーを止める（失敗しても図鑑カードは常に表示される）
 map.on('error',(e)=>{ if(e && e.sourceId==='gbif') gbifLoading(false); });
@@ -1181,7 +1195,7 @@ ANIMALS.forEach((a,i)=>{
   b.dataset.trend=trendOf(a); b.dataset.popnum=popNum(a); b.dataset.name=a.nameJa;
   b.innerHTML=avatar(a)+`<span class="meta"><span class="n">${a.nameJa}</span><span class="s">${a.nameSci}</span></span>`
     +`<span class="rk" style="background:${RARITY[a.status].color};box-shadow:0 0 8px ${RARITY[a.status].color}"></span>`
-    +`<span class="seen">✓</span>`;
+    +`<span class="seen">✓</span><span class="undisc">？</span>`;
   b.onclick=()=>selectAnimal(a.id);
   chipsEl.appendChild(b);
 });
@@ -1254,7 +1268,26 @@ function buildSortFilter(){
   sortSel.onchange=()=>sortChips(sortSel.value);
   facetSel.onchange=()=>{ filterState.facet=facetSel.value; applyFilters(); };
 }
-function markSeen(id){ if(!SEEN.has(id)){ SEEN.add(id); localStorage.setItem('biosphere_seen',JSON.stringify([...SEEN])); const ch=chipsEl.querySelector(`.chip[data-id="${id}"]`); if(ch)ch.classList.add('is-seen'); updateDex(); } }
+function markSeen(id){ if(!SEEN.has(id)){ SEEN.add(id); localStorage.setItem('biosphere_seen',JSON.stringify([...SEEN])); const ch=chipsEl.querySelector(`.chip[data-id="${id}"]`); if(ch)ch.classList.add('is-seen'); updateDex(); celebrate(id); } }
+function saveBadges(){ try{ localStorage.setItem('biosphere_badges',JSON.stringify([...BADGES])); }catch(e){} }
+// コンプ演出：全種＞生息環境ごと＞保全状況ごと。既達成はBADGESで一度きり
+function celebrate(id){
+  const a=ANIMALS.find(x=>x.id===id); if(!a)return;
+  if(SEEN.size>=ANIMALS.length){ if(!BADGES.has('ALL')){ BADGES.add('ALL'); saveBadges(); confetti(); toast('🏆',`図鑑コンプリート！全${ANIMALS.length}種を旅しました`,4600); } return; }
+  const list=ANIMALS.filter(x=>x.biome===a.biome);
+  if(list.every(x=>SEEN.has(x.id)) && !BADGES.has('biome:'+a.biome)){ BADGES.add('biome:'+a.biome); saveBadges();
+    toast(BIOMES[a.biome].e, `${a.biome} の生きものをすべて発見！🎖️`, 3400); return; }
+  const slist=ANIMALS.filter(x=>x.status===a.status);
+  if(slist.every(x=>SEEN.has(x.id)) && !BADGES.has('status:'+a.status)){ BADGES.add('status:'+a.status); saveBadges();
+    toast(RARITY[a.status].gem, `「${RARITY[a.status].band}（${a.status}）」をすべて発見！🎖️`, 3400); }
+}
+function confetti(){
+  const cols=['#34d8c6','#f2c14e','#b072ff','#ff9a8a','#5fd39a'];
+  for(let i=0;i<30;i++){ const d=document.createElement('div'); d.className='confetti';
+    d.style.left=(Math.random()*100)+'vw'; d.style.background=cols[i%cols.length];
+    d.style.animationDelay=(Math.random()*0.7).toFixed(2)+'s'; d.style.width=(6+Math.random()*6).toFixed(0)+'px';
+    document.body.appendChild(d); setTimeout(()=>d.remove(),3600); }
+}
 function updateDex(){ const n=SEEN.size,t=ANIMALS.length; $('#dexNum').textContent=`${n}/${t}`; $('#dex').querySelector('.ring').style.setProperty('--p',Math.round(n/t*100)); $('#dexEmoji').textContent=n>=t?'🏆':(n>0?'🐾':'🧭'); }
 
 async function selectAnimal(id){
