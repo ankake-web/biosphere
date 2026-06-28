@@ -22,6 +22,7 @@ const TREND_DOWN=eval(grab(/const TREND_DOWN=(\[[^\]]*\]);/,'TREND_DOWN'));
 const CLASS=eval('('+grab(/const CLASS=(\{[\s\S]*?\});/,'CLASS')+')');
 const clsOrder=eval(grab(/const clsOrder=(\[[^\]]*\]);/,'clsOrder'));
 const PHOTO_CRED=eval('('+grab(/const PHOTO_CRED=(\{[\s\S]*?\});/,'PHOTO_CRED')+')');
+const THREAT_OVR=eval('('+grab(/const THREAT_OVR=(\{[\s\S]*?\});/,'THREAT_OVR')+')');
 
 const popOf=a=>a.pop||POP[a.id]||'データ不足';
 function trendOf(a){ if(TREND_UP.includes(a.id))return'up'; if(TREND_DOWN.includes(a.id))return'down'; if(a.status==='LC')return'stable'; if(a.status==='DD')return'unknown'; return'down'; }
@@ -33,6 +34,23 @@ const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'
 const credOf=a=>{ const c=PHOTO_CRED[a.id]||{by:'Wikimedia Commons',lic:''}; return c.by+(c.lic?(' · '+c.lic):''); };
 const iucnURL=a=>'https://www.iucnredlist.org/search?query='+encodeURIComponent(a.nameSci)+'&searchType=species';
 const gbifURL=a=>'https://www.gbif.org/species/'+a.gbif;
+function threatsOf(a){
+  if(THREAT_OVR[a.id]) return THREAT_OVR[a.id];
+  const t=[], b=a.biome, cls=classOf(a);
+  if(b==='熱帯雨林'||b==='森林') t.push('森林伐採による生息地の破壊');
+  else if(b==='海') t.push('混獲・乱獲');
+  else if(b==='極地') t.push('気候変動による海氷の減少');
+  else if(b==='サバンナ'||b==='草原') t.push('生息地の農地化');
+  else if(b==='湿地') t.push('湿地の埋め立て・開発');
+  else t.push('開発による生息地の改変');
+  if(['サイ科','ゾウ科'].includes(a.taxon)) t.push('密猟');
+  else if(['ネコ科','イヌ科','クマ科'].includes(a.taxon)) t.push('人との軋轢');
+  else if(cls==='両生類') t.push('ツボカビ症・水質汚染');
+  else if(b==='海') t.push('海洋汚染');
+  t.push('気候変動');
+  return [...new Set(t)].slice(0,3);
+}
+const isThreatened=a=>['CR','EN','VU','NT','DD'].includes(a.status);
 
 const HEAD=(title,desc,canon,img,extra='')=>`<!doctype html><html lang="ja"><head>
 <meta charset="utf-8">
@@ -77,6 +95,9 @@ function speciesPage(a,prev,next){
 <div class="tags"><span class="tag">🧬 ${esc(cls)}・${esc(a.taxon)}</span><span class="tag">${BIOMES[a.biome].e} ${esc(a.biome)}</span><span class="tag" style="color:${r.color}">${esc(r.jp)}（${a.status}）</span></div>
 <p class="pop">推定生息数（野生）：<b style="color:${r.color}">${esc(popOf(a))}</b> <span style="color:#8497a7">${TREND_LABEL[trendOf(a)]}</span></p>
 <p class="desc">${esc(a.desc)}</p>
+${isThreatened(a)?`<div class="conserv"><h2 style="margin-top:0;color:#ffcf7a">🛡 おもな脅威と保全（${esc(r.jp)}・${a.status}）</h2>
+<div class="cvtags">${threatsOf(a).map(t=>`<span class="cvtag">${esc(t)}</span>`).join('')}</div>
+<p class="src">保全：<a href="${iucnURL(a)}">IUCNで状況を見る ↗</a> ／ <a href="https://www.google.com/search?q=${encodeURIComponent(a.nameJa+' '+a.nameSci+' 保全 conservation')}">保全活動・団体を調べる ↗</a></p></div>`:''}
 <div class="stats">
 <div class="stat"><div class="k">📏 大きさ</div><div class="v">${esc(a.stats.size)}</div></div>
 <div class="stat"><div class="k">⚖️ 体重</div><div class="v">${esc(a.stats.weight)}</div></div>
@@ -157,6 +178,10 @@ h2{font-size:14px;letter-spacing:.08em;color:var(--muted);margin:22px 0 8px}
 .cta{display:inline-block;margin:16px 0;background:var(--teal);color:#04201d;font-weight:800;padding:11px 18px;border-radius:12px}
 .cta:hover{text-decoration:none;filter:brightness(1.08)}
 .src{font-size:13px;color:var(--muted);margin:10px 0}
+.conserv{background:rgba(255,176,46,.06);border:1px solid rgba(255,176,46,.28);border-radius:12px;padding:6px 16px 12px;margin:14px 0}
+.conserv h2{font-size:14px;letter-spacing:0;margin:12px 0 10px}
+.cvtags{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}
+.cvtag{font-size:12px;font-weight:600;color:#ffe1b0;background:rgba(255,176,46,.13);border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:4px 11px}
 .nav{display:flex;justify-content:space-between;gap:10px;margin:26px 0 0;font-size:13px}
 footer.site{border-top:1px solid var(--line);padding:20px 18px;color:var(--muted);font-size:12px;line-height:1.8;max-width:760px;margin:0 auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:14px 0 24px}

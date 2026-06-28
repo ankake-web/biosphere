@@ -21,6 +21,10 @@ h2{font-size:14px;letter-spacing:.08em;color:var(--muted);margin:22px 0 8px}
 .cta{display:inline-block;margin:16px 0;background:var(--teal);color:#04201d;font-weight:800;padding:11px 18px;border-radius:12px}
 .cta:hover{text-decoration:none;filter:brightness(1.08)}
 .src{font-size:13px;color:var(--muted);margin:10px 0}
+.conserv{background:rgba(255,176,46,.06);border:1px solid rgba(255,176,46,.28);border-radius:12px;padding:6px 16px 12px;margin:14px 0}
+.conserv h2{font-size:14px;letter-spacing:0;margin:12px 0 10px}
+.cvtags{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}
+.cvtag{font-size:12px;font-weight:600;color:#ffe1b0;background:rgba(255,176,46,.13);border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:4px 11px}
 .nav{display:flex;justify-content:space-between;gap:10px;margin:26px 0 0;font-size:13px}
 footer.site{border-top:1px solid var(--line);padding:20px 18px;color:var(--muted);font-size:12px;line-height:1.8;max-width:760px;margin:0 auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:14px 0 24px}

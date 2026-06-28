@@ -257,6 +257,17 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .rare .iucn .code{font-size:11px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:6px;color:#06121a;}
 .rare .iucn .jp{font-size:11px;color:var(--muted);margin-top:3px;display:block;}
 .rare .gem{font-size:18px;}
+/* 絶滅危惧種カードの「おもな脅威と保全」セクション */
+.conserv{background:rgba(255,176,46,.06);border:1px solid rgba(255,176,46,.28);border-radius:12px;padding:11px 13px;margin-bottom:15px;}
+.conserv .cvhead{font-size:12px;font-weight:800;color:#ffcf7a;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.conserv .cvst{font-size:11px;font-weight:700;}
+.conserv .cvtags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px;}
+.conserv .cvtag{font-size:11px;font-weight:600;color:#ffe1b0;background:rgba(255,176,46,.13);border:1px solid rgba(255,176,46,.3);border-radius:7px;padding:3px 9px;}
+.conserv .cvlinks{display:flex;flex-wrap:wrap;gap:9px;align-items:center;font-size:11.5px;}
+.conserv .cvlinks a{color:#34d8c6;font-weight:700;text-decoration:none;}
+.conserv .cvlinks a:hover{text-decoration:underline;}
+.conserv .cvmore{appearance:none;background:none;border:0;color:var(--muted);font-size:11.5px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline;}
+.conserv .cvmore:hover{color:var(--ink);}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:15px;}
 .stat{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:11px;padding:10px 12px;}
 .stat .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);font-weight:700;display:flex;align-items:center;gap:5px;}
@@ -496,14 +507,14 @@ const THREAT=['CR','EN','VU'];   // 「絶滅危惧種（Threatened）」のIUCN
 const RL=Object.fromEntries(REDLIST.map(r=>[r.code,r]));
 // 推定生息数（野生・おおよそ。出典/年により幅あり）
 const POP = {
-  lion:'約2万〜2.5万頭', elephant:'約35万頭（減少中）', polarbear:'約2.2万〜3.1万頭', penguin:'約25万つがい',
-  kangaroo:'豊富（数千万頭）', panda:'約1,860頭', tiger:'約4,500〜5,500頭', wolf:'約20万〜30万頭',
-  jaguar:'約17万頭（減少中）', snowleopard:'約4,000〜6,500頭', gorilla:'約30万頭（急減中）', koala:'約33万頭（推定）',
-  giraffe:'約11.7万頭', cheetah:'約6,500〜7,000頭', zebra:'約50万頭', hippo:'約11万〜13万頭',
+  lion:'約2万〜2.5万頭', elephant:'約41.5万頭（2016・減少中）', polarbear:'約2.2万〜3.1万頭（2015 IUCN）', penguin:'約25万つがい',
+  kangaroo:'豊富（数千万頭）', panda:'約1,864頭（2014年全国調査）', tiger:'約4,500〜5,600頭（2023推定）', wolf:'約20万〜30万頭',
+  jaguar:'約17万頭（減少中）', snowleopard:'約4,000〜6,500頭（2016推定）', gorilla:'約31.6万頭（2013推定・急減中）', koala:'約33万頭（推定）',
+  giraffe:'約11.7万頭（2016）', cheetah:'約6,500〜7,000頭（2016推定）', zebra:'約50万頭', hippo:'約11万〜13万頭',
   orangutan:'約10万頭（急減中）', redpanda:'約1万頭未満', komodo:'約3,000〜3,400頭', bison:'約3万〜4万頭',
   eagle:'約30万羽以上（回復）', anteater:'推定 数万頭（減少中）', condor:'約6,700羽', otter:'約12.5万頭',
   whale:'約13.5万頭（回復）', arcticfox:'数十万頭（地域差大）', macaque:'約11万頭（日本）', crane:'約3,000羽',
-  rhino:'約6,400頭', leopard:'推定 数十万頭（減少中）', asianelephant:'約4万〜5万頭', moose:'約150万頭以上',
+  rhino:'約6,400頭（2022）', leopard:'推定 数十万頭（減少中）', asianelephant:'約4万〜5万頭', moose:'約150万頭以上',
   raccoon:'豊富（数百万以上）', beaver:'約1,000万〜1,500万頭', capybara:'豊富（数百万）', sloth:'安定（数は不明）',
   toucan:'安定（数十万以上）', flamingo:'約55万〜68万羽', shoebill:'約5,000〜8,000羽', galapagostortoise:'約2万頭（回復中）',
   alligator:'約500万頭（回復）', greenturtle:'推定 数十万頭（成熟個体は減少）', whaleshark:'推定 減少中（数は不明）', orca:'約5万頭以上（推定）',
@@ -2065,6 +2076,40 @@ const NATURAL_PLACES=[
   ['🐠 グレートバリアリーフ',147,-18],['🐢 ガラパゴス諸島',-90,0],['🦎 マダガスカル',47,-19],
   ['❄ グリーンランド',-42,72],['❄ シベリア',100,63],['🌊 バイカル湖',108,53],['🌊 アマゾン川',-58,-2],
 ];
+// おもな脅威：主要種は固有データ、他はbiome/分類/保全状況から導出。絶滅危惧種カードに表示し保全への導線にする。
+const THREAT_OVR={
+  tiger:['密猟（毛皮・骨）','生息地の分断','獲物の減少'], leopard:['密猟','人との軋轢','生息地の減少'],
+  snowleopard:['密猟','家畜との軋轢','気候変動'], jaguar:['森林伐採','人との軋轢','毛皮の違法取引'],
+  elephant:['象牙の密猟','人との軋轢','生息地の縮小'], asianelephant:['生息地の分断','人との軋轢','密猟'],
+  rhino:['角を狙った密猟','生息地の減少'], whiterhino:['角を狙った密猟','生息地の減少'],
+  gorilla:['密猟（ブッシュミート）','森林伐採','感染症'], orangutan:['アブラヤシ農園化','森林火災','密猟'],
+  chimp:['森林伐採','ブッシュミート','感染症'], panda:['竹林の分断','生息地の縮小'],
+  polarbear:['海氷の減少（気候変動）','汚染'], axolotl:['水質汚染','外来魚','都市化'],
+  orca:['汚染（PCB蓄積）','餌の減少','騒音'], bluewhale:['船舶との衝突','漁具への絡まり','騒音'],
+  gharial:['河川開発・砂利採取','漁網の混獲'], komodo:['生息地の縮小','獲物の減少','気候変動'],
+};
+function threatsOf(a){
+  if(THREAT_OVR[a.id]) return THREAT_OVR[a.id];
+  const t=[], b=a.biome, cls=classOf(a);
+  if(b==='熱帯雨林'||b==='森林') t.push('森林伐採による生息地の破壊');
+  else if(b==='海') t.push('混獲・乱獲');
+  else if(b==='極地') t.push('気候変動による海氷の減少');
+  else if(b==='サバンナ'||b==='草原') t.push('生息地の農地化');
+  else if(b==='湿地') t.push('湿地の埋め立て・開発');
+  else t.push('開発による生息地の改変');
+  if(['サイ科','ゾウ科'].includes(a.taxon)) t.push('密猟');
+  else if(['ネコ科','イヌ科','クマ科'].includes(a.taxon)) t.push('人との軋轢');
+  else if(cls==='両生類') t.push('ツボカビ症・水質汚染');
+  else if(b==='海') t.push('海洋汚染');
+  t.push('気候変動');
+  return [...new Set(t)].slice(0,3);
+}
+function conservLinks(a){
+  return [
+    {l:'IUCNで状況を見る', u:iucnURL(a)},
+    {l:'保全活動・団体を調べる', u:'https://www.google.com/search?q='+encodeURIComponent(a.nameJa+' '+a.nameSci+' 保全 conservation')},
+  ];
+}
 
 const map = window.map = new maplibregl.Map({
   container:'map',
@@ -2520,6 +2565,11 @@ function renderAnimalCard(a){
         <div class="stat"><div class="k">⏳ 寿命</div><div class="v">${a.stats.life}</div></div>
       </div>
       <div class="flavor">${a.desc}</div>
+      ${['CR','EN','VU','NT','DD'].includes(a.status)?`<div class="conserv">
+        <div class="cvhead">🛡 おもな脅威と保全 <span class="cvst" style="color:${r.color}">${r.jp}（${a.status}）</span></div>
+        <div class="cvtags">${threatsOf(a).map(t=>`<span class="cvtag">${t}</span>`).join('')}</div>
+        <div class="cvlinks">${conservLinks(a).map(x=>`<a href="${x.u}" target="_blank" rel="noopener">${x.l} ↗</a>`).join('')}<button type="button" class="cvmore" onclick="openRedlist('${a.status}','${a.id}')">保全状況とは？</button></div>
+      </div>`:''}
       <div class="seclab">生息地 — ${a.range.length}地域（タップで寄る） <span class="ln"></span></div>
       <div class="geos">${a.range.map(c=>`<button class="geo" onclick="flyCountry('${c}')"><span class="fl">${ccFlag(c)}</span>${ccName(c)}</button>`).join('')}</div>
       <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝GBIFの実観測地点（${a.nameSci}）。<b>ズームするほど分布が細かく</b>見えます。だれかが実際にこの生きものを見た場所です。</div>
