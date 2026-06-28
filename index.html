@@ -190,8 +190,14 @@ button{font-family:inherit;cursor:pointer;}
 .cc-item .info .n{font-weight:700;font-size:15px;}
 .cc-item .info .s{font-size:11px;color:var(--muted);font-style:italic;}
 .cc-item .rkbadge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;color:#06121a;flex:0 0 auto;}
-.cc-empty{padding:6px 18px 24px;color:var(--muted);font-size:13.5px;line-height:1.7;}
-.cc-empty b{color:var(--teal);}
+.cc-empty{padding:6px 18px 18px;color:var(--muted);font-size:13.5px;line-height:1.7;}
+.cc-empty b{color:#ffb02e;}
+.locsp{display:flex;flex-direction:column;gap:6px;padding:0 14px 22px;}
+.locsp .muted{color:var(--muted);font-size:12.5px;padding:2px 2px 4px;}
+.locrow{display:flex;align-items:center;gap:8px;background:rgba(255,176,46,.06);border:1px solid rgba(255,176,46,.18);border-radius:9px;padding:8px 11px;color:#e7eef2;text-decoration:none;transition:all .15s;}
+.locrow:hover{background:rgba(255,176,46,.14);border-color:rgba(255,176,46,.4);}
+.locrow .ln2{font-style:italic;font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.locrow .cnt2{font-size:11px;font-weight:700;color:#ffb02e;white-space:nowrap;}
 
 .legend{position:fixed;z-index:14;left:14px;bottom:188px;background:var(--glass);border:1px solid var(--line);border-radius:13px;padding:11px 13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);max-width:210px;}
 .legend .lt{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin-bottom:8px;}
@@ -235,7 +241,7 @@ button{font-family:inherit;cursor:pointer;}
   <div class="spacer"></div>
   <div class="dex" id="dex" title="図鑑コンプ率">
     <div class="ring"><i id="dexEmoji">🧭</i></div>
-    <div class="lab"><b id="dexNum">0/28</b><span>図鑑</span></div>
+    <div class="lab"><b id="dexNum">0/50</b><span>図鑑</span></div>
   </div>
   <div class="search">
     <span class="ic">🔍</span>
@@ -318,6 +324,13 @@ const CC = {
   AFG:['アフガニスタン','🇦🇫'],KGZ:['キルギス','🇰🇬'],TJK:['タジキスタン','🇹🇯'],
   UGA:['ウガンダ','🇺🇬'],TCD:['チャド','🇹🇩'],IRN:['イラン','🇮🇷'],CHL:['チリ','🇨🇱'],
   JPN:['日本','🇯🇵'],NZL:['ニュージーランド','🇳🇿'],ISL:['アイスランド','🇮🇸'],KOR:['韓国','🇰🇷'],
+  MWI:['マラウイ','🇲🇼'],ISR:['イスラエル','🇮🇱'],LKA:['スリランカ','🇱🇰'],KHM:['カンボジア','🇰🇭'],
+  EST:['エストニア','🇪🇪'],UKR:['ウクライナ','🇺🇦'],DNK:['デンマーク','🇩🇰'],BEL:['ベルギー','🇧🇪'],
+  DEU:['ドイツ','🇩🇪'],LUX:['ルクセンブルク','🇱🇺'],URY:['ウルグアイ','🇺🇾'],CRI:['コスタリカ','🇨🇷'],
+  PAN:['パナマ','🇵🇦'],NIC:['ニカラグア','🇳🇮'],ESP:['スペイン','🇪🇸'],PRT:['ポルトガル','🇵🇹'],
+  ARE:['アラブ首長国連邦','🇦🇪'],ITA:['イタリア','🇮🇹'],GRC:['ギリシャ','🇬🇷'],NLD:['オランダ','🇳🇱'],
+  TUR:['トルコ','🇹🇷'],PHL:['フィリピン','🇵🇭'],ATF:['仏領南方・南極','🇹🇫'],GBR:['イギリス','🇬🇧'],
+  FLK:['フォークランド諸島','🇫🇰'],
 };
 const ccName=(c)=>CC[c]?CC[c][0]:c;
 const ccFlag=(c)=>CC[c]?CC[c][1]:'📍';
@@ -491,6 +504,138 @@ const ANIMALS = [
   desc:'純白に黒と赤をまとう「湿原の神」。雪原で翼を広げて舞う、つがいの求愛ダンスが有名。',
   range:['JPN','CHN','RUS','KOR'],focus:{c:[134,44],z:3.4},
   gbif:2474944,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Grus_japonensis_-Hokkaido%2C_Japan_-several-8_%281%29.jpg/960px-Grus_japonensis_-Hokkaido%2C_Japan_-several-8_%281%29.jpg'},
+
+ {id:'rhino',nameJa:'クロサイ',nameSci:'Diceros bicornis',emoji:'🦏',taxon:'サイ科',biome:'サバンナ',status:'CR',
+  stats:{size:'体長3–3.8m',weight:'800–1400kg',diet:'草食',life:'35–50年'},
+  desc:'上唇がとがった「黒い」サイ。密猟で激減した、アフリカの危機に瀕する巨獣。',
+  range:['NAM','KEN','TZA','ZAF','AGO','ZWE','ETH','MWI'],focus:{c:[30,-15],z:2.6},
+  gbif:5220111,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Black_Rhino_at_Working_with_Wildlife.jpg/960px-Black_Rhino_at_Working_with_Wildlife.jpg'},
+
+ {id:'leopard',nameJa:'ヒョウ',nameSci:'Panthera pardus',emoji:'🐆',taxon:'ネコ科',biome:'サバンナ',status:'VU',
+  stats:{size:'体長0.9–1.9m',weight:'30–90kg',diet:'肉食',life:'12–17年'},
+  desc:'獲物を木の上へ運ぶ単独のハンター。アフリカからアジアまで最も広く分布するヒョウ。',
+  range:['ZAF','IND','ISR','TZA','KEN','BWA','LKA','NPL','NAM'],focus:{c:[40,5],z:1.9},
+  gbif:5219436,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/African_leopard_male_%28cropped%29.jpg/960px-African_leopard_male_%28cropped%29.jpg'},
+
+ {id:'asianelephant',nameJa:'アジアゾウ',nameSci:'Elephas maximus',emoji:'🐘',taxon:'ゾウ科',biome:'森林',status:'EN',
+  stats:{size:'体高2–3.5m',weight:'2.7–5t',diet:'草食',life:'60–70年'},
+  desc:'アフリカゾウより小さく耳も小さい。古くから人と働いてきた、アジアの森の賢者。',
+  range:['IND','LKA','THA','MYS','KHM','IDN','CHN','NPL'],focus:{c:[90,18],z:2.6},
+  gbif:5219461,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Elephas_maximus_%28Bandipur%29.jpg/960px-Elephas_maximus_%28Bandipur%29.jpg'},
+
+ {id:'moose',nameJa:'ヘラジカ',nameSci:'Alces alces',emoji:'🫎',taxon:'シカ科',biome:'寒帯林',status:'LC',
+  stats:{size:'体高1.4–2.1m',weight:'200–700kg',diet:'草食',life:'15–25年'},
+  desc:'世界最大のシカ。手のひら型の巨大な角をもち、北の針葉樹林と湿地を歩く。',
+  range:['EST','SWE','USA','CAN','RUS','FIN','POL','UKR','DNK'],focus:{c:[60,62],z:1.7},
+  gbif:2440940,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Alaska_moose.jpg/960px-Alaska_moose.jpg'},
+
+ {id:'raccoon',nameJa:'アライグマ',nameSci:'Procyon lotor',emoji:'🦝',taxon:'アライグマ科',biome:'森林',status:'LC',
+  stats:{size:'体長40–70cm',weight:'5–12kg',diet:'雑食',life:'2–3年'},
+  desc:'器用な前足で何でも“洗う”ように扱う。都市にも適応し、欧州や日本にも移入した北米の知恵者。',
+  range:['USA','CAN','BEL','DEU','LUX','MEX','JPN'],focus:{c:[-90,40],z:2.4},
+  gbif:5218786,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Raccoon_in_Central_Park_%2835264%29.jpg/960px-Raccoon_in_Central_Park_%2835264%29.jpg'},
+
+ {id:'beaver',nameJa:'アメリカビーバー',nameSci:'Castor canadensis',emoji:'🦫',taxon:'ビーバー科',biome:'湿地',status:'LC',
+  stats:{size:'体長74–90cm',weight:'11–32kg',diet:'草食',life:'10–20年'},
+  desc:'木を倒してダムを築き、湿地そのものを作りかえる“自然の土木家”。',
+  range:['USA','CHL','CAN'],focus:{c:[-95,50],z:2.4},
+  gbif:2439838,photo:'https://upload.wikimedia.org/wikipedia/commons/6/6b/American_Beaver.jpg'},
+
+ {id:'capybara',nameJa:'カピバラ',nameSci:'Hydrochoerus hydrochaeris',emoji:'🐹',taxon:'テンジクネズミ科',biome:'湿地',status:'LC',
+  stats:{size:'体長1–1.3m',weight:'35–66kg',diet:'草食',life:'8–10年'},
+  desc:'世界最大のげっ歯類。水辺で群れ、おっとりした性格で他種ともよく共にいる。',
+  range:['COL','BRA','ARG','BOL','PER','URY','ECU'],focus:{c:[-58,-10],z:2.6},
+  gbif:5786666,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Capybaracropped.jpg/960px-Capybaracropped.jpg'},
+
+ {id:'sloth',nameJa:'ノドチャミユビナマケモノ',nameSci:'Bradypus variegatus',emoji:'🦥',taxon:'ナマケモノ科',biome:'熱帯雨林',status:'LC',
+  stats:{size:'体長42–80cm',weight:'2.5–6kg',diet:'草食',life:'30–40年'},
+  desc:'一日中ほとんど動かず木にぶら下がる。毛に藻が生え、緑がかって森に溶ける。',
+  range:['CRI','PAN','COL','BRA','PER','ECU','BOL','VEN','NIC'],focus:{c:[-65,-5],z:2.8},
+  gbif:2436353,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Bradypus.jpg/960px-Bradypus.jpg'},
+
+ {id:'toucan',nameJa:'オニオオハシ',nameSci:'Ramphastos toco',emoji:'🦜',taxon:'オオハシ科',biome:'熱帯雨林',status:'LC',
+  stats:{size:'全長55–65cm',weight:'0.5–0.9kg',diet:'雑食',life:'15–20年'},
+  desc:'体長の半分ほどもある巨大なくちばしをもつ。鮮やかな姿で南米の森を彩る。',
+  range:['BRA','ARG','BOL','PRY'],focus:{c:[-55,-12],z:2.6},
+  gbif:2478765,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/006_Toco_toucan_in_Encontro_das_%C3%81guas_State_Park_Photo_by_Giles_Laurent.jpg/960px-006_Toco_toucan_in_Encontro_das_%C3%81guas_State_Park_Photo_by_Giles_Laurent.jpg'},
+
+ {id:'flamingo',nameJa:'オオフラミンゴ',nameSci:'Phoenicopterus roseus',emoji:'🦩',taxon:'フラミンゴ科',biome:'湿地',status:'LC',
+  stats:{size:'体高1.1–1.5m',weight:'2–4kg',diet:'雑食',life:'30–40年'},
+  desc:'餌のエビや藻に含まれる色素で淡紅色に染まる。塩湖やラグーンに大群で集まる。',
+  range:['ESP','PRT','IND','ZAF','ARE','ITA','GRC','NLD','ISR','TUR'],focus:{c:[28,8],z:1.7},
+  gbif:4352332,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/010_Greater_flamingos_male_and_female_in_the_Camargue_during_mating_season_Photo_by_Giles_Laurent.jpg/960px-010_Greater_flamingos_male_and_female_in_the_Camargue_during_mating_season_Photo_by_Giles_Laurent.jpg'},
+
+ {id:'shoebill',nameJa:'ハシビロコウ',nameSci:'Balaeniceps rex',emoji:'🐦',taxon:'ハシビロコウ科',biome:'湿地',status:'VU',
+  stats:{size:'体高1.1–1.4m',weight:'4–7kg',diet:'肉食（魚）',life:'35–50年'},
+  desc:'巨大な靴型のくちばしをもち、何時間も動かず獲物を待つ“動かない鳥”。',
+  range:['UGA','ZMB'],focus:{c:[30,2],z:3.0},
+  gbif:2480347,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Balaeniceps_rex_-Ueno_Zoo%2C_Tokyo%2C_Japan-8a.jpg/960px-Balaeniceps_rex_-Ueno_Zoo%2C_Tokyo%2C_Japan-8a.jpg'},
+
+ {id:'galapagostortoise',nameJa:'ガラパゴスゾウガメ',nameSci:'Chelonoidis niger',emoji:'🐢',taxon:'リクガメ科',biome:'乾燥地',status:'VU',
+  stats:{size:'甲長1.2–1.5m',weight:'200–400kg',diet:'草食',life:'100年以上'},
+  desc:'100年を超えて生きる巨大なリクガメ。島ごとに甲羅の形が違い、進化論の着想源に。',
+  range:['ECU'],focus:{c:[-90.5,-0.5],z:5.2},
+  gbif:9527499,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Galapagos_giant_tortoise_Geochelone_elephantopus.jpg/960px-Galapagos_giant_tortoise_Geochelone_elephantopus.jpg'},
+
+ {id:'alligator',nameJa:'アメリカアリゲーター',nameSci:'Alligator mississippiensis',emoji:'🐊',taxon:'アリゲーター科',biome:'湿地',status:'LC',
+  stats:{size:'体長3–4.5m',weight:'200–450kg',diet:'肉食',life:'30–50年'},
+  desc:'アメリカ南東部の湿地の頂点捕食者。絶滅寸前から保護で力強く回復した。',
+  range:['USA'],focus:{c:[-84,30],z:3.4},
+  gbif:2441370,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/American_Alligator.jpg/960px-American_Alligator.jpg'},
+
+ {id:'greenturtle',nameJa:'アオウミガメ',nameSci:'Chelonia mydas',emoji:'🐢',taxon:'ウミガメ科',biome:'海',status:'EN',
+  stats:{size:'甲長1–1.2m',weight:'110–190kg',diet:'草食',life:'60–70年'},
+  desc:'熱帯の海をめぐり、生まれた浜に戻って産卵する。成体は海草を食べる数少ないカメ。',
+  range:['AUS','USA','ARE','ECU','MEX'],focus:{c:[130,5],z:1.6},
+  gbif:2442225,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Green_sea_turtle_%28Chelonia_mydas%29_Moorea.jpg/960px-Green_sea_turtle_%28Chelonia_mydas%29_Moorea.jpg'},
+
+ {id:'whaleshark',nameJa:'ジンベエザメ',nameSci:'Rhincodon typus',emoji:'🦈',taxon:'ジンベエザメ科',biome:'海',status:'EN',
+  stats:{size:'体長10–12m',weight:'約19t',diet:'肉食（プランクトン）',life:'70–100年'},
+  desc:'現生最大の魚類。口を開けてプランクトンを濾し取る、穏やかな海の巨人。',
+  range:['AUS','ECU','MEX','IDN','PER','PHL','CRI','USA'],focus:{c:[80,5],z:1.7},
+  gbif:2417522,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Similan_Dive_Center_-_great_whale_shark.jpg/960px-Similan_Dive_Center_-_great_whale_shark.jpg'},
+
+ {id:'orca',nameJa:'シャチ',nameSci:'Orcinus orca',emoji:'🐳',taxon:'マイルカ科',biome:'海',status:'DD',
+  stats:{size:'体長6–9m',weight:'3.6–5.4t',diet:'肉食',life:'50–80年'},
+  desc:'高度な社会と方言をもつ海の頂点捕食者。群れで連携し、世界中の海に分布する。',
+  range:['USA','CAN','ATA','AUS','ATF','CHL','PRT','GBR','ISL','MEX'],focus:{c:[-150,55],z:1.5},
+  gbif:2440483,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Killerwhales_jumping.jpg/960px-Killerwhales_jumping.jpg'},
+
+ {id:'greatwhite',nameJa:'ホオジロザメ',nameSci:'Carcharodon carcharias',emoji:'🦈',taxon:'ネズミザメ科',biome:'海',status:'VU',
+  stats:{size:'体長4–6m',weight:'0.7–2t',diet:'肉食',life:'40–70年'},
+  desc:'鋭い歯と強靭な体をもつ海の頂点捕食者。沿岸の冷たい海でアザラシなどを狩る。',
+  range:['AUS','USA','NZL','CAN','BRA','ZAF'],focus:{c:[20,-35],z:2.0},
+  gbif:2420694,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/White_shark.jpg/960px-White_shark.jpg'},
+
+ {id:'albatross',nameJa:'ワタリアホウドリ',nameSci:'Diomedea exulans',emoji:'🐦',taxon:'アホウドリ科',biome:'海',status:'VU',
+  stats:{size:'翼開長3–3.5m',weight:'6–12kg',diet:'肉食（イカ）',life:'50年以上'},
+  desc:'鳥類最大の翼をもち、ほとんど羽ばたかず南極海を何千kmも滑空する。',
+  range:['AUS','ATA','ZAF','NZL','ATF','CHL','FLK','ARG'],focus:{c:[20,-50],z:1.6},
+  gbif:5229302,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Diomedea_exulans_-_SE_Tasmania.jpg/960px-Diomedea_exulans_-_SE_Tasmania.jpg'},
+
+ {id:'humboldtpenguin',nameJa:'フンボルトペンギン',nameSci:'Spheniscus humboldti',emoji:'🐧',taxon:'ペンギン科',biome:'海',status:'VU',
+  stats:{size:'体高56–70cm',weight:'4–5kg',diet:'肉食（魚）',life:'15–20年'},
+  desc:'冷たいフンボルト海流の南米西岸にすむペンギン。岩場に巣穴を掘る。',
+  range:['CHL','PER'],focus:{c:[-72,-20],z:3.0},
+  gbif:5229386,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Spheniscus_humboldti_%2854905367722%29.jpg/960px-Spheniscus_humboldti_%2854905367722%29.jpg'},
+
+ {id:'platypus',nameJa:'カモノハシ',nameSci:'Ornithorhynchus anatinus',emoji:'🦆',taxon:'カモノハシ科',biome:'湿地',status:'NT',
+  stats:{size:'体長40–60cm',weight:'0.7–2.4kg',diet:'肉食',life:'12–17年'},
+  desc:'くちばしと水かき、卵を産む哺乳類という奇跡の動物。電気で獲物を感知する。',
+  range:['AUS'],focus:{c:[148,-33],z:3.6},
+  gbif:2433376,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Duck-billed_platypus_%28Ornithorhynchus_anatinus%29_Scottsdale.jpg/960px-Duck-billed_platypus_%28Ornithorhynchus_anatinus%29_Scottsdale.jpg'},
+
+ {id:'tasmaniandevil',nameJa:'タスマニアデビル',nameSci:'Sarcophilus harrisii',emoji:'😈',taxon:'フクロネコ科',biome:'森林',status:'EN',
+  stats:{size:'体長57–65cm',weight:'6–8kg',diet:'肉食',life:'5–6年'},
+  desc:'夜に不気味な叫び声をあげる、世界最大の肉食有袋類。タスマニア島だけに残る。',
+  range:['AUS'],focus:{c:[146.5,-42],z:4.6},
+  gbif:2435451,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Sarcophilus_harrisii_taranna.jpg/960px-Sarcophilus_harrisii_taranna.jpg'},
+
+ {id:'kiwi',nameJa:'キーウィ',nameSci:'Apteryx mantelli',emoji:'🥝',taxon:'キーウィ科',biome:'森林',status:'VU',
+  stats:{size:'体高35–45cm',weight:'1.5–3kg',diet:'雑食',life:'25–50年'},
+  desc:'翼が退化した飛べない夜行性の鳥。長いくちばしの先の鼻で地中の虫を探す。',
+  range:['NZL'],focus:{c:[175,-39],z:4.4},
+  gbif:2495144,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/TeTuatahianui.jpg/960px-TeTuatahianui.jpg'},
 ];
 ANIMALS.forEach((a,i)=>a.no=i+1);
 
@@ -503,16 +648,19 @@ const MockDataSource = {
 };
 const DATA = MockDataSource;   // ← 将来：GbifDataSource 等に差し替え
 
-/* 実データ層（GBIF）：学名→taxonKeyは取得済み。実観測タイルのURLを返す。 */
+/* 実データ層（GBIF）：学名→taxonKeyは取得済み。
+   観測密度タイル（ヘックスビン）を重ねる。ヘックスはズーム階層ごとに再計算され、
+   寄るほど細かいビンになる＝国全体ベタ塗りではない「詳細分布」。 */
 function gbifTileURL(taxonKey){
   return 'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png'
        + '?srs=EPSG:3857&taxonKey=' + taxonKey
-       + '&bin=hex&hexPerTile=55&style=classic-noborder.poly';
+       + '&bin=hex&hexPerTile=71&style=classic-noborder.poly'
+       + '&basisOfRecord=HUMAN_OBSERVATION';   // 野外の目撃を中心に（標本ノイズを抑制）
 }
 
 /* ===================================================================== */
 const $=(s)=>document.querySelector(s);
-let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true;
+let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true, A3toA2={};
 let gbifOn=true, currentAnimal=null, currentMode={type:'overview'};
 const SEEN = new Set(JSON.parse(localStorage.getItem('biosphere_seen')||'[]'));
 
@@ -538,6 +686,8 @@ map.on('load', async ()=>{
   }catch(e){ bootFail('国境データを読み込めませんでした。'); return; }
   const p0=countryGeo.features[0].properties;
   CODE_PROP=['ADM0_A3','ISO_A3_EH','ISO_A3','iso_a3','adm0_a3'].find(k=>k in p0)||'ADM0_A3';
+  // A3→A2（GBIF実データの国別クエリに使用）
+  countryGeo.features.forEach(f=>{const p=f.properties;const a3=p[CODE_PROP];const a2=p.ISO_A2||p.ISO_A2_EH;if(a3&&a2&&a2!=='-99')A3toA2[a3]=a2;});
 
   map.addSource('countries',{type:'geojson',data:countryGeo});
   map.addLayer({id:'c-fill',type:'fill',source:'countries',paint:{'fill-color':'rgba(0,0,0,0)','fill-opacity':.72}});
@@ -547,7 +697,7 @@ map.on('load', async ()=>{
 
   mapReady=true; drawOverview(); bindMap(); updateDex();
   $('#boot').classList.add('gone'); spinLoop();
-  toast('🌍','地球をドラッグして回せます。🎲で気ままに旅へ。',4200);
+  toast('🌍','動物を選ぶ→棲む土地へ。ズームで分布が細かく見えます。🎲で旅へ。',4600);
 });
 map.on('error',()=>{});
 
@@ -569,7 +719,7 @@ function removeGbif(){ if(!mapReady)return; if(map.getLayer('gbif'))map.removeLa
 function addGbif(key){
   if(!mapReady)return; removeGbif();
   map.addSource('gbif',{type:'raster',tiles:[gbifTileURL(key)],tileSize:512,attribution:'観測点: GBIF.org'});
-  map.addLayer({id:'gbif',type:'raster',source:'gbif',paint:{'raster-opacity':.92,'raster-resampling':'linear'}},'c-glow');
+  map.addLayer({id:'gbif',type:'raster',source:'gbif',paint:{'raster-opacity':.96,'raster-resampling':'nearest'}},'c-glow');
 }
 
 function drawOverview(){
@@ -589,7 +739,7 @@ function heatColor(t){
 }
 function paintAnimal(a){
   const col=RARITY[a.status].color;
-  const fillA = gbifOn ? .28 : .7;   // GBIF表示時は国塗りを控えめにして実データを主役に
+  const fillA = gbifOn ? .16 : .7;   // GBIF表示時は国塗りを控えめにして実データ(詳細メッシュ)を主役に
   setFill(['case',['in',['get',CODE_PROP],['literal',a.range]],hexA(col,fillA),'rgba(0,0,0,0)']);
   setActive(a.range,col);
   if(gbifOn && a.gbif) addGbif(a.gbif); else removeGbif();
@@ -639,7 +789,7 @@ const allBtn=document.createElement('button'); allBtn.className='bm'; allBtn.inn
   const used=[...new Set(ANIMALS.map(a=>a.status))].sort((a,b)=>'LC NT VU EN CR DD'.indexOf(a)-'LC NT VU EN CR DD'.indexOf(b));
   used.forEach(s=>{const r=RARITY[s];const d=document.createElement('div');d.className='lr';d.style.color=r.color;
     d.innerHTML=`<span class="sw" style="background:${r.color}"></span><b>${r.rank}</b><span style="margin-left:auto;color:var(--muted-2)">${s}</span>`;legendEl.appendChild(d);});
-  const f=document.createElement('div');f.className='lf';f.innerHTML='地図の<b>黄〜赤のメッシュ</b>は GBIF の実観測地点（数百万件）。🛰️で表示切替。';legendEl.appendChild(f);
+  const f=document.createElement('div');f.className='lf';f.innerHTML='地図の<b>黄〜赤のメッシュ</b>は GBIF の実観測地点。<b>ズームで細かく</b>なります。🛰️で表示切替。';legendEl.appendChild(f);
 })();
 
 /* ---------- セレクション ---------- */
@@ -663,11 +813,41 @@ async function selectBiome(bm){
   setMode(`${BIOMES[bm].e} ${bm} の住人 ${list.length}種`);
   if(list[0]) flyTo(list[0].focus.c, Math.max(1.6,list[0].focus.z-0.8));
 }
-async function showCountry(code){
+async function showCountry(code, lngLat){
   if(!code)return; currentMode={type:'country',code}; currentAnimal=null; pressChip(null);
   const animals=await DATA.getAnimalsByCountry(code); paintCountry(code); renderCountryCard(code,animals);
   setMode(`${ccFlag(code)} ${ccName(code)} に棲むいきもの`);
+  const center = lngLat ? [lngLat.lng,lngLat.lat] : countryCentroid(code);
+  if(center){ stopSpin(); map.flyTo({center,zoom:3.4,speed:.8,curve:1.5,essential:true}); }
+  fetchLocalSpecies(code);
 }
+// 国の重心（bbox中心）を求める
+function countryCentroid(code){
+  if(!countryGeo)return null;
+  const f=countryGeo.features.find(ft=>ft.properties[CODE_PROP]===code); if(!f)return null;
+  let minx=180,miny=90,maxx=-180,maxy=-90;
+  const walk=(co)=>{ if(typeof co[0]==='number'){ if(co[0]<minx)minx=co[0]; if(co[0]>maxx)maxx=co[0]; if(co[1]<miny)miny=co[1]; if(co[1]>maxy)maxy=co[1]; } else co.forEach(walk); };
+  walk(f.geometry.coordinates);
+  return [(minx+maxx)/2,(miny+maxy)/2];
+}
+// 動物の分布国へズーム（その種の詳細メッシュを保ったまま寄る）
+function flyCountry(code){ const c=countryCentroid(code); if(c){ stopSpin(); map.flyTo({center:c,zoom:4,speed:.85,curve:1.5,essential:true}); } }
+// GBIF実データ：その国で多く記録される脊椎動物（taxonKey=44=脊索動物）
+async function fetchLocalSpecies(code){
+  const el=document.getElementById('localspecies'); if(!el)return;
+  const a2=A3toA2[code];
+  if(!a2){ el.innerHTML='<span class="muted">この地域の実データは取得できませんでした。</span>'; return; }
+  try{
+    const r=await fetch(`https://api.gbif.org/v1/occurrence/search?country=${a2}&taxonKey=44&hasCoordinate=true&limit=0&facet=scientificName&facetLimit=8`);
+    const d=await r.json();
+    const counts=(d.facets&&d.facets[0]&&d.facets[0].counts)||[];
+    if(document.getElementById('localspecies')!==el) return; // 別の国に切り替わっていたら中断
+    if(!counts.length){ el.innerHTML='<span class="muted">記録が見つかりませんでした。</span>'; return; }
+    el.innerHTML=counts.map(c=>{const disp=c.name.split(' ').slice(0,2).join(' ');
+      return `<a class="locrow" target="_blank" rel="noopener" href="https://www.gbif.org/occurrence/search?country=${a2}&q=${encodeURIComponent(c.name)}"><span class="ln2">${disp}</span><span class="cnt2">${fmtN(c.count)}件 ↗</span></a>`;}).join('');
+  }catch(e){ el.innerHTML='<span class="muted">実データ取得に失敗しました（オフライン？）。</span>'; }
+}
+function fmtN(n){ return n>=1000? (n/1000).toFixed(n>=10000?0:1)+'k' : String(n); }
 function resetAll(){ pressChip(null); pressBiome(null); filterChips(null); closePanel(); drawOverview();
   map.flyTo({center:[18,16],zoom:1.45,speed:.7,curve:1.5,essential:true}); }
 function explore(){
@@ -709,9 +889,9 @@ function renderAnimalCard(a){
         <div class="stat"><div class="k">⏳ 寿命</div><div class="v">${a.stats.life}</div></div>
       </div>
       <div class="flavor">${a.desc}</div>
-      <div class="seclab">生息地 — ${a.range.length}地域 <span class="ln"></span></div>
-      <div class="geos">${a.range.map(c=>`<button class="geo" onclick="showCountry('${c}')"><span class="fl">${ccFlag(c)}</span>${ccName(c)}</button>`).join('')}</div>
-      <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝GBIFの実観測地点（${a.nameSci}）。だれかが実際にこの生きものを見た場所です。</div>
+      <div class="seclab">生息地 — ${a.range.length}地域（タップで寄る） <span class="ln"></span></div>
+      <div class="geos">${a.range.map(c=>`<button class="geo" onclick="flyCountry('${c}')"><span class="fl">${ccFlag(c)}</span>${ccName(c)}</button>`).join('')}</div>
+      <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝GBIFの実観測地点（${a.nameSci}）。<b>ズームするほど分布が細かく</b>見えます。だれかが実際にこの生きものを見た場所です。</div>
     </div>`;
   openPanel();
 }
@@ -720,19 +900,22 @@ function renderCountryCard(code,animals){
     return `<button class="cc-item" onclick="selectAnimal('${a.id}')">${avatar(a)}
       <span class="info"><span class="n">${a.nameJa}</span><span class="s">${a.nameSci}</span></span>
       <span class="rkbadge" style="background:${r.color}">${r.rank}</span></button>`;}).join('')
-    : `<div class="cc-empty">サンプル${ANIMALS.length}種ではこの地域に登録がありません。<br>実データ層（<b>GBIF</b>）に繋げば、その土地のいきものをまるごと拾えます。</div>`;
+    : `<div class="cc-empty">図鑑の${ANIMALS.length}種ではこの地域の登録がありません。<br>下の<b>GBIF実データ</b>には、その土地で実際に記録された生きものが出ます。</div>`;
   panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
     <div class="cc-head"><div class="lbl">この土地に棲む</div>
       <div class="cname"><span class="cflag">${ccFlag(code)}</span>${ccName(code)}</div>
-      <div class="cnt">${animals.length?`${animals.length}種が確認されています`:'登録なし'}</div></div>
-    <div class="cc-list">${rows}</div>`;
+      <div class="cnt">${animals.length?`図鑑の${animals.length}種が確認されています`:'図鑑では登録なし'}</div></div>
+    ${animals.length?'<div class="seclab" style="margin:4px 16px 8px">🐾 図鑑の種 <span class="ln"></span></div>':''}
+    <div class="cc-list">${rows}</div>
+    <div class="seclab" style="margin:8px 16px 9px">🛰️ GBIF実データ：この国で多く記録される生きもの <span class="ln"></span></div>
+    <div id="localspecies" class="locsp">実データを取得中…</div>`;
   openPanel();
 }
 window.closePanel=closePanel; window.showCountry=showCountry; window.selectAnimal=selectAnimal;
 
 /* ---------- 地図インタラクション ---------- */
 function bindMap(){
-  map.on('click','c-fill',(e)=>showCountry(e.features[0].properties[CODE_PROP]));
+  map.on('click','c-fill',(e)=>showCountry(e.features[0].properties[CODE_PROP], e.lngLat));
   map.on('click',(e)=>{ if(!map.queryRenderedFeatures(e.point,{layers:['c-fill']}).length) closePanel(); });
   const tip=$('#maptip');
   map.on('mousemove','c-fill',(e)=>{
