@@ -237,6 +237,16 @@ button{font-family:inherit;cursor:pointer;}
 .legend .lf b{color:#ffb02e;}
 @media(max-width:860px){.legend{display:none;}}
 
+/* 時系列スライダー（GBIF観測年代） */
+.yearbar{position:fixed;left:50%;bottom:170px;transform:translateX(-50%);z-index:15;
+  display:flex;align-items:center;gap:12px;background:var(--glass-strong);border:1px solid var(--line);
+  border-radius:999px;padding:8px 17px;backdrop-filter:blur(16px);box-shadow:var(--shadow);}
+.yearbar[hidden]{display:none;}
+.yearbar .yl{font-size:11px;letter-spacing:.05em;color:var(--muted);font-weight:700;white-space:nowrap;}
+.yearbar input[type=range]{width:190px;accent-color:var(--teal);cursor:pointer;height:4px;}
+.yearbar b{font-size:12.5px;font-weight:800;color:var(--teal);min-width:74px;text-align:left;white-space:nowrap;}
+@media(max-width:860px){.yearbar{display:none;}}
+
 .toast{position:fixed;top:66px;left:50%;transform:translateX(-50%) translateY(-12px);z-index:40;background:var(--glass-strong);border:1px solid var(--line);border-radius:12px;padding:11px 17px;font-size:13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;display:flex;align-items:center;gap:9px;max-width:88vw;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast .e{font-size:16px;}
@@ -287,6 +297,12 @@ button{font-family:inherit;cursor:pointer;}
 <div class="modepill" id="modepill"><span class="dot"></span><span id="modetext">世界ぜんたいの分布ヒートマップ</span></div>
 
 <aside class="legend" id="legend"><div class="lt">生息数のめやす（IUCN保全状況）</div></aside>
+
+<div class="yearbar" id="yearbar" hidden>
+  <span class="yl">🕰️ 観測年代</span>
+  <input type="range" id="yearSlider" min="0" max="4" step="1" value="0" aria-label="GBIF観測データの年代を選ぶ">
+  <b id="yearLabel">全期間</b>
+</div>
 
 <div class="dock">
   <div>
@@ -938,11 +954,12 @@ const DATA = MockDataSource;   // ← 将来：GbifDataSource 等に差し替え
 /* 実データ層（GBIF）：学名→taxonKeyは取得済み。
    観測密度タイル（ヘックスビン）を重ねる。ヘックスはズーム階層ごとに再計算され、
    寄るほど細かいビンになる＝国全体ベタ塗りではない「詳細分布」。 */
-function gbifTileURL(taxonKey){
+function gbifTileURL(taxonKey, year){
   return 'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png'
        + '?srs=EPSG:3857&taxonKey=' + taxonKey
        + '&bin=hex&hexPerTile=71&style=classic-noborder.poly'
-       + '&basisOfRecord=HUMAN_OBSERVATION';   // 野外目撃中心（標本ノイズ抑制）。ヘックスはズーム階層ごとに細密化
+       + '&basisOfRecord=HUMAN_OBSERVATION'    // 野外目撃中心（標本ノイズ抑制）。ヘックスはズーム階層ごとに細密化
+       + (year ? ('&year=' + year) : '');      // 時系列スライダー：年代で観測を絞る
 }
 
 /* ===================================================================== */
@@ -951,6 +968,14 @@ let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true, A3toA2=
 let gbifOn=true, currentAnimal=null, currentMode={type:'overview'};
 const SEEN = new Set(JSON.parse(localStorage.getItem('biosphere_seen')||'[]'));
 const filterState = {biome:null, q:'', facet:''};   // 環境/検索/分類傾向の絞り込みを一元管理
+let gbifYear=null;   // GBIF分布の年代フィルタ（&year=...）。null=全期間。動物を切り替えても保持
+const YEAR_STOPS=[
+  {label:'全期間',     y:null},
+  {label:'〜1990年代', y:'1800,1999'},
+  {label:'2000年代',   y:'2000,2009'},
+  {label:'2010年代',   y:'2010,2019'},
+  {label:'2020年代〜', y:'2020,2035'},
+];
 
 const map = window.map = new maplibregl.Map({
   container:'map',
@@ -1008,12 +1033,27 @@ function setActive(codes,color){
 function removeGbif(){ if(!mapReady)return; if(map.getLayer('gbif'))map.removeLayer('gbif'); if(map.getSource('gbif'))map.removeSource('gbif'); }
 function addGbif(key){
   if(!mapReady)return; removeGbif();
-  map.addSource('gbif',{type:'raster',tiles:[gbifTileURL(key)],tileSize:512,attribution:'観測点: GBIF.org'});
+  map.addSource('gbif',{type:'raster',tiles:[gbifTileURL(key, gbifYear)],tileSize:512,attribution:'観測点: GBIF.org'});
   map.addLayer({id:'gbif',type:'raster',source:'gbif',paint:{'raster-opacity':.96,'raster-resampling':'nearest'}},'c-glow');
+}
+// 時系列スライダー（GBIF &year=）。動物選択中＆GBIF ON のときだけ表示
+function showYearbar(on){
+  const yb=$('#yearbar'); if(!yb)return;
+  if(on){ let i=YEAR_STOPS.findIndex(s=>s.y===gbifYear); if(i<0)i=0;
+    $('#yearSlider').value=i; $('#yearLabel').textContent=YEAR_STOPS[i].label; yb.removeAttribute('hidden'); }
+  else yb.setAttribute('hidden','');
+}
+function applyYear(idx){
+  const st=YEAR_STOPS[idx]||YEAR_STOPS[0]; gbifYear=st.y; $('#yearLabel').textContent=st.label;
+  if(currentAnimal && gbifOn && currentAnimal.gbif){ addGbif(currentAnimal.gbif); setMode(animalModeText(currentAnimal)); }
+}
+function animalModeText(a){
+  const yl=(gbifOn&&gbifYear)?('・'+((YEAR_STOPS.find(s=>s.y===gbifYear)||{}).label||'')):'';
+  return `${a.emoji} ${a.nameJa} の分布（${a.range.length}地域）${gbifOn?' ・GBIF実データ':''}${yl}`;
 }
 
 function drawOverview(){
-  currentMode={type:'overview'}; currentAnimal=null; removeGbif();
+  currentMode={type:'overview'}; currentAnimal=null; removeGbif(); showYearbar(false);
   const count={}; ANIMALS.forEach(a=>a.range.forEach(c=>count[c]=(count[c]||0)+1));
   const max=Math.max(1,...Object.values(count)); const pairs=[];
   Object.entries(count).forEach(([c,n])=>pairs.push(c,heatColor(n/max)));
@@ -1148,17 +1188,17 @@ async function selectAnimal(id){
   pressChip(id); pressBiome(null); filterChips(null);
   paintAnimal(a); flyTo(a.focus.c,a.focus.z); renderAnimalCard(a); markSeen(id);
   try{ history.replaceState(null,'','#'+id); }catch(e){}   // 共有用ディープリンク
-  setMode(`${a.emoji} ${a.nameJa} の分布（${a.range.length}地域）${gbifOn?' ・GBIF実データ':''}`);
+  setMode(animalModeText(a)); showYearbar(gbifOn);
 }
 async function selectBiome(bm){
   currentMode={type:'biome',bm}; currentAnimal=null;
-  pressBiome(bm); pressChip(null); filterChips(bm); paintBiome(bm); closePanel();
+  pressBiome(bm); pressChip(null); filterChips(bm); paintBiome(bm); closePanel(); showYearbar(false);
   const list=await DATA.getAnimalsByBiome(bm);
   setMode(`${BIOMES[bm].e} ${bm} の住人 ${list.length}種`);
   if(list[0]) flyTo(list[0].focus.c, Math.max(1.6,list[0].focus.z-0.8));
 }
 async function showCountry(code, lngLat){
-  if(!code)return; currentMode={type:'country',code}; currentAnimal=null; pressChip(null);
+  if(!code)return; currentMode={type:'country',code}; currentAnimal=null; pressChip(null); showYearbar(false);
   const animals=await DATA.getAnimalsByCountry(code); paintCountry(code); renderCountryCard(code,animals);
   setMode(`${ccFlag(code)} ${ccName(code)} に棲むいきもの`);
   const center = lngLat ? [lngLat.lng,lngLat.lat] : countryCentroid(code);
@@ -1301,9 +1341,11 @@ $('#globeBtn').addEventListener('click',()=>{ isGlobe=!isGlobe; try{ map.setProj
 $('#gbifBtn').addEventListener('click',()=>{ gbifOn=!gbifOn; $('#gbifBtn').setAttribute('aria-pressed',String(gbifOn));
   toast('🛰️', gbifOn?'GBIF実観測データ：ON':'実観測データ：OFF（手描き分布）',1900);
   if(currentAnimal) paintAnimal(currentAnimal); else removeGbif();
-  if(currentAnimal) setMode(`${currentAnimal.emoji} ${currentAnimal.nameJa} の分布（${currentAnimal.range.length}地域）${gbifOn?' ・GBIF実データ':''}`);});
+  if(currentAnimal) setMode(animalModeText(currentAnimal));
+  showYearbar(gbifOn && currentMode.type==='animal'); });
 $('#exploreBtn').addEventListener('click',explore);
 $('#homeBtn').addEventListener('click',resetAll);
+$('#yearSlider').addEventListener('input',(e)=>applyYear(+e.target.value));
 $('#dex').addEventListener('click',()=>{ const t=ANIMALS.length,n=SEEN.size; toast(n>=t?'🏆':'🧭', n>=t?'図鑑コンプリート！全種を旅しました':`図鑑 ${n}/${t} 種を発見。🎲で続きを旅しよう`,2600); });
 
 function setMode(t){ $('#modetext').textContent=t; }
