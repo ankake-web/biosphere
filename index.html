@@ -323,6 +323,14 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .yearbar .ycount.lo{color:#ffb02e;}
 @media(max-width:860px){.yearbar{display:none;}}
 
+/* 季節移動の経路マーカー（HTMLマーカー＝CJK/絵文字OK） */
+.migm{display:flex;align-items:center;gap:5px;pointer-events:none;font-size:11px;font-weight:700;white-space:nowrap;}
+.migm .lab{background:rgba(8,14,20,.74);color:#ffe9a8;border:1px solid rgba(255,212,94,.42);padding:2px 8px;border-radius:7px;backdrop-filter:blur(3px);box-shadow:0 2px 8px rgba(0,0,0,.4);}
+.migm .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto;}
+.migm .dot.from{background:#ffb02e;box-shadow:0 0 9px #ffb02e;}
+.migm .dot.to{background:#6cc6ff;box-shadow:0 0 9px #6cc6ff;}
+.migm.arrow .arr{font-size:18px;color:#bff6ff;text-shadow:0 0 8px rgba(31,208,255,.95);display:inline-block;line-height:1;}
+
 .toast{position:fixed;top:66px;left:50%;transform:translateX(-50%) translateY(-12px);z-index:40;background:var(--glass-strong);border:1px solid var(--line);border-radius:12px;padding:11px 17px;font-size:13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;display:flex;align-items:center;gap:9px;max-width:88vw;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast .e{font-size:16px;}
@@ -1277,6 +1285,17 @@ const YEAR_STOPS=[
   {label:'2010年代',   y:'2010,2019'},
   {label:'2020年代〜', y:'2020,2035'},
 ];
+// 季節移動（キュレーション）。GBIFタイルは月フィルタ(&month=)を無視するため、主要な回遊・渡り種の
+// 「繁殖／産卵域 → 越冬／採餌域」を手動データで表示（代表的な経路の模式。c=[経度,緯度]）。
+const MIGRATION={
+  monarch:{from:{c:[-90,43],label:'夏 繁殖地（北米）'}, to:{c:[-100.3,19.6],label:'冬 越冬地（メキシコ）'}, note:'世代をまたいで北米とメキシコの森を往復する数千kmの大移動'},
+  whale:{from:{c:[-148,57],label:'夏 採餌（アラスカ湾）'}, to:{c:[-156,21],label:'冬 繁殖（ハワイ）'}, note:'極域の豊かな採餌場と熱帯の繁殖場を季節で行き来する'},
+  steller:{from:{c:[155,57],label:'夏 繁殖（カムチャツカ）'}, to:{c:[144,44],label:'冬 越冬（北海道）'}, note:'ロシア極東で繁殖し、冬に流氷とともに北海道へ南下する'},
+  crane:{from:{c:[124,47],label:'夏 繁殖（アムール）'}, to:{c:[120.5,33.5],label:'冬 越冬（中国東部）'}, note:'大陸の個体群はシベリア・中国東北で繁殖し、東部沿岸で越冬する'},
+  albatross:{from:{c:[-37,-54],label:'繁殖（南大西洋の島）'}, to:{c:[40,-46],label:'採餌（南極海を周回）'}, note:'繁殖島を拠点に、偏西風に乗って南極海を何千kmも周回採餌する'},
+  greenturtle:{from:{c:[144,-11.6],label:'産卵（営巣浜）'}, to:{c:[152,-22],label:'採餌（藻場）'}, note:'遠く離れた採餌の藻場と生まれた営巣浜の間を長距離回遊する'},
+  loggerhead:{from:{c:[140,34],label:'産卵（日本）'}, to:{c:[-115,27],label:'成育（東太平洋）'}, note:'太平洋を横断して成育域と産卵地を往復する世界規模の回遊'},
+};
 
 const map = window.map = new maplibregl.Map({
   container:'map',
@@ -1435,7 +1454,7 @@ function animalModeText(a){
 }
 
 function drawOverview(){
-  currentMode={type:'overview'}; currentAnimal=null; removeGbif(); showYearbar(false);
+  currentMode={type:'overview'}; currentAnimal=null; removeGbif(); removeMigration(); showYearbar(false);
   const count={}; ANIMALS.forEach(a=>a.range.forEach(c=>count[c]=(count[c]||0)+1));
   const max=Math.max(1,...Object.values(count)); const pairs=[];
   Object.entries(count).forEach(([c,n])=>pairs.push(c,heatColor(n/max)));
@@ -1455,15 +1474,38 @@ function paintAnimal(a){
   setFill(['case',['in',['get',CODE_PROP],['literal',a.range]],hexA(col,fillA),'rgba(0,0,0,0)']);
   setActive(a.range,col);
   if(gbifOn && a.gbif) addGbif(a.gbif); else removeGbif();
+  showMigration(a);
+}
+/* ---------- 季節移動の経路（キュレーション） ---------- */
+let migMarkers=[];
+function removeMigration(){ migMarkers.forEach(m=>m.remove()); migMarkers=[];
+  if(mapReady){ if(map.getLayer('mig-line'))map.removeLayer('mig-line'); if(map.getLayer('mig-glow'))map.removeLayer('mig-glow'); if(map.getSource('mig'))map.removeSource('mig'); } }
+function migArc(a,b,bend){ const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2], dx=b[0]-a[0], dy=b[1]-a[1];
+  const ctrl=[mid[0]-dy*bend, mid[1]+dx*bend], pts=[];
+  for(let t=0;t<=1.0001;t+=0.025){ const u=1-t; pts.push([u*u*a[0]+2*u*t*ctrl[0]+t*t*b[0], u*u*a[1]+2*u*t*ctrl[1]+t*t*b[1]]); }
+  return pts; }
+function migMarker(c,html,cls){ const el=document.createElement('div'); el.className='migm '+(cls||''); el.innerHTML=html;
+  migMarkers.push(new maplibregl.Marker({element:el}).setLngLat(c).addTo(map)); }
+function showMigration(a){
+  removeMigration(); const mg=a&&MIGRATION[a.id]; if(!mg||!mapReady) return;
+  const pts=migArc(mg.from.c,mg.to.c,0.18);
+  map.addSource('mig',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:pts}}});
+  map.addLayer({id:'mig-glow',type:'line',source:'mig',layout:{'line-cap':'round'},paint:{'line-color':'#1fd0ff','line-width':7,'line-blur':6,'line-opacity':.42}},'c-glow');
+  map.addLayer({id:'mig-line',type:'line',source:'mig',layout:{'line-cap':'round'},paint:{'line-color':'#bff6ff','line-width':2.4,'line-dasharray':[2,1.7],'line-opacity':.96}},'c-glow');
+  migMarker(mg.from.c, `<span class="dot from"></span><span class="lab">${mg.from.label}</span>`, 'from');
+  migMarker(mg.to.c,   `<span class="lab">${mg.to.label}</span><span class="dot to"></span>`, 'to');
+  const i=Math.floor(pts.length*0.55), m=pts[i], n=pts[Math.min(i+2,pts.length-1)];
+  const ang=Math.atan2(n[0]-m[0], n[1]-m[1])*180/Math.PI;   // 北基準・時計回り。東向き'➤'は -90 補正
+  migMarker(m, `<span class="arr" style="transform:rotate(${ang-90}deg)">➤</span>`, 'arrow');
 }
 function paintBiome(b){
-  removeGbif();
+  removeGbif(); removeMigration();
   const set=new Set(); ANIMALS.filter(a=>a.biome===b).forEach(a=>a.range.forEach(c=>set.add(c)));
   const codes=[...set]; const col=BIOMES[b]?BIOMES[b].g[0]:'#34d8c6';
   setFill(['case',['in',['get',CODE_PROP],['literal',codes]],hexA(col,.6),'rgba(0,0,0,0)']); setActive(codes,col);
 }
 function paintCountry(code){
-  removeGbif();
+  removeGbif(); removeMigration();
   setFill(['case',['==',['get',CODE_PROP],code],'rgba(52,216,198,.45)','rgba(0,0,0,0)']); setActive([code],'#34d8c6');
 }
 function flyTo(c,z){ stopSpin(); map.flyTo({center:c,zoom:z,speed:.85,curve:1.5,essential:true}); }
@@ -1712,6 +1754,7 @@ function renderAnimalCard(a){
       <div class="seclab">生息地 — ${a.range.length}地域（タップで寄る） <span class="ln"></span></div>
       <div class="geos">${a.range.map(c=>`<button class="geo" onclick="flyCountry('${c}')"><span class="fl">${ccFlag(c)}</span>${ccName(c)}</button>`).join('')}</div>
       <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝GBIFの実観測地点（${a.nameSci}）。<b>ズームするほど分布が細かく</b>見えます。だれかが実際にこの生きものを見た場所です。</div>
+      ${MIGRATION[a.id]?`<div class="gbifnote mignote">🧭 <b>季節移動</b>：${MIGRATION[a.id].note}。地図に<span style="color:#ffd45e;font-weight:700">繁殖↔越冬の経路</span>（模式）を表示中。</div>`:''}
     </div>`;
   openPanel();
 }
