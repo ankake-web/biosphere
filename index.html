@@ -331,6 +331,9 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .migm .dot.to{background:#6cc6ff;box-shadow:0 0 9px #6cc6ff;}
 .migm.arrow .arr{font-size:18px;color:#bff6ff;text-shadow:0 0 8px rgba(31,208,255,.95);display:inline-block;line-height:1;}
 
+/* アトラス表示の「自然の地理」ラベル（控えめ・分布を埋もれさせない） */
+.natm{pointer-events:none;font-size:10.5px;font-weight:600;letter-spacing:.04em;color:rgba(210,225,235,.62);white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.9),0 0 6px rgba(0,0,0,.7);font-style:italic;}
+
 .toast{position:fixed;top:66px;left:50%;transform:translateX(-50%) translateY(-12px);z-index:40;background:var(--glass-strong);border:1px solid var(--line);border-radius:12px;padding:11px 17px;font-size:13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;display:flex;align-items:center;gap:9px;max-width:88vw;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast .e{font-size:16px;}
@@ -2053,6 +2056,15 @@ const MIGRATION={
   greenturtle:{from:{c:[144,-11.6],label:'産卵（営巣浜）'}, to:{c:[152,-22],label:'採餌（藻場）'}, note:'遠く離れた採餌の藻場と生まれた営巣浜の間を長距離回遊する'},
   loggerhead:{from:{c:[140,34],label:'産卵（日本）'}, to:{c:[-115,27],label:'成育（東太平洋）'}, note:'太平洋を横断して成育域と産卵地を往復する世界規模の回遊'},
 };
+// アトラス表示（🏔️）時に重ねる「自然の地理」ラベル。観光名所でなく、分布の意味が分かる自然地形を控えめに。
+const NATURAL_PLACES=[
+  ['🏜 サハラ砂漠',13,23],['🏜 ゴビ砂漠',103,42],['🏜 アタカマ砂漠',-69,-24],['🏜 カラハリ砂漠',22,-23],['🏜 アラビア砂漠',47,23],
+  ['🌳 アマゾン熱帯雨林',-63,-4],['🌳 コンゴ盆地',22,-1],['🌳 ボルネオの森',114,1],
+  ['⛰ ヒマラヤ山脈',83,29],['⛰ アンデス山脈',-70,-18],['⛰ ロッキー山脈',-110,44],['⛰ アルプス',10,46],['⛰ 大地溝帯',36,0],
+  ['🦓 セレンゲティ',34,-2],['🌾 グレートプレーンズ',-100,41],['🌾 パンパ',-63,-36],['🌾 ユーラシア・ステップ',70,48],
+  ['🐠 グレートバリアリーフ',147,-18],['🐢 ガラパゴス諸島',-90,0],['🦎 マダガスカル',47,-19],
+  ['❄ グリーンランド',-42,72],['❄ シベリア',100,63],['🌊 バイカル湖',108,53],['🌊 アマゾン川',-58,-2],
+];
 
 const map = window.map = new maplibregl.Map({
   container:'map',
@@ -2617,7 +2629,17 @@ $('#homeBtn').addEventListener('click',resetAll);
 $('#yearSlider').addEventListener('input',(e)=>{ stopYearPlay(); applyYear(+e.target.value); });
 $('#yearPlay').addEventListener('click',()=>{ if(yearPlaying) stopYearPlay(); else startYearPlay(); });
 // アトラス（地形relief）表示トグル：スタイルは入れ替えず relief レイヤーの可視性だけ切替（分布/GBIF/国境は不変）
+let natMarkers=[];
+function showNaturalPlaces(on){
+  natMarkers.forEach(m=>m.remove()); natMarkers=[];
+  if(!on||!mapReady) return;
+  NATURAL_PLACES.forEach(([name,lon,lat])=>{
+    const el=document.createElement('div'); el.className='natm'; el.textContent=name;
+    natMarkers.push(new maplibregl.Marker({element:el}).setLngLat([lon,lat]).addTo(map));
+  });
+}
 function setAtlas(on){ atlasOn=on; if(mapReady && map.getLayer('relief')) map.setLayoutProperty('relief','visibility',on?'visible':'none');
+  showNaturalPlaces(on);   // 自然の地理ラベルもアトラス表示に連動
   const b=$('#atlasBtn'); if(b)b.setAttribute('aria-pressed',String(on)); }
 $('#atlasBtn').addEventListener('click',()=>{ setAtlas(!atlasOn);
   toast(atlasOn?'🏔️':'🗺️', atlasOn?'アトラス表示：地形と地名で旅する':'ミニマル表示にもどしました',1900); });
