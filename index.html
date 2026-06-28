@@ -206,6 +206,42 @@ button{font-family:inherit;cursor:pointer;}
 .modal-card a:hover{text-decoration:underline;}
 .modal-card .note{font-size:11px;color:var(--muted-2);margin-top:14px;border-top:1px solid var(--line);padding-top:12px;}
 
+/* レッドリスト解説モーダル（保全状況の「階段」＋危機サマリ） */
+.rl-card{width:min(600px,94vw);}
+.rl-lead{font-size:12.5px;line-height:1.7;color:#cdd9df;margin:2px 0 13px;}
+.rl-now{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-left:4px solid #888;border-radius:12px;padding:11px 13px;margin:0 0 15px;}
+.rl-now .em{font-size:30px;line-height:1;flex:0 0 auto;}
+.rl-now .t{font-size:12.5px;color:var(--muted);line-height:1.55;}
+.rl-now .t b{color:var(--ink);}
+.rl-now .nc{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.05em;color:#06121a;padding:2px 7px;border-radius:6px;margin-right:6px;}
+.rl-now .ln{margin-left:auto;font-size:12px;white-space:nowrap;flex:0 0 auto;}
+.rl-ladder{display:flex;flex-direction:column;gap:5px;margin:4px 0 2px;}
+.rl-row{display:flex;align-items:flex-start;gap:11px;padding:8px 11px;border-radius:10px;border:1px solid transparent;border-left:3px solid transparent;background:rgba(255,255,255,.025);}
+.rl-row .code{flex:0 0 auto;width:42px;text-align:center;font-size:11.5px;font-weight:800;letter-spacing:.03em;color:#06121a;padding:3px 0;border-radius:6px;}
+.rl-row .tx{min-width:0;}
+.rl-row .tx b{font-size:12.5px;color:var(--ink);font-weight:700;}
+.rl-row .tx i{font-style:normal;font-size:10.5px;color:var(--muted-2);margin-left:7px;letter-spacing:.02em;}
+.rl-row .tx .mean{display:block;font-size:11px;color:var(--muted);line-height:1.5;margin-top:2px;}
+.rl-row.cur .tx b{font-size:13.5px;}
+.rl-glabel{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#ffb02e;font-weight:800;margin:7px 2px 1px;display:flex;align-items:center;gap:6px;}
+.rl-glabel::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(255,176,46,.4),transparent);}
+.rl-summary{margin-top:15px;border-top:1px solid var(--line);padding-top:14px;}
+.rl-sumtitle{font-size:12.5px;color:var(--muted);line-height:1.7;margin-bottom:11px;}
+.rl-sumtitle b{color:var(--ink);}
+.rl-threatbtn{width:100%;text-align:left;font-size:12.5px;font-weight:700;color:#ffb02e;background:rgba(255,176,46,.1);border:1px solid rgba(255,176,46,.45);border-radius:11px;padding:10px 13px;cursor:pointer;margin-bottom:11px;transition:background .15s;}
+.rl-threatbtn:hover{background:rgba(255,176,46,.2);}
+.rl-sumchips{display:flex;flex-wrap:wrap;gap:7px;}
+.rl-chip{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:var(--ink);background:rgba(255,255,255,.05);border:1px solid var(--line);border-left:3px solid #888;padding:5px 10px;border-radius:9px;cursor:pointer;transition:background .15s;}
+.rl-chip:hover{background:rgba(255,255,255,.11);}
+.rl-chip b{font-size:13px;}
+/* カードの保全バッジ＝解説モーダルを開くボタン化 */
+button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer;padding:0;}
+.rare .iucn .code .qm{display:inline-block;width:13px;height:13px;line-height:13px;text-align:center;font-size:9px;border-radius:50%;background:rgba(6,18,26,.32);margin-left:3px;font-weight:800;vertical-align:1px;}
+.rare button.iucn:hover .code{filter:brightness(1.12);}
+.rare button.iucn:hover .jp{color:var(--ink);}
+.legend .lhelp{margin-top:9px;padding-top:8px;border-top:1px solid var(--line);font-size:11px;color:var(--teal);font-weight:700;cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;display:block;width:100%;text-align:left;padding-left:0;}
+.legend .lhelp:hover{text-decoration:underline;}
+
 .pbody{padding:15px 16px 22px;}
 .row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
 .tax{font-size:12px;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--line);padding:4px 10px;border-radius:7px;font-weight:600;display:flex;align-items:center;gap:5px;}
@@ -379,7 +415,7 @@ button{font-family:inherit;cursor:pointer;}
     <h3>データ・地図の出典</h3>
     <ul>
       <li><b>分布データ</b>：<a href="https://www.gbif.org/" target="_blank" rel="noopener">GBIF</a>（Global Biodiversity Information Facility）の実観測データ。各種カードの「GBIF ↗」から種ページへ。</li>
-      <li><b>保全状況・生息数のめやす</b>：<a href="https://www.iucnredlist.org/" target="_blank" rel="noopener">IUCN レッドリスト</a> 等を参考に編集（数値は推定・出典年により幅があります）。</li>
+      <li><b>保全状況・生息数のめやす</b>：<a href="https://www.iucnredlist.org/" target="_blank" rel="noopener">IUCN レッドリスト</a> 等を参考に編集（数値は推定・出典年により幅があります）。<a href="#" onclick="closeAbout();openRedlist();return false;">🛟 カテゴリの意味を見る</a></li>
       <li><b>写真</b>：<a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a>。各写真の撮影者・ライセンスは図鑑カード（📷）に明記。</li>
       <li><b>ベースマップ</b>：<a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> Dark（© OpenStreetMap contributors © CARTO）。</li>
       <li><b>地形（アトラス表示 🏔️）</b>：<a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> World Hillshade。</li>
@@ -387,6 +423,15 @@ button{font-family:inherit;cursor:pointer;}
       <li><b>逆引きの実写真</b>：<a href="https://www.inaturalist.org/" target="_blank" rel="noopener">iNaturalist</a>。<b>地図ライブラリ</b>：<a href="https://maplibre.org/" target="_blank" rel="noopener">MapLibre GL JS</a>。</li>
     </ul>
     <p class="note">※写真はファイルごとにライセンス（CC BY／CC BY-SA／パブリックドメイン等）と帰属条件が異なります。本サイトを商用利用する場合、NC（非営利）条件の素材やIUCN APIの利用可否に注意が必要です。</p>
+  </div>
+</div>
+
+<div class="modal" id="redlist" hidden role="dialog" aria-modal="true" aria-label="IUCNレッドリスト 保全状況の見方">
+  <div class="modal-bg" onclick="closeRedlist()"></div>
+  <div class="modal-card rl-card">
+    <button class="pclose" onclick="closeRedlist()" aria-label="閉じる">✕</button>
+    <h2>🛟 保全状況（IUCNレッドリスト）の見方</h2>
+    <div id="rlBody"></div>
   </div>
 </div>
 
@@ -416,6 +461,20 @@ const RARITY = {
   CR:{rank:'レジェンダリー',band:'絶滅寸前',     jp:'近絶滅',     en:'Critically Endangered', color:'#ffb02e', gem:'★'},
   DD:{rank:'データ不足',    band:'不明',         jp:'データ不足', en:'Data Deficient',        color:'#94a3b8', gem:'·'},
 };
+// IUCNレッドリスト 9段階（危機が高い順）。色はRARITYと共有し、EX/EW/NE と各段の意味を補う。導線・解説モーダルで使用。
+const REDLIST=[
+  {code:'EX',jp:'絶滅',                en:'Extinct',                color:'#6b7280',mean:'最後の1個体まで失われ、地球上から姿を消した。'},
+  {code:'EW',jp:'野生絶滅',            en:'Extinct in the Wild',    color:'#9aa3ad',mean:'飼育・栽培下にだけ生き残り、野生では絶滅した。'},
+  {code:'CR',jp:'近絶滅（深刻な危機）',en:'Critically Endangered',  color:'#ffb02e',mean:'ごく近い将来、野生で絶滅する危険が極めて高い。'},
+  {code:'EN',jp:'絶滅危惧',            en:'Endangered',             color:'#b072ff',mean:'近い将来、野生で絶滅する危険が高い。'},
+  {code:'VU',jp:'危急',                en:'Vulnerable',             color:'#4f9bff',mean:'絶滅の危険が増大している。'},
+  {code:'NT',jp:'準絶滅危惧',          en:'Near Threatened',        color:'#2dd4bf',mean:'今は大丈夫だが、将来的に危惧される可能性がある。'},
+  {code:'LC',jp:'軽度懸念',            en:'Least Concern',          color:'#7aa884',mean:'広く分布し個体数も多い。当面の絶滅リスクは低い。'},
+  {code:'DD',jp:'データ不足',          en:'Data Deficient',         color:'#94a3b8',mean:'評価に足る情報が不足している。'},
+  {code:'NE',jp:'未評価',              en:'Not Evaluated',          color:'#64748b',mean:'まだIUCNの評価対象になっていない。'},
+];
+const THREAT=['CR','EN','VU'];   // 「絶滅危惧種（Threatened）」のIUCNカテゴリ
+const RL=Object.fromEntries(REDLIST.map(r=>[r.code,r]));
 // 推定生息数（野生・おおよそ。出典/年により幅あり）
 const POP = {
   lion:'約2万〜2.5万頭', elephant:'約35万頭（減少中）', polarbear:'約2.2万〜3.1万頭', penguin:'約25万つがい',
@@ -1372,6 +1431,7 @@ const allBtn=document.createElement('button'); allBtn.className='bm'; allBtn.inn
   used.forEach(s=>{const r=RARITY[s];const d=document.createElement('div');d.className='lr';d.style.color=r.color;
     d.innerHTML=`<span class="sw" style="background:${r.color}"></span><b>${r.band}</b><span style="margin-left:auto;color:var(--muted-2)">${s}</span>`;legendEl.appendChild(d);});
   const f=document.createElement('div');f.className='lf';f.innerHTML='地図の<b>黄〜赤のメッシュ</b>は GBIF の実観測地点。<b>ズームで細かく</b>なります。🛰️で表示切替。';legendEl.appendChild(f);
+  const h=document.createElement('button');h.type='button';h.className='lhelp';h.textContent='🛟 保全状況（IUCN）とは？';h.onclick=()=>openRedlist();legendEl.appendChild(h);
 })();
 buildSortFilter();
 
@@ -1391,6 +1451,7 @@ function applyFilters(){
       if(ft==='cls')    ok=(c.dataset.cls===fv);
       else if(ft==='trend')  ok=(c.dataset.trend===fv);
       else if(ft==='status') ok=(c.dataset.status===fv);
+      else if(ft==='threat') ok=THREAT.includes(c.dataset.status);
     }
     c.style.display=ok?'':'none';
   });
@@ -1425,7 +1486,9 @@ function buildSortFilter(){
   facetSel.innerHTML=`<option value="">🔎 すべて表示</option>`
     +`<optgroup label="分類で">`+clsP.map(k=>`<option value="cls:${k}">${k}</option>`).join('')+`</optgroup>`
     +`<optgroup label="傾向で"><option value="trend:up">↑ 増えている</option><option value="trend:down">↓ 減っている</option><option value="trend:stable">→ 横ばい</option></optgroup>`
-    +`<optgroup label="保全状況で">`+stP.map(s=>`<option value="status:${s}">${stL[s]}</option>`).join('')+`</optgroup>`;
+    +`<optgroup label="保全状況で">`
+      +(stP.some(s=>THREAT.includes(s))?`<option value="threat:1">⚠ 絶滅危惧（CR・EN・VU）</option>`:'')
+      +stP.map(s=>`<option value="status:${s}">${stL[s]}</option>`).join('')+`</optgroup>`;
   sortSel.onchange=()=>sortChips(sortSel.value);
   facetSel.onchange=()=>{ filterState.facet=facetSel.value; applyFilters(); };
 }
@@ -1564,7 +1627,7 @@ function renderAnimalCard(a){
         <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
         <span class="gem" style="color:${r.color}">${r.gem}</span>
         <span class="popwrap"><span class="poplabel">推定生息数（野生）</span><span class="popline"><span class="popval" style="color:${r.color}">${popOf(a)}</span><span class="trend" style="color:${tm.c}">${tm.a} ${tm.t}</span></span><span class="popsrc">出典 <a href="${iucnURL(a)}" target="_blank" rel="noopener">IUCN ↗</a><a href="${gbifURL(a)}" target="_blank" rel="noopener">GBIF ↗</a></span></span>
-        <span class="iucn"><span class="code" style="background:${r.color}">${a.status}</span><span class="jp">${r.jp}・${r.band}</span></span>
+        <button type="button" class="iucn" onclick="openRedlist('${a.status}','${a.id}')" title="保全状況（IUCNレッドリスト）の意味を見る"><span class="code" style="background:${r.color}">${a.status}<span class="qm">?</span></span><span class="jp">${r.jp}・${r.band}</span></button>
       </div>
       <div class="stats">
         <div class="stat"><div class="k">📏 大きさ</div><div class="v">${a.stats.size}</div></div>
@@ -1603,8 +1666,48 @@ function shareAnimal(id){
 }
 function openAbout(){ $('#about').removeAttribute('hidden'); }
 function closeAbout(){ $('#about').setAttribute('hidden',''); }
+/* レッドリスト解説モーダル：階段で意味を示し、種を指定するとその位置を強調＋IUCN導線。下部に図鑑の危機サマリ。 */
+function openRedlist(status, id){
+  const a = id ? ANIMALS.find(x=>x.id===id) : null;
+  const cur = status || (a && a.status) || null;
+  let banner='';
+  if(a){
+    const m=RL[a.status]||{jp:'',color:'#888'};
+    banner=`<div class="rl-now" style="border-left-color:${m.color}">
+      <span class="em">${a.emoji}</span>
+      <span class="t"><b>${a.nameJa}</b> は現在<br><span class="nc" style="background:${m.color}">${a.status}</span><b>${m.jp}</b></span>
+      <a class="ln" href="${iucnURL(a)}" target="_blank" rel="noopener">IUCNで見る ↗</a></div>`;
+  }
+  let rows='', threatOpened=false;
+  REDLIST.forEach(r=>{
+    if(THREAT.includes(r.code) && !threatOpened){ rows+=`<div class="rl-glabel">⚠ 絶滅危惧種（Threatened）</div>`; threatOpened=true; }
+    const isCur=cur===r.code, th=THREAT.includes(r.code);
+    const lb=(isCur||th)?r.color:'transparent';
+    const hi=isCur?`background:${hexA(r.color,.15)};border-color:${r.color};box-shadow:0 0 0 1px ${r.color} inset;`:'';
+    rows+=`<div class="rl-row${isCur?' cur':''}" style="border-left-color:${lb};${hi}">
+      <span class="code" style="background:${r.color}">${r.code}</span>
+      <span class="tx"><b>${r.jp}</b><i>${r.en}</i><span class="mean">${r.mean}</span></span></div>`;
+  });
+  const cnt={}; ANIMALS.forEach(x=>cnt[x.status]=(cnt[x.status]||0)+1);
+  const nThreat=THREAT.reduce((s,c)=>s+(cnt[c]||0),0);
+  const chips=REDLIST.filter(r=>cnt[r.code]).map(r=>
+    `<button class="rl-chip" style="border-left-color:${r.color}" onclick="filterStatus('${r.code}')">${r.code} ${r.jp.split('（')[0]}<b style="color:${r.color}">${cnt[r.code]}</b></button>`).join('');
+  const summary=`<div class="rl-summary">
+    <div class="rl-sumtitle">この図鑑の <b>${ANIMALS.length}種</b> のうち <b style="color:#ffb02e">${nThreat}種</b> が<b>絶滅の危機</b>（CR・EN・VU）にあります。バッジを押すと図鑑をしぼれます。</div>
+    <button class="rl-threatbtn" onclick="filterThreat()">⚠ 絶滅危惧の ${nThreat}種 をしぼって見る　→</button>
+    <div class="rl-sumchips">${chips}</div></div>`;
+  $('#rlBody').innerHTML = banner
+    + `<p class="rl-lead">国際自然保護連合（IUCN）の<b>レッドリスト</b>は、生きものの絶滅リスクを評価した世界共通のものさし。上ほど危機的で、<b>CR・EN・VU</b>をまとめて「絶滅危惧種」と呼びます。</p>`
+    + `<div class="rl-ladder">${rows}</div>`
+    + summary;
+  $('#redlist').removeAttribute('hidden');
+}
+function closeRedlist(){ $('#redlist').setAttribute('hidden',''); }
+function filterStatus(code){ const fs=$('#facetSel'); filterState.facet='status:'+code; if(fs)fs.value='status:'+code; applyFilters(); closeRedlist(); toast('🔎',(RL[code]?RL[code].jp.split('（')[0]:code)+'でしぼりました',1900); }
+function filterThreat(){ const fs=$('#facetSel'); filterState.facet='threat:1'; if(fs)fs.value='threat:1'; applyFilters(); closeRedlist(); toast('⚠','絶滅危惧（CR・EN・VU）でしぼりました',2000); }
 window.closePanel=closePanel; window.showCountry=showCountry; window.selectAnimal=selectAnimal;
 window.flyCountry=flyCountry; window.shareAnimal=shareAnimal; window.closeAbout=closeAbout;
+window.openRedlist=openRedlist; window.closeRedlist=closeRedlist; window.filterStatus=filterStatus; window.filterThreat=filterThreat;
 
 /* ---------- 地図インタラクション ---------- */
 function bindMap(){
@@ -1648,7 +1751,7 @@ $('#aboutBtn').addEventListener('click',openAbout);
 function setMode(t){ $('#modetext').textContent=t; }
 let toastT; function toast(e,msg,ms=2600){const t=$('#toast');t.innerHTML=`<span class="e">${e}</span>${msg}`;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms);}
 function bootFail(msg){$('#boot').innerHTML=`<div class="bootwrap"><div style="font-size:40px">📡</div><div class="bt" style="margin-top:14px">読み込みエラー</div><div class="bs" style="max-width:280px;line-height:1.6">${msg}<br>ネット接続を確認して再読み込みしてください。</div></div>`;}
-document.addEventListener('keydown',(e)=>{ if(e.key==='Escape'){ closeAbout(); closePanel(); } });
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape'){ closeRedlist(); closeAbout(); closePanel(); } });
 </script>
 </body>
 </html>
