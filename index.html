@@ -316,6 +316,11 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .yearbar .yl{font-size:11px;letter-spacing:.05em;color:var(--muted);font-weight:700;white-space:nowrap;}
 .yearbar input[type=range]{width:190px;accent-color:var(--teal);cursor:pointer;height:4px;}
 .yearbar b{font-size:12.5px;font-weight:800;color:var(--teal);min-width:74px;text-align:left;white-space:nowrap;}
+.yearbar .ybtn{appearance:none;background:rgba(52,216,198,.14);border:1px solid rgba(52,216,198,.42);color:var(--teal);width:27px;height:27px;border-radius:50%;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto;padding:0;transition:background .15s;}
+.yearbar .ybtn:hover{background:rgba(52,216,198,.28);}
+.yearbar .ybtn.playing{background:var(--teal);color:#06121a;border-color:var(--teal);}
+.yearbar .ycount{font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap;min-width:60px;text-align:left;}
+.yearbar .ycount.lo{color:#ffb02e;}
 @media(max-width:860px){.yearbar{display:none;}}
 
 .toast{position:fixed;top:66px;left:50%;transform:translateX(-50%) translateY(-12px);z-index:40;background:var(--glass-strong);border:1px solid var(--line);border-radius:12px;padding:11px 17px;font-size:13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;display:flex;align-items:center;gap:9px;max-width:88vw;}
@@ -381,9 +386,11 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 <aside class="legend" id="legend"><div class="lt">生息数のめやす（IUCN保全状況）</div></aside>
 
 <div class="yearbar" id="yearbar" hidden>
+  <button class="ybtn" id="yearPlay" title="年代を再生（時間をたどる）" aria-label="年代を再生">▶</button>
   <span class="yl">🕰️ 観測年代</span>
   <input type="range" id="yearSlider" min="0" max="4" step="1" value="0" aria-label="GBIF観測データの年代を選ぶ">
   <b id="yearLabel">全期間</b>
+  <span class="ycount" id="yearCount" title="この年代にGBIFへ記録された観測の数"></span>
 </div>
 
 <div class="dock">
@@ -1343,8 +1350,9 @@ function addGbif(key){
 // 時系列スライダー（GBIF &year=）。動物選択中＆GBIF ON のときだけ表示
 function showYearbar(on){
   const yb=$('#yearbar'); if(!yb)return;
+  stopYearPlay();
   if(on){ let i=YEAR_STOPS.findIndex(s=>s.y===gbifYear); if(i<0)i=0;
-    $('#yearSlider').value=i; $('#yearLabel').textContent=YEAR_STOPS[i].label; yb.removeAttribute('hidden'); }
+    $('#yearSlider').value=i; $('#yearLabel').textContent=YEAR_STOPS[i].label; yb.removeAttribute('hidden'); updateYearCount(); }
   else yb.setAttribute('hidden','');
 }
 let yearTileTimer=null;
@@ -1352,9 +1360,51 @@ function applyYear(idx){
   const st=YEAR_STOPS[idx]||YEAR_STOPS[0]; gbifYear=st.y; $('#yearLabel').textContent=st.label;
   if(currentAnimal && gbifOn && currentAnimal.gbif){
     setMode(animalModeText(currentAnimal));                        // ラベル/モードは即時更新（操作感）
+    updateYearCount();                                             // 「この年代の記録数」を更新＝昔はたくさんいた/少ない を体感化
     clearTimeout(yearTileTimer);                                   // タイル再取得はデバウンス（ドラッグ中の連続リクエストを抑制）
     yearTileTimer=setTimeout(()=>{ if(currentAnimal&&gbifOn&&currentAnimal.gbif) addGbif(currentAnimal.gbif); },180);
   }
+}
+// 年代別の観測数（GBIF件数）。年代を変えると数が変わり「昔はたくさんいた/まだ記録が少ない」が感覚的に伝わる。確定時に取得・キャッシュ。
+const yearCountCache={};
+let yearCountTimer=null, yearCountMax={};
+function updateYearCount(){
+  const el=$('#yearCount'); if(!el) return;
+  if(!currentAnimal||!gbifOn||!currentAnimal.gbif){ el.textContent=''; return; }
+  const taxon=currentAnimal.gbif, yr=gbifYear, key=taxon+'@'+(yr||'all');
+  if(key in yearCountCache){ paintYearCount(el,taxon,yearCountCache[key]); return; }
+  el.textContent='…'; el.classList.remove('lo');
+  clearTimeout(yearCountTimer);
+  yearCountTimer=setTimeout(async()=>{
+    try{
+      const q='https://api.gbif.org/v1/occurrence/search?taxonKey='+taxon+'&hasCoordinate=true&limit=0'+(yr?('&year='+yr):'');
+      const r=await fetch(q); const d=await r.json(); const n=d.count||0;
+      yearCountCache[key]=n;
+      if(!yr) yearCountMax[taxon]=n;                               // 全期間＝最大の目安
+      if(currentAnimal&&currentAnimal.gbif===taxon&&gbifYear===yr) paintYearCount(el,taxon,n);
+    }catch(e){ el.textContent=''; }
+  },360);
+}
+function paintYearCount(el,taxon,n){
+  el.innerHTML='📊 '+fmtN(n)+'件';
+  const mx=yearCountMax[taxon];                                    // 全期間比で「少ない年代」を橙で示す
+  el.classList.toggle('lo', !!(gbifYear && mx && n>0 && n < mx*0.25));
+}
+// 年代「再生」：全期間→各年代へ時間をたどり、記録の濃淡が動いて見える（移動・増減の体感）
+let yearPlayTimer=null, yearPlaying=false;
+function stopYearPlay(){ yearPlaying=false; clearTimeout(yearPlayTimer); const b=$('#yearPlay'); if(b){b.classList.remove('playing');b.textContent='▶';b.title='年代を再生（時間をたどる）';} }
+function startYearPlay(){
+  if(!currentAnimal||!gbifOn||!currentAnimal.gbif) return;
+  yearPlaying=true; const b=$('#yearPlay'); if(b){b.classList.add('playing');b.textContent='⏸';b.title='停止';}
+  let i=0;
+  const step=()=>{
+    if(!yearPlaying) return;
+    $('#yearSlider').value=i; applyYear(i);
+    i++;
+    if(i>=YEAR_STOPS.length){ yearPlayTimer=setTimeout(stopYearPlay,1800); return; }
+    yearPlayTimer=setTimeout(step,1900);
+  };
+  step();
 }
 function animalModeText(a){
   const yl=(gbifOn&&gbifYear)?('・'+((YEAR_STOPS.find(s=>s.y===gbifYear)||{}).label||'')):'';
@@ -1738,7 +1788,8 @@ $('#gbifBtn').addEventListener('click',()=>{ gbifOn=!gbifOn; $('#gbifBtn').setAt
   showYearbar(gbifOn && currentMode.type==='animal'); });
 $('#exploreBtn').addEventListener('click',explore);
 $('#homeBtn').addEventListener('click',resetAll);
-$('#yearSlider').addEventListener('input',(e)=>applyYear(+e.target.value));
+$('#yearSlider').addEventListener('input',(e)=>{ stopYearPlay(); applyYear(+e.target.value); });
+$('#yearPlay').addEventListener('click',()=>{ if(yearPlaying) stopYearPlay(); else startYearPlay(); });
 // アトラス（地形relief）表示トグル：スタイルは入れ替えず relief レイヤーの可視性だけ切替（分布/GBIF/国境は不変）
 function setAtlas(on){ atlasOn=on; if(mapReady && map.getLayer('relief')) map.setLayoutProperty('relief','visibility',on?'visible':'none');
   const b=$('#atlasBtn'); if(b)b.setAttribute('aria-pressed',String(on)); }
