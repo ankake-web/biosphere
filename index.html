@@ -86,6 +86,7 @@ button{font-family:inherit;cursor:pointer;}
 .tbtn:active{transform:scale(.94);}
 .tbtn[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#04201d;}
 .tbtn.gbif[aria-pressed="true"]{background:#ffb02e;border-color:#ffb02e;}
+.tbtn.loading::after{content:'';position:absolute;inset:-3px;border-radius:14px;border:2px solid transparent;border-top-color:#fff;animation:spin .8s linear infinite;pointer-events:none;}
 
 .modepill{position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:18;
   display:flex;align-items:center;gap:8px;background:var(--glass);border:1px solid var(--line);
@@ -1085,7 +1086,9 @@ map.on('load', async ()=>{
   if(deeplink && ANIMALS.some(a=>a.id===deeplink)){ selectAnimal(deeplink); }
   else { toast('🌍','動物を選ぶ→棲む土地へ。ズームで分布が細かく見えます。🎲で旅へ。',4600); }
 });
-map.on('error',()=>{});
+// GBIFタイルの読み込み完了/失敗を検知してスピナーを止める（失敗しても図鑑カードは常に表示される）
+map.on('error',(e)=>{ if(e && e.sourceId==='gbif') gbifLoading(false); });
+map.on('sourcedata',(e)=>{ if(e.sourceId==='gbif' && map.getSource('gbif') && map.isSourceLoaded('gbif')) gbifLoading(false); });
 
 /* ---------- 描画 ---------- */
 function setFill(expr){ if(mapReady) map.setPaintProperty('c-fill','fill-color',expr); }
@@ -1101,9 +1104,10 @@ function setActive(codes,color){
   map.setPaintProperty('c-active','line-color',color); map.setPaintProperty('c-glow','line-color',color);
   map.setPaintProperty('c-active','line-opacity',.95); map.setPaintProperty('c-glow','line-opacity',.55);
 }
-function removeGbif(){ if(!mapReady)return; if(map.getLayer('gbif'))map.removeLayer('gbif'); if(map.getSource('gbif'))map.removeSource('gbif'); }
+function gbifLoading(on){ const b=$('#gbifBtn'); if(b) b.classList.toggle('loading',!!on); }   // 🛰️ボタンにスピナー
+function removeGbif(){ if(!mapReady)return; if(map.getLayer('gbif'))map.removeLayer('gbif'); if(map.getSource('gbif'))map.removeSource('gbif'); gbifLoading(false); }
 function addGbif(key){
-  if(!mapReady)return; removeGbif();
+  if(!mapReady)return; removeGbif(); gbifLoading(true);
   map.addSource('gbif',{type:'raster',tiles:[gbifTileURL(key, gbifYear)],tileSize:512,attribution:'観測点: GBIF.org'});
   map.addLayer({id:'gbif',type:'raster',source:'gbif',paint:{'raster-opacity':.96,'raster-resampling':'nearest'}},'c-glow');
 }
@@ -1288,27 +1292,44 @@ function countryCentroid(code){
 // 動物の分布国へズーム（その種の詳細メッシュを保ったまま寄る）
 function flyCountry(code){ const c=countryCentroid(code); if(c){ stopSpin(); map.flyTo({center:c,zoom:4,speed:.85,curve:1.5,essential:true}); } }
 // GBIF実データ：その国で多く記録される脊椎動物（taxonKey=44=脊索動物）
-async function fetchLocalSpecies(code){
+// 堅牢化：localStorageキャッシュで再訪を即時表示＋背景更新／連打はデバウンス／失敗・空でも図鑑情報は維持
+const LS_GBIF='biosphere_gbif_';   // 国別ファセットのキャッシュ接頭辞（A2コード）
+function gbifCacheGet(a2){ try{ const o=JSON.parse(localStorage.getItem(LS_GBIF+a2)||'null'); if(o&&(Date.now()-o.t)<6048e5) return o.c; }catch(e){} return null; } // 7日有効
+function gbifCacheSet(a2,c){ try{ localStorage.setItem(LS_GBIF+a2,JSON.stringify({t:Date.now(),c})); }catch(e){} }
+function renderLocalSpecies(el,counts,a2){
+  el.innerHTML=counts.map(c=>{const disp=c.name.split(' ').slice(0,2).join(' ');
+    return `<a class="locrow" target="_blank" rel="noopener" href="https://www.gbif.org/occurrence/search?country=${a2}&q=${encodeURIComponent(c.name)}"><span class="locav" data-sci="${encodeURIComponent(disp)}">🐾</span><span class="ln2">${disp}</span><span class="cnt2">${fmtN(c.count)}件 ↗</span></a>`;}).join('');
+  // iNaturalistから実写真サムネを後追いで挿入
+  el.querySelectorAll('.locav').forEach(async av=>{
+    try{ const sci=decodeURIComponent(av.dataset.sci);
+      const d=await (await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(sci)}&rank=species&per_page=1`)).json();
+      const ph=d.results&&d.results[0]&&d.results[0].default_photo&&d.results[0].default_photo.square_url;
+      if(ph){ av.innerHTML=`<img src="${ph}" alt="" onload="this.style.opacity=1">`; }
+    }catch(e){}
+  });
+}
+let localTimer=null;
+function fetchLocalSpecies(code){
   const el=document.getElementById('localspecies'); if(!el)return;
   const a2=A3toA2[code];
   if(!a2){ el.innerHTML='<span class="muted">この地域の実データは取得できませんでした。</span>'; return; }
-  try{
-    const r=await fetch(`https://api.gbif.org/v1/occurrence/search?country=${a2}&taxonKey=44&hasCoordinate=true&limit=0&facet=scientificName&facetLimit=8`);
-    const d=await r.json();
-    const counts=(d.facets&&d.facets[0]&&d.facets[0].counts)||[];
-    if(document.getElementById('localspecies')!==el) return; // 別の国に切り替わっていたら中断
-    if(!counts.length){ el.innerHTML='<span class="muted">記録が見つかりませんでした。</span>'; return; }
-    el.innerHTML=counts.map(c=>{const disp=c.name.split(' ').slice(0,2).join(' ');
-      return `<a class="locrow" target="_blank" rel="noopener" href="https://www.gbif.org/occurrence/search?country=${a2}&q=${encodeURIComponent(c.name)}"><span class="locav" data-sci="${encodeURIComponent(disp)}">🐾</span><span class="ln2">${disp}</span><span class="cnt2">${fmtN(c.count)}件 ↗</span></a>`;}).join('');
-    // iNaturalistから実写真サムネを後追いで挿入
-    el.querySelectorAll('.locav').forEach(async av=>{
-      try{ const sci=decodeURIComponent(av.dataset.sci);
-        const d=await (await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(sci)}&rank=species&per_page=1`)).json();
-        const ph=d.results&&d.results[0]&&d.results[0].default_photo&&d.results[0].default_photo.square_url;
-        if(ph){ av.innerHTML=`<img src="${ph}" alt="" onload="this.style.opacity=1">`; }
-      }catch(e){}
-    });
-  }catch(e){ el.innerHTML='<span class="muted">実データ取得に失敗しました（オフライン？）。</span>'; }
+  const cached=gbifCacheGet(a2);
+  if(cached && cached.length){ renderLocalSpecies(el,cached,a2); }           // キャッシュを即時表示（再訪が速い）
+  else { el.innerHTML='<span class="muted">🛰️ 実データを取得中…</span>'; }
+  clearTimeout(localTimer);                                                   // 連打は最後の1回だけ叩く（レート配慮）
+  localTimer=setTimeout(async()=>{
+    try{
+      const r=await fetch(`https://api.gbif.org/v1/occurrence/search?country=${a2}&taxonKey=44&hasCoordinate=true&limit=0&facet=scientificName&facetLimit=8`);
+      const d=await r.json();
+      const counts=(d.facets&&d.facets[0]&&d.facets[0].counts)||[];
+      if(document.getElementById('localspecies')!==el) return;               // 別の国へ切替済みなら中断
+      if(!counts.length){ if(!cached||!cached.length) el.innerHTML='<span class="muted">記録が見つかりませんでした。</span>'; return; }
+      gbifCacheSet(a2,counts); renderLocalSpecies(el,counts,a2);              // 最新で上書き＆キャッシュ更新
+    }catch(e){
+      if(document.getElementById('localspecies')!==el) return;
+      if(!cached||!cached.length) el.innerHTML='<span class="muted">実データ取得に失敗しました（オフライン？）。図鑑情報はそのままご覧いただけます。</span>';
+    }
+  },250);
 }
 function fmtN(n){ return n>=1000? (n/1000).toFixed(n>=10000?0:1)+'k' : String(n); }
 function resetAll(){ pressChip(null); pressBiome(null);
