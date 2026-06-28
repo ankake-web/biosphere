@@ -490,6 +490,7 @@ const RARITY = {
   EN:{rank:'スーパーレア',  band:'ごくわずか',   jp:'絶滅危惧',   en:'Endangered',            color:'#b072ff', gem:'✦'},
   CR:{rank:'レジェンダリー',band:'絶滅寸前',     jp:'近絶滅',     en:'Critically Endangered', color:'#ffb02e', gem:'★'},
   DD:{rank:'データ不足',    band:'不明',         jp:'データ不足', en:'Data Deficient',        color:'#94a3b8', gem:'·'},
+  NE:{rank:'未評価',        band:'不明',         jp:'未評価',     en:'Not Evaluated',         color:'#64748b', gem:'·'},
 };
 // IUCNレッドリスト 9段階（危機が高い順）。色はRARITYと共有し、EX/EW/NE と各段の意味を補う。導線・解説モーダルで使用。
 const REDLIST=[
@@ -531,7 +532,7 @@ function trendOf(a){
   if(TREND_UP.includes(a.id)) return 'up';
   if(TREND_DOWN.includes(a.id)) return 'down';
   if(a.status==='LC') return 'stable';
-  if(a.status==='DD') return 'unknown';
+  if(a.status==='DD'||a.status==='NE') return 'unknown';
   return 'down';
 }
 const TREND_META={up:{a:'↑',t:'増加',c:'#5fd39a'},down:{a:'↓',t:'減少',c:'#ff9a8a'},stable:{a:'→',t:'横ばい',c:'#9fb0bd'},unknown:{a:'–',t:'不明',c:'#9fb0bd'}};
@@ -541,9 +542,9 @@ const CLASS={
   魚類:['clownfish','mantaray','seahorse','whaleshark','greatwhite','bullshark','oceansunfish','shortfinmako','tigershark','spottedeagleray','scallopedhammerhead','giantoceanicmantaray','indopacificsailfish','atlanticbluefintuna','sandtigershark'],
   爬虫類:['komodo','galapagostortoise','alligator','greenturtle','loggerhead','kingcobra','marineiguana','chameleon','saltwatercrocodile','greeniguana','leatherbackseaturtle','hawksbillseaturtle','oliveridleyturtle','spectacledcaiman','centralbeardeddragon','nilecrocodile','leopardtortoise','greenbasilisk','easterndiamondbackrattlesnake','frilledlizard','gilamonster','indiancobra','reticulatedpython','tuatara','greenanaconda','blackmamba','gharial','aldabragianttortoise'],
   両生類:['axolotl','giantsalamander','dartfrog','firesalamander','tigersalamander','redeyedtreefrog'],
-  昆虫:['monarch','honeybee','firefly','sevenspotladybird','paperkitebutterfly','bluemorpho','herculesbeetle','goliathusgoliatus','queenalexandrasbirdwing'],
+  昆虫:['monarch','honeybee','firefly','sevenspotladybird','paperkitebutterfly','bluemorpho','herculesbeetle','goliathusgoliatus','queenalexandrasbirdwing','dungbeetle','giantasianhornet','goldenringeddragonfly','giantstagbeetle','mincicada','asianswallowtail','chinesemantis','giantwaterbug','atlasmoth'],
   植物:['baobab','sequoia','rafflesia'],
-  無脊椎:['octopus','nautilus','spidercrab','americanlobster','commoncuttlefish'],
+  無脊椎:['octopus','nautilus','spidercrab','americanlobster','commoncuttlefish','emperorscorpion','mexicanredknee','coconutcrab','moonjelly','giantisopod','horseshoecrab','giantclam','fireflysquid','crownofthorns'],
 };
 const clsOrder=['哺乳類','鳥類','爬虫類','両生類','魚類','昆虫','植物','無脊椎'];
 function classOf(a){ for(const k in CLASS){ if(CLASS[k].includes(a.id)) return k; } return '哺乳類'; }
@@ -1805,11 +1806,139 @@ const ANIMALS = [
   desc:'垂れ下がる大きな鼻が特徴的な、ボルネオ島だけに棲むサル。マングローブと川辺の森を、水辺ぎりぎりで群れて暮らす。',
   range:['MYS','IDN','BRN'],focus:{c:[114.5,1.5],z:4},
   gbif:2436525,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Proboscis_Monkey_in_Borneo.jpg/960px-Proboscis_Monkey_in_Borneo.jpg'},
+
+ // --- 追加：昆虫・無脊椎を中心に18種（写真=Commons検証済み） ---
+ {id:'dungbeetle',nameJa:'タマオシコガネ（スカラベ）',nameSci:'Scarabaeus sacer',emoji:'🪲',taxon:'コガネムシ科',biome:'乾燥地',status:'NE',pop:'安定（地中海周辺に広く分布）',
+  stats:{size:'体長2–3cm',weight:'—',diet:'糞食',life:'成虫で約1年'},
+  desc:'動物の糞を球にして後ろ足で転がし運ぶ甲虫。古代エジプトでは太陽を運ぶ聖なる虫として崇められた。',
+  range:['EGY','MAR','DZA','TUN','ESP','ITA','GRC','TUR'],focus:{c:[18,34],z:2.5},
+  gbif:1087226,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Scarabaeus.sacer.jpg/960px-Scarabaeus.sacer.jpg'},
+
+ {id:'giantasianhornet',nameJa:'オオスズメバチ',nameSci:'Vespa mandarinia',emoji:'🐝',taxon:'スズメバチ科',biome:'森林',status:'NE',pop:'安定（東アジアに広く分布）',
+  stats:{size:'体長2.7–4.5cm',weight:'—',diet:'肉食（昆虫）',life:'女王は越冬'},
+  desc:'世界最大級のスズメバチ。集団でミツバチの巣を襲い、強力な毒針をもつ。東アジアの里山に広く分布する。',
+  range:['JPN','CHN','KOR','VNM','THA','MMR','IND'],focus:{c:[125,33],z:3},
+  gbif:5871429,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/20200512-P1100071_Vespa_mandarinia_japonica.jpg/960px-20200512-P1100071_Vespa_mandarinia_japonica.jpg'},
+
+ {id:'goldenringeddragonfly',nameJa:'オニヤンマ',nameSci:'Anotogaster sieboldii',emoji:'🪰',taxon:'オニヤンマ科',biome:'湿地',status:'LC',pop:'安定（広域に普通）',
+  stats:{size:'体長9–11cm',weight:'—',diet:'肉食（飛ぶ昆虫）',life:'成虫で1–2か月'},
+  desc:'日本最大のトンボ。黒と黄の縞をもち、林縁の細流の上を力強く往復飛行して狩りをする。',
+  range:['JPN','CHN','KOR'],focus:{c:[136,36],z:4},
+  gbif:1421222,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Anotogaster_sieboldii_on_wall.jpg/960px-Anotogaster_sieboldii_on_wall.jpg'},
+
+ {id:'giantstagbeetle',nameJa:'オオクワガタ',nameSci:'Dorcus hopei',emoji:'🪲',taxon:'クワガタムシ科',biome:'森林',status:'NE',pop:'局所的（生息地は限られる）',
+  stats:{size:'体長3–7.6cm',weight:'—',diet:'樹液',life:'成虫で2–3年'},
+  desc:'大きな大顎をもつ日本最大級のクワガタ。クヌギやコナラの樹液に夜集まる。愛好家に珍重される。',
+  range:['JPN','CHN','KOR'],focus:{c:[133,35],z:4},
+  gbif:7697962,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Dorcushopeibinodulosus.JPG/960px-Dorcushopeibinodulosus.JPG'},
+
+ {id:'mincicada',nameJa:'ミンミンゼミ',nameSci:'Hyalessa maculaticollis',emoji:'🦗',taxon:'セミ科',biome:'森林',status:'NE',pop:'安定（夏に普通）',
+  stats:{size:'体長3.3–3.6cm',weight:'—',diet:'樹液',life:'成虫で2–3週間'},
+  desc:'夏に「ミーンミンミン」と鳴く日本の代表的なセミ。幼虫は数年を地中で過ごし、夏に羽化して短い成虫期を生きる。',
+  range:['JPN','CHN','KOR'],focus:{c:[137,36],z:4},
+  gbif:8015248,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Oncotympana_maculaticollis_%28Mount_Ibuki_s2%29.jpg/960px-Oncotympana_maculaticollis_%28Mount_Ibuki_s2%29.jpg'},
+
+ {id:'asianswallowtail',nameJa:'ナミアゲハ',nameSci:'Papilio xuthus',emoji:'🦋',taxon:'アゲハチョウ科',biome:'草原',status:'NE',pop:'安定（広域に普通）',
+  stats:{size:'前翅長3.5–6cm',weight:'—',diet:'花の蜜（幼虫は柑橘の葉）',life:'成虫で2–4週間'},
+  desc:'黄と黒の縞が美しい、東アジアでもっとも身近なアゲハチョウ。幼虫はミカンなど柑橘の葉を食べて育つ。',
+  range:['JPN','CHN','KOR','RUS'],focus:{c:[130,34],z:3.5},
+  gbif:1937819,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Papilio_xuthus_20130804.jpg/960px-Papilio_xuthus_20130804.jpg'},
+
+ {id:'chinesemantis',nameJa:'オオカマキリ',nameSci:'Tenodera sinensis',emoji:'🦗',taxon:'カマキリ科',biome:'草原',status:'NE',pop:'安定（広域に分布）',
+  stats:{size:'体長7–9cm',weight:'—',diet:'肉食（昆虫）',life:'約1年'},
+  desc:'大きな鎌状の前足で獲物を待ち伏せる大型のカマキリ。東アジア原産で、北米にも移入し定着している。',
+  range:['JPN','CHN','KOR','USA'],focus:{c:[120,34],z:3},
+  gbif:5887934,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Tenodera_sinensis_5_Luc_Viatour.jpg/960px-Tenodera_sinensis_5_Luc_Viatour.jpg'},
+
+ {id:'giantwaterbug',nameJa:'タガメ',nameSci:'Kirkaldyia deyrollei',emoji:'🪳',taxon:'コオイムシ科',biome:'湿地',status:'NE',pop:'局所的に減少（日本では国内版RDBで絶滅危惧）',
+  stats:{size:'体長5–6.5cm',weight:'—',diet:'肉食（魚・カエル）',life:'約1年'},
+  desc:'日本最大の水生昆虫。鎌状の前足で魚やカエルを捕らえる。水田の減少で各地で数を減らし、日本の国内版RDBでは絶滅危惧。',
+  range:['JPN','CHN','KOR'],focus:{c:[134,35],z:4},
+  gbif:9490978,photo:'https://upload.wikimedia.org/wikipedia/commons/b/b3/Lethocerus_deyrollei.jpg'},
+
+ {id:'atlasmoth',nameJa:'ヨナグニサン（アトラスガ）',nameSci:'Attacus atlas',emoji:'🦋',taxon:'ヤママユガ科',biome:'熱帯雨林',status:'NE',pop:'局所的（南・東南アジアの森林に分布）',
+  stats:{size:'開張24–30cm',weight:'—',diet:'成虫は摂食しない',life:'成虫で1–2週間'},
+  desc:'世界最大級のガ。翅の先端がヘビの頭に似て見える。成虫は口が退化して何も食べず、幼虫期の蓄えだけで短く生きる。',
+  range:['IND','CHN','IDN','MYS','THA','VNM','JPN'],focus:{c:[100,15],z:2.7},
+  gbif:5124716,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Attacus_atlas_qtl3.jpg/960px-Attacus_atlas_qtl3.jpg'},
+
+ {id:'emperorscorpion',nameJa:'ダイオウサソリ',nameSci:'Pandinus imperator',emoji:'🦂',taxon:'サソリ科',biome:'熱帯雨林',status:'NE',pop:'不明（ペット取引で採集圧）',
+  stats:{size:'体長15–20cm',weight:'約30g',diet:'肉食（昆虫・小動物）',life:'6–8年'},
+  desc:'世界最大級のサソリ。大きな鋏をもつが毒は比較的弱い。西アフリカの熱帯林の落葉や朽木の下に潜む。',
+  range:['GHA','TGO','BEN','NGA','CIV'],focus:{c:[2,8],z:3.2},
+  gbif:6894611,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Female_Emperor_Scorpion.jpg/960px-Female_Emperor_Scorpion.jpg'},
+
+ {id:'mexicanredknee',nameJa:'メキシカンレッドニー',nameSci:'Brachypelma hamorii',emoji:'🕷️',taxon:'オオツチグモ科',biome:'乾燥地',status:'VU',pop:'推定 減少（乱獲・生息地減少）',
+  stats:{size:'脚を含め12–14cm',weight:'—',diet:'肉食（昆虫）',life:'メスで20–30年'},
+  desc:'脚の関節がオレンジ色に彩られたメキシコ原産のタランチュラ。穏やかで長生き。ペット人気ゆえの乱獲で野生は減少。',
+  range:['MEX'],focus:{c:[-103,18],z:4.5},
+  gbif:2153428,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Brachypelma_smithi_2009_G09.jpg/960px-Brachypelma_smithi_2009_G09.jpg'},
+
+ {id:'coconutcrab',nameJa:'ヤシガニ',nameSci:'Birgus latro',emoji:'🦀',taxon:'オカヤドカリ科',biome:'熱帯雨林',status:'VU',pop:'推定 減少（乱獲・島嶼開発）',
+  stats:{size:'脚を広げ最大1m',weight:'最大4kg',diet:'雑食（果実・種子）',life:'40–60年'},
+  desc:'世界最大の陸生甲殻類。強力なはさみでヤシの実を割る。インド洋・太平洋の島々に棲み、成長が遅く乱獲に弱い。',
+  range:['IDN','PHL','MDG','AUS','JPN'],focus:{c:[125,0],z:2.6},
+  gbif:4311512,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Coconut_Crab_Birgus_latro.jpg/960px-Coconut_Crab_Birgus_latro.jpg'},
+
+ {id:'moonjelly',nameJa:'ミズクラゲ',nameSci:'Aurelia aurita',emoji:'🪼',taxon:'ミズクラゲ科',biome:'海',status:'NE',pop:'安定（世界の沿岸に普通）',
+  stats:{size:'傘の直径10–40cm',weight:'—',diet:'肉食（プランクトン）',life:'約1年'},
+  desc:'4つの輪のような生殖腺が透けて見える、世界中の沿岸でもっとも見かけるクラゲ。毒は弱く人にはほぼ無害。',
+  range:['JPN','USA','GBR','AUS','CHN'],focus:{c:[140,35],z:3},
+  gbif:2264442,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Aurelia_aurita_%28Cnidaria%29_Luc_Viatour.jpg/960px-Aurelia_aurita_%28Cnidaria%29_Luc_Viatour.jpg'},
+
+ {id:'giantisopod',nameJa:'ダイオウグソクムシ',nameSci:'Bathynomus giganteus',emoji:'🦐',taxon:'スナホリムシ科',biome:'海',status:'NE',pop:'不明（深海性で評価困難）',
+  stats:{size:'体長20–40cm',weight:'最大1.7kg',diet:'腐肉食',life:'推定 数十年'},
+  desc:'深海底に棲む世界最大級の等脚類。ダンゴムシの仲間で沈んできた死骸を食べる。絶食に強く、数年食べずに生きた記録もある。',
+  range:['USA','MEX'],focus:{c:[-90,25],z:3.2},
+  gbif:5177166,photo:'https://upload.wikimedia.org/wikipedia/commons/1/18/Giant_isopod.jpg'},
+
+ {id:'horseshoecrab',nameJa:'カブトガニ',nameSci:'Tachypleus tridentatus',emoji:'🦀',taxon:'カブトガニ科',biome:'海',status:'EN',pop:'推定 減少（干潟の喪失・採取）',
+  stats:{size:'体長最大60cm',weight:'—',diet:'雑食（貝・ゴカイ）',life:'20–25年'},
+  desc:'2億年以上ほぼ姿を変えない「生きた化石」。青い血は医薬品の安全検査に使われる。干潟の埋め立てで東アジアでは激減。',
+  range:['JPN','CHN','KOR','VNM','IDN','MYS','PHL'],focus:{c:[120,28],z:3},
+  gbif:1010608,photo:'https://upload.wikimedia.org/wikipedia/commons/8/82/Tachypleus_tridentatus.jpg'},
+
+ {id:'giantclam',nameJa:'オオシャコガイ',nameSci:'Tridacna gigas',emoji:'🦪',taxon:'ザルガイ科',biome:'海',status:'CR',pop:'推定 激減（乱獲・サンゴ礁劣化）',
+  stats:{size:'殻長最大1.2m',weight:'最大200kg超',diet:'光合成（共生藻）＋濾過食',life:'100年以上'},
+  desc:'世界最大の二枚貝。外套膜に共生する藻類の光合成で育つ。食用や貝殻目的の乱獲とサンゴ礁の劣化で激減した。',
+  range:['AUS','PHL','IDN','PNG'],focus:{c:[145,-12],z:3},
+  gbif:4372619,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Giant_clam_%28Tridacna_gigas%29_Michaelmas_Cay.jpg/960px-Giant_clam_%28Tridacna_gigas%29_Michaelmas_Cay.jpg'},
+
+ {id:'fireflysquid',nameJa:'ホタルイカ',nameSci:'Watasenia scintillans',emoji:'🦑',taxon:'ホタルイカモドキ科',biome:'海',status:'LC',pop:'安定（日本海などに分布）',
+  stats:{size:'外套長約7cm',weight:'—',diet:'肉食（小型プランクトン）',life:'約1年'},
+  desc:'体じゅうの発光器で青く光る小さなイカ。春、富山湾などに産卵のため大群で押し寄せ、海岸を青く照らすことで知られる。',
+  range:['JPN'],focus:{c:[137,37],z:5},
+  gbif:2290275,photo:'https://upload.wikimedia.org/wikipedia/commons/7/77/Watasenia_scintillans.jpg'},
+
+ {id:'crownofthorns',nameJa:'オニヒトデ',nameSci:'Acanthaster planci',emoji:'⭐',taxon:'オニヒトデ科',biome:'海',status:'NE',pop:'局所的に大発生（個体数は変動）',
+  stats:{size:'直径25–35cm',weight:'—',diet:'肉食（サンゴ）',life:'約8年'},
+  desc:'全身を毒のトゲで覆われたヒトデ。サンゴのポリプを食べ、大発生するとサンゴ礁に深刻な被害を与える。',
+  range:['AUS','IDN','PHL','JPN'],focus:{c:[147,-15],z:3},
+  gbif:2271208,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/CrownofThornsStarfish_Fiji_2005-10-12.jpg/960px-CrownofThornsStarfish_Fiji_2005-10-12.jpg'},
+
 ];
 ANIMALS.forEach((a,i)=>a.no=i+1);
 
 /* 写真クレジット（Wikimedia Commons API から取得した撮影者・ライセンス）。出典明記=ライセンス遵守 */
 const PHOTO_CRED={
+  dungbeetle:{by:'Sarefo',lic:'CC BY-SA 3.0'},
+  giantasianhornet:{by:'Yasunori Koide',lic:'CC BY-SA 4.0'},
+  goldenringeddragonfly:{by:'Brian Adler 13:20, 28 June 2007 (UTC)',lic:'Public domain'},
+  giantstagbeetle:{by:'keusju',lic:'CC BY-SA 3.0'},
+  mincicada:{by:'Alpsdake',lic:'CC BY-SA 4.0'},
+  asianswallowtail:{by:'Peellden',lic:'CC BY-SA 4.0'},
+  chinesemantis:{by:'Luc Viatour',lic:'CC BY-SA 3.0'},
+  giantwaterbug:{by:'OpenCage',lic:'CC BY-SA 2.5'},
+  atlasmoth:{by:'Quartl',lic:'CC BY-SA 3.0'},
+  emperorscorpion:{by:'Rosa Pineda',lic:'CC BY-SA 3.0'},
+  mexicanredknee:{by:'George Chernilevsky',lic:'Public domain'},
+  coconutcrab:{by:'Drew Avery',lic:'CC BY 2.0'},
+  moonjelly:{by:'Luc Viatour',lic:'CC BY-SA 3.0'},
+  giantisopod:{by:'NOAA',lic:'Public domain'},
+  horseshoecrab:{by:'Daiju Azuma',lic:'CC BY-SA 2.5'},
+  giantclam:{by:'Charles J. Sharp',lic:'CC BY-SA 4.0'},
+  fireflysquid:{by:'ja:user:Dieno',lic:'Public domain'},
+  crownofthorns:{by:'Matt Wright',lic:'CC BY 2.5'},
   lion:{by:'Giles Laurent',lic:'CC BY-SA 4.0'},
   elephant:{by:'Giles Laurent',lic:'CC BY-SA 4.0'},
   polarbear:{by:'Alan Wilson',lic:'CC BY-SA 3.0'},
@@ -2115,6 +2244,9 @@ const THREAT_OVR={
   sandtigershark:['漁業による乱獲・混獲','繁殖力の低さ','生息地の撹乱'], reindeer:['気候変動による環境変化','開発による生息地分断','過剰な狩猟'],
   aldabragianttortoise:['分布が1か所に集中','気候変動・海面上昇','外来種'], snowyowl:['気候変動による繁殖環境の変化','餌（レミング）の変動','人工物との衝突'],
   greycrownedcrane:['湿地の喪失・劣化','違法な捕獲・取引','農薬・送電線'], proboscismonkey:['沿岸林のアブラヤシ・養殖転換','森林の分断','狩猟'],
+  // --- 追加種（絶滅危惧）---
+  coconutcrab:['乱獲（食用）','島嶼の開発','成長が遅く繁殖力が低い'], mexicanredknee:['ペット取引のための乱獲','生息地の破壊'],
+  horseshoecrab:['干潟の埋め立て','採血・漁業利用','混獲'], giantclam:['食用・貝殻目的の乱獲','サンゴ礁の劣化','密漁'],
 };
 function threatsOf(a){
   if(THREAT_OVR[a.id]) return THREAT_OVR[a.id];
