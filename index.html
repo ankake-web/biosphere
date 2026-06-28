@@ -507,21 +507,21 @@ const THREAT=['CR','EN','VU'];   // 「絶滅危惧種（Threatened）」のIUCN
 const RL=Object.fromEntries(REDLIST.map(r=>[r.code,r]));
 // 推定生息数（野生・おおよそ。出典/年により幅あり）
 const POP = {
-  lion:'約2万〜2.5万頭', elephant:'約41.5万頭（2016・減少中）', polarbear:'約2.2万〜3.1万頭（2015 IUCN）', penguin:'約25万つがい',
+  lion:'約2万〜2.5万頭（2023）', elephant:'約41.5万頭（2016・減少中）', polarbear:'約2.2万〜3.1万頭（2015 IUCN）', penguin:'約25万つがい（2012）',
   kangaroo:'豊富（数千万頭）', panda:'約1,864頭（2014年全国調査）', tiger:'約4,500〜5,600頭（2023推定）', wolf:'約20万〜30万頭',
-  jaguar:'約17万頭（減少中）', snowleopard:'約4,000〜6,500頭（2016推定）', gorilla:'約31.6万頭（2013推定・急減中）', koala:'約33万頭（推定）',
-  giraffe:'約11.7万頭（2016）', cheetah:'約6,500〜7,000頭（2016推定）', zebra:'約50万頭', hippo:'約11万〜13万頭',
-  orangutan:'約10万頭（急減中）', redpanda:'約1万頭未満', komodo:'約3,000〜3,400頭', bison:'約3万〜4万頭',
-  eagle:'約30万羽以上（回復）', anteater:'推定 数万頭（減少中）', condor:'約6,700羽', otter:'約12.5万頭',
-  whale:'約13.5万頭（回復）', arcticfox:'数十万頭（地域差大）', macaque:'約11万頭（日本）', crane:'約3,000羽',
-  rhino:'約6,400頭（2022）', leopard:'推定 数十万頭（減少中）', asianelephant:'約4万〜5万頭', moose:'約150万頭以上',
+  jaguar:'約17万頭（減少中）', snowleopard:'約4,000〜6,500頭（2016推定）', gorilla:'約31.6万頭（2013推定・急減中）', koala:'約33万頭（2012推定）',
+  giraffe:'約11.7万頭（2016）', cheetah:'約6,500〜7,000頭（2016推定）', zebra:'約50万頭（2016 IUCN）', hippo:'約11万〜13万頭（2016 IUCN）',
+  orangutan:'約10万頭（2016・急減中）', redpanda:'約1万頭未満（2015 IUCN）', komodo:'約3,000〜3,400頭（2023センサス）', bison:'約3万〜4万頭（2017 IUCN）',
+  eagle:'約30万羽以上（2021・回復）', anteater:'推定 数万頭（減少中）', condor:'約6,700羽（2020 IUCN）', otter:'約12.5万頭',
+  whale:'約13.5万頭（2018・回復）', arcticfox:'数十万頭（地域差大）', macaque:'約11万頭（1989・日本）', crane:'約3,000羽（2021）',
+  rhino:'約6,400頭（2022）', leopard:'推定 数十万頭（減少中）', asianelephant:'約4万〜5万頭（2018 IUCN）', moose:'約150万頭以上',
   raccoon:'豊富（数百万以上）', beaver:'約1,000万〜1,500万頭', capybara:'豊富（数百万）', sloth:'安定（数は不明）',
-  toucan:'安定（数十万以上）', flamingo:'約55万〜68万羽', shoebill:'約5,000〜8,000羽', galapagostortoise:'約2万頭（回復中）',
-  alligator:'約500万頭（回復）', greenturtle:'推定 数十万頭（成熟個体は減少）', whaleshark:'推定 減少中（数は不明）', orca:'約5万頭以上（推定）',
-  greatwhite:'推定 希少（数は不明）', albatross:'約2万羽', humboldtpenguin:'約2万〜3万羽', platypus:'推定 数万〜数十万頭',
-  tasmaniandevil:'約2万〜2.5万頭（激減）', kiwi:'約3.5万羽', redfox:'豊富（数百万以上）', brownbear:'約20万頭',
-  walrus:'約22万〜25万頭', narwhal:'約12万〜17万頭', meerkat:'安定（数十万）', okapi:'約1万〜5万頭（推定）',
-  axolotl:'野生1,000頭未満（ほぼ絶滅）', loggerhead:'推定 数十万頭（成熟個体は減少）', slothbear:'約7,000〜2万頭', kingpenguin:'約160万つがい',
+  toucan:'安定（数十万以上）', flamingo:'約55万〜68万羽（2018 IUCN）', shoebill:'約5,000〜8,000羽（2018 IUCN）', galapagostortoise:'約2万頭（2017・回復中）',
+  alligator:'約500万頭（回復）', greenturtle:'推定 数十万頭（成熟個体は減少）', whaleshark:'推定 減少中（数は不明）', orca:'約5万頭以上（2006推定）',
+  greatwhite:'推定 希少（数は不明）', albatross:'約2万羽（2018 IUCN）', humboldtpenguin:'約2万〜3万羽（2020）', platypus:'推定 数万〜数十万頭',
+  tasmaniandevil:'約2万〜2.5万頭（激減）', kiwi:'約3.5万羽（2000推定）', redfox:'豊富（数百万以上）', brownbear:'約20万頭（2016 IUCN）',
+  walrus:'約22万〜25万頭', narwhal:'約12万〜17万頭（2017 IUCN）', meerkat:'安定（数十万）', okapi:'約1万〜3.5万頭（2015 IUCN）',
+  axolotl:'野生1,000頭未満（2019 IUCN・ほぼ絶滅）', loggerhead:'推定 数十万頭（成熟個体は減少）', slothbear:'約7,000〜2万頭（2016 IUCN）', kingpenguin:'約160万つがい',
 };
 const popOf = (a)=>(a&&a.pop)||(a&&POP[a.id])||'データ不足';
 // 個体数トレンド（↑増加/↓減少/→横ばい/–不明）。回復種だけ明示し、他はIUCN状況から導出。
@@ -971,31 +971,31 @@ const ANIMALS = [
   range:['ZAF','KEN','NAM','TZA','UGA','BWA','ZWE','SWZ','ZMB'],focus:{c:[26,-26],z:2.8},
   gbif:2440880,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/109_Male_White_rhinoceros_walking_in_the_Kalahari_Desert_of_Namibia_Photo_by_Giles_Laurent.jpg/960px-109_Male_White_rhinoceros_walking_in_the_Kalahari_Desert_of_Namibia_Photo_by_Giles_Laurent.jpg'},
 
- {id:'wildebeest',nameJa:'オグロヌー',nameSci:'Connochaetes taurinus',emoji:'🐃',taxon:'ウシ科',biome:'サバンナ',status:'LC',pop:'約130万頭',
+ {id:'wildebeest',nameJa:'オグロヌー',nameSci:'Connochaetes taurinus',emoji:'🐃',taxon:'ウシ科',biome:'サバンナ',status:'LC',pop:'約130万頭（2016）',
   stats:{size:'体長1.7–2.4m',weight:'120–270kg',diet:'草食',life:'約20年'},
   desc:'大移動（グレートマイグレーション）で知られる。大群でセレンゲティの草原を巡る。',
   range:['ZAF','TZA','KEN','NAM','AGO','BWA','ZWE','ZMB'],focus:{c:[34,-3],z:2.8},
   gbif:2441105,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Blue_Wildebeest%2C_Ngorongoro.jpg/960px-Blue_Wildebeest%2C_Ngorongoro.jpg'},
 
- {id:'lemur',nameJa:'ワオキツネザル',nameSci:'Lemur catta',emoji:'🐒',taxon:'キツネザル科',biome:'乾燥地',status:'EN',pop:'約2,000〜数千頭',
+ {id:'lemur',nameJa:'ワオキツネザル',nameSci:'Lemur catta',emoji:'🐒',taxon:'キツネザル科',biome:'乾燥地',status:'EN',pop:'約2,000〜数千頭（2016）',
   stats:{size:'体長39–46cm',weight:'2.2–2.5kg',diet:'雑食',life:'16–19年'},
   desc:'しま模様の尾を立てて歩くマダガスカル固有の霊長類。朝に日光浴を好む。',
   range:['MDG'],focus:{c:[46,-22],z:3.6},
   gbif:2436412,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Ring-tailed_lemur_%28Lemur_catta%29.jpg/960px-Ring-tailed_lemur_%28Lemur_catta%29.jpg'},
 
- {id:'chimp',nameJa:'チンパンジー',nameSci:'Pan troglodytes',emoji:'🐵',taxon:'ヒト科',biome:'熱帯雨林',status:'EN',pop:'約17万〜30万頭（減少中）',
+ {id:'chimp',nameJa:'チンパンジー',nameSci:'Pan troglodytes',emoji:'🐵',taxon:'ヒト科',biome:'熱帯雨林',status:'EN',pop:'約17万〜30万頭（2003推定・減少中）',
   stats:{size:'体高1–1.7m',weight:'40–70kg',diet:'雑食',life:'40–50年'},
   desc:'道具を使い複雑な社会をもつ、ヒトに最も近い動物のひとつ。',
   range:['TZA','LBR','UGA','GIN','CMR','COD','CAF','GAB'],focus:{c:[15,3],z:3.0},
   gbif:5219534,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/015_Chimpanzee_at_Kibale_forest_National_Park_Photo_by_Giles_Laurent.jpg/960px-015_Chimpanzee_at_Kibale_forest_National_Park_Photo_by_Giles_Laurent.jpg'},
 
- {id:'dugong',nameJa:'ジュゴン',nameSci:'Dugong dugon',emoji:'🐋',taxon:'ジュゴン科',biome:'海',status:'VU',pop:'推定 約10万頭未満',
+ {id:'dugong',nameJa:'ジュゴン',nameSci:'Dugong dugon',emoji:'🐋',taxon:'ジュゴン科',biome:'海',status:'VU',pop:'推定 約10万頭未満（2002）',
   stats:{size:'体長2.4–3m',weight:'250–400kg',diet:'草食（海草）',life:'約70年'},
   desc:'海草を食べる穏やかな海の草食獣。人魚伝説のモデルともいわれる。',
   range:['AUS','NCL','PNG','VUT'],focus:{c:[125,-15],z:2.0},
   gbif:9729967,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Dugong.JPG/960px-Dugong.JPG'},
 
- {id:'beluga',nameJa:'シロイルカ',nameSci:'Delphinapterus leucas',emoji:'🐋',taxon:'イッカク科',biome:'極地',status:'LC',pop:'約20万頭',
+ {id:'beluga',nameJa:'シロイルカ',nameSci:'Delphinapterus leucas',emoji:'🐋',taxon:'イッカク科',biome:'極地',status:'LC',pop:'約20万頭（2017 IUCN）',
   stats:{size:'体長3.5–5.5m',weight:'0.5–1.6t',diet:'肉食',life:'35–50年'},
   desc:'真っ白な体と豊かな表情から“海のカナリア”。北極の海で群れる。',
   range:['USA','CAN','RUS','NOR','GRL'],focus:{c:[-90,70],z:1.9},
@@ -1013,13 +1013,13 @@ const ANIMALS = [
   range:['EGY','MAR','MRT','SAH','DZA','TUN','TCD'],focus:{c:[10,25],z:2.6},
   gbif:5219310,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Fennec_Fox_Vulpes_zerda.jpg/960px-Fennec_Fox_Vulpes_zerda.jpg'},
 
- {id:'arabianoryx',nameJa:'アラビアオリックス',nameSci:'Oryx leucoryx',emoji:'🐐',taxon:'ウシ科',biome:'乾燥地',status:'VU',pop:'約1,200頭（野生・回復）',
+ {id:'arabianoryx',nameJa:'アラビアオリックス',nameSci:'Oryx leucoryx',emoji:'🐐',taxon:'ウシ科',biome:'乾燥地',status:'VU',pop:'約1,200頭（2016・野生・回復）',
   stats:{size:'体長1.5–2.4m',weight:'65–75kg',diet:'草食',life:'約20年'},
   desc:'一度は野生絶滅したが再導入で復活した、砂漠の白い偶蹄類。',
   range:['ISR','ARE','SAU','OMN'],focus:{c:[50,22],z:3.2},
   gbif:5220164,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Arabian_oryx_%28oryx_leucoryx%29.jpg/960px-Arabian_oryx_%28oryx_leucoryx%29.jpg'},
 
- {id:'przewalski',nameJa:'モウコノウマ',nameSci:'Equus przewalskii',emoji:'🐴',taxon:'ウマ科',biome:'草原',status:'EN',pop:'約2,000頭（回復中）',
+ {id:'przewalski',nameJa:'モウコノウマ',nameSci:'Equus przewalskii',emoji:'🐴',taxon:'ウマ科',biome:'草原',status:'EN',pop:'約2,000頭（2015・回復中）',
   stats:{size:'体長2.1–2.6m',weight:'250–360kg',diet:'草食',life:'20–25年'},
   desc:'家畜化されなかった唯一の野生馬。モンゴルの草原に再導入された。',
   range:['MNG','CHN','UKR','RUS','KAZ'],focus:{c:[100,46],z:3.0},
@@ -1031,7 +1031,7 @@ const ANIMALS = [
   range:['IND','THA','CHN','VNM','IDN','PHL','MYS','MMR','NPL','BTN'],focus:{c:[95,15],z:2.6},
   gbif:2469850,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg/960px-12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg'},
 
- {id:'marineiguana',nameJa:'ウミイグアナ',nameSci:'Amblyrhynchus cristatus',emoji:'🦎',taxon:'イグアナ科',biome:'海',status:'VU',pop:'約20万〜30万頭',
+ {id:'marineiguana',nameJa:'ウミイグアナ',nameSci:'Amblyrhynchus cristatus',emoji:'🦎',taxon:'イグアナ科',biome:'海',status:'VU',pop:'約20万〜30万頭（2020 IUCN）',
   stats:{size:'全長1–1.5m',weight:'1–12kg',diet:'草食（藻）',life:'約12年'},
   desc:'海に潜って藻を食べる世界唯一の海生トカゲ。ガラパゴス固有。',
   range:['ECU'],focus:{c:[-91,-0.5],z:5.0},
@@ -1085,7 +1085,7 @@ const ANIMALS = [
   range:['ZAF','KEN','NAM','TZA','BWA'],focus:{c:[25,-2],z:2.6},
   gbif:2495150,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Struthio_camelus_-_Etosha_2014_%283%29.jpg/960px-Struthio_camelus_-_Etosha_2014_%283%29.jpg'},
 
- {id:'steller',nameJa:'オオワシ',nameSci:'Haliaeetus pelagicus',emoji:'🦅',taxon:'タカ科',biome:'海',status:'VU',pop:'約4,000〜5,000羽',
+ {id:'steller',nameJa:'オオワシ',nameSci:'Haliaeetus pelagicus',emoji:'🦅',taxon:'タカ科',biome:'海',status:'VU',pop:'約4,000〜5,000羽（2021 IUCN）',
   stats:{size:'翼開長2–2.5m',weight:'6–9kg',diet:'肉食（魚）',life:'約20年'},
   desc:'世界最大級のワシ。冬に北海道へ渡り、流氷の上で魚を狩る。',
   range:['JPN','USA','RUS','CAN','KOR','CHN'],focus:{c:[145,50],z:2.6},
@@ -1133,7 +1133,7 @@ const ANIMALS = [
   range:['MDG'],focus:{c:[44,-20],z:4.2},
   gbif:5663154,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Adansonia_grandidieri04.jpg/960px-Adansonia_grandidieri04.jpg'},
 
- {id:'sequoia',nameJa:'セコイアデンドロン',nameSci:'Sequoiadendron giganteum',emoji:'🌲',taxon:'ヒノキ科',biome:'森林',status:'EN',pop:'野生 約8万本（限られた林分）',
+ {id:'sequoia',nameJa:'セコイアデンドロン',nameSci:'Sequoiadendron giganteum',emoji:'🌲',taxon:'ヒノキ科',biome:'森林',status:'EN',pop:'野生 約8万本（2011 IUCN・限られた林分）',
   stats:{size:'高さ50–85m',weight:'最大1,200t',diet:'独立栄養（光合成）',life:'3,000年以上'},
   desc:'体積で地球最大の生物。シエラネバダの限られた山地林にそびえる巨大樹。',
   range:['USA'],focus:{c:[-118.7,36.5],z:4.6},
@@ -1170,7 +1170,7 @@ const ANIMALS = [
   range:['USA','CAN','GBR','DEU','FRA','RUS','CHN','JPN','NLD','AUS'],focus:{c:[10,48],z:1.6},
   gbif:9761484,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Anas_platyrhynchos_male_female_quadrat.jpg/960px-Anas_platyrhynchos_male_female_quadrat.jpg'},
 
- {id:'saltwatercrocodile',nameJa:'イリエワニ',nameSci:'Crocodylus porosus',emoji:'🐊',taxon:'クロコダイル科',biome:'湿地',status:'LC',pop:'推定 20万〜30万頭',
+ {id:'saltwatercrocodile',nameJa:'イリエワニ',nameSci:'Crocodylus porosus',emoji:'🐊',taxon:'クロコダイル科',biome:'湿地',status:'LC',pop:'推定 20万〜30万頭（2014 IUCN）',
   stats:{size:'全長4〜6m（最大7m超）',weight:'400〜1000kg超',diet:'肉食（魚・哺乳類・鳥）',life:'野生で70年以上'},
   desc:'現生最大の爬虫類にして史上最強の咬む力をもつ海の覇者。河口から外洋まで渡り、東南アジア〜豪州のマングローブを統べる。',
   range:['AUS','IDN','IND','MYS','PNG','PHL','THA','BGD','LKA','VNM'],focus:{c:[125,-8],z:1.8},
@@ -1200,13 +1200,13 @@ const ANIMALS = [
   range:['CAN','USA','SPM','GBR','IRL'],focus:{c:[-65,44],z:2.4},
   gbif:5972004,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Nur01521_-_Flickr_-_NOAA_Photo_Library.jpg/960px-Nur01521_-_Flickr_-_NOAA_Photo_Library.jpg'},
 
- {id:'southernelephantseal',nameJa:'ミナミゾウアザラシ',nameSci:'Mirounga leonina',emoji:'🦭',taxon:'アザラシ科',biome:'極地',status:'LC',pop:'推定 約65万頭',
+ {id:'southernelephantseal',nameJa:'ミナミゾウアザラシ',nameSci:'Mirounga leonina',emoji:'🦭',taxon:'アザラシ科',biome:'極地',status:'LC',pop:'推定 約65万頭（1990年代）',
   stats:{size:'雄 体長4–6m',weight:'雄 2–4トン',diet:'イカ・深海魚',life:'寿命20–22年'},
   desc:'鼻を膨らませて咆哮する、現生最大の鰭脚類。亜南極の浜で巨大な雄が血を流して闘い、雌の群れ（ハレム）を守る。',
   range:['ATA','ARG','ZAF','AUS','NZL','CHL','FLK'],focus:{c:[-45,-54],z:1.8},
   gbif:2434814,photo:'https://upload.wikimedia.org/wikipedia/commons/3/30/Southern_Elephant_seal.jpg'},
 
- {id:'northerncardinal',nameJa:'ショウジョウコウカンチョウ',nameSci:'Cardinalis cardinalis',emoji:'🔴',taxon:'ショウジョウコウカンチョウ科',biome:'森林',status:'LC',pop:'推定 約1億2千万羽（増加）',
+ {id:'northerncardinal',nameJa:'ショウジョウコウカンチョウ',nameSci:'Cardinalis cardinalis',emoji:'🔴',taxon:'ショウジョウコウカンチョウ科',biome:'森林',status:'LC',pop:'推定 約1億2千万羽（2020 PIF・増加）',
   stats:{size:'全長21–23cm',weight:'42–48g',diet:'種子・果実・昆虫（雑食）',life:'野生で約3年（最長15年）'},
   desc:'燃えるような真紅の羽と立った冠羽が目を引く、北米の庭先のスター。冬の雪景色に映えるその姿は、いくつもの米国州の鳥に選ばれている。',
   range:['USA','MEX','CAN','BLZ','GTM'],focus:{c:[-85,35],z:2.5},
@@ -1290,7 +1290,7 @@ const ANIMALS = [
   range:['JPN','USA','AUS','ESP','GBR','BRA','ZAF','IND','CHN','SWE'],focus:{c:[10,40],z:1.6},
   gbif:2480726,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Osprey_mg_9605.jpg/960px-Osprey_mg_9605.jpg'},
 
- {id:'hawksbillseaturtle',nameJa:'タイマイ',nameSci:'Eretmochelys imbricata',emoji:'🐢',taxon:'ウミガメ科',biome:'海',status:'CR',pop:'推定 成熟個体 約2万頭（減少中）',
+ {id:'hawksbillseaturtle',nameJa:'タイマイ',nameSci:'Eretmochelys imbricata',emoji:'🐢',taxon:'ウミガメ科',biome:'海',status:'CR',pop:'推定 成熟個体 約2万頭（2008 IUCN・減少中）',
   stats:{size:'甲長60–90cm',weight:'40–80kg',diet:'雑食（主に海綿・無脊椎動物）',life:'寿命30–50年'},
   desc:'くちばし状の鋭い口と美しい鼈甲模様を持つ、サンゴ礁の住人。海綿を食べながら熱帯の礁を漂い、礁の健康を保つ庭師。',
   range:['AUS','IDN','PHL','MEX','CUB','BRA','SYC','MDV','EGY','USA'],focus:{c:[120,5],z:1.8},
@@ -1314,13 +1314,13 @@ const ANIMALS = [
   range:['ESP','PRT','FRA','GBR','AUS','NZL','CHL'],focus:{c:[-4,40],z:2.5},
   gbif:2436940,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Oryctolagus_cuniculus_Tasmania.jpg/960px-Oryctolagus_cuniculus_Tasmania.jpg'},
 
- {id:'aosagi',nameJa:'アオサギ',nameSci:'Ardea cinerea',emoji:'🐦',taxon:'サギ科',biome:'湿地',status:'LC',pop:'推定 70万–350万羽',
+ {id:'aosagi',nameJa:'アオサギ',nameSci:'Ardea cinerea',emoji:'🐦',taxon:'サギ科',biome:'湿地',status:'LC',pop:'推定 70万–350万羽（2015）',
   stats:{size:'体長84–102cm',weight:'1–2kg',diet:'肉食（魚・カエル・小動物）',life:'5–25年'},
   desc:'水辺に灰青色の長身を静かに立て、獲物を待ち伏せるユーラシア最大級のサギ。一瞬で首を伸ばし魚を突く。',
   range:['JPN','CHN','IND','GBR','FRA','DEU','ZAF','RUS'],focus:{c:[80,40],z:1.8},
   gbif:9797180,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Blauwe_Reiger.jpg/960px-Blauwe_Reiger.jpg'},
 
- {id:'oliveridleyturtle',nameJa:'ヒメウミガメ',nameSci:'Lepidochelys olivacea',emoji:'🐢',taxon:'ウミガメ科',biome:'海',status:'VU',pop:'成熟メス 推定80万頭以上',
+ {id:'oliveridleyturtle',nameJa:'ヒメウミガメ',nameSci:'Lepidochelys olivacea',emoji:'🐢',taxon:'ウミガメ科',biome:'海',status:'VU',pop:'成熟メス 推定80万頭以上（2008 IUCN）',
   stats:{size:'甲長60–70cm',weight:'35–50kg',diet:'クラゲ・甲殻類・小魚（雑食性）',life:'約50年'},
   desc:'世界で最も数の多いウミガメ。数万頭が一斉に上陸し産卵する「アリバダ」で知られ、熱帯の砂浜を埋め尽くす生命の奔流を見せる。',
   range:['MEX','ECU','CRI','IDN','IND','AUS','CMR','BEN'],focus:{c:[-90,10],z:1.8},
@@ -1374,7 +1374,7 @@ const ANIMALS = [
   range:['USA','CAN','GBR','IRL','ITA'],focus:{c:[-80,40],z:2.5},
   gbif:5219681,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Eastern_Grey_Squirrel_in_St_James%27s_Park%2C_London_-_Nov_2006_edit.jpg/960px-Eastern_Grey_Squirrel_in_St_James%27s_Park%2C_London_-_Nov_2006_edit.jpg'},
 
- {id:'pileatedwoodpecker',nameJa:'エボシクマゲラ',nameSci:'Dryocopus pileatus',emoji:'🪶',taxon:'キツツキ科',biome:'森林',status:'LC',pop:'推定 約260万羽',
+ {id:'pileatedwoodpecker',nameJa:'エボシクマゲラ',nameSci:'Dryocopus pileatus',emoji:'🪶',taxon:'キツツキ科',biome:'森林',status:'LC',pop:'推定 約260万羽（2020 PIF）',
   stats:{size:'全長40–49cm',weight:'250–350g',diet:'アリ・甲虫の幼虫・木の実',life:'野生で約9年'},
   desc:'北米の深い森に響く力強いドラミング。鮮やかな赤い冠羽をもつカラス大の大型キツツキで、立ち枯れ木に四角い大穴を掘る森の彫刻家。',
   range:['USA','CAN'],focus:{c:[-90,42],z:2.2},
@@ -1398,7 +1398,7 @@ const ANIMALS = [
   range:['GBR','FRA','DEU','ESP','CHE','NLD','BEL','ITA','POL','SWE'],focus:{c:[6,48],z:2.4},
   gbif:2433875,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/M%C3%A4yr%C3%A4_%C3%84ht%C3%A4ri_4.jpg/960px-M%C3%A4yr%C3%A4_%C3%84ht%C3%A4ri_4.jpg'},
 
- {id:'annashummingbird',nameJa:'アンナハチドリ',nameSci:'Calypte anna',emoji:'🌺',taxon:'ハチドリ科',biome:'森林',status:'LC',pop:'推定 約800万羽',
+ {id:'annashummingbird',nameJa:'アンナハチドリ',nameSci:'Calypte anna',emoji:'🌺',taxon:'ハチドリ科',biome:'森林',status:'LC',pop:'推定 約800万羽（2020 PIF）',
   stats:{size:'全長9.9–10.9cm',weight:'3–6g',diet:'花の蜜・小さな昆虫',life:'野生で約8年'},
   desc:'北米太平洋岸に通年とどまるハチドリ。オスは頭から喉まで燃えるようなピンク色に輝き、急降下ディスプレイで甲高い音を鳴らす。',
   range:['USA','CAN','MEX'],focus:{c:[-120,37],z:2.6},
@@ -1422,7 +1422,7 @@ const ANIMALS = [
   range:['AUS','NZL'],focus:{c:[148,-33],z:2.8},
   gbif:2440254,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Possum_Cradle_Mountain.jpg/960px-Possum_Cradle_Mountain.jpg'},
 
- {id:'rubythroatedhummingbird',nameJa:'ノドアカハチドリ',nameSci:'Archilochus colubris',emoji:'🐦',taxon:'ハチドリ科',biome:'森林',status:'LC',pop:'推定 約3,600万羽',
+ {id:'rubythroatedhummingbird',nameJa:'ノドアカハチドリ',nameSci:'Archilochus colubris',emoji:'🐦',taxon:'ハチドリ科',biome:'森林',status:'LC',pop:'推定 約3,600万羽（2020 PIF）',
   stats:{size:'全長7–9cm',weight:'2–6g',diet:'花の蜜・小さな昆虫',life:'野生で約3–5年'},
   desc:'喉が宝石のように赤く輝く北米東部唯一の繁殖ハチドリ。秋にはメキシコ湾を一気に横断する小さな渡りの達人。',
   range:['USA','CAN','MEX','GTM','CRI','PAN'],focus:{c:[-84,35],z:2.2},
@@ -1464,13 +1464,13 @@ const ANIMALS = [
   range:['AUS','USA','ZAF','JPN','BRA','ARG'],focus:{c:[30,-30],z:1.8},
   gbif:2420766,photo:'https://upload.wikimedia.org/wikipedia/commons/9/9a/Carcharias_taurus_SI.jpg'},
 
- {id:'commonbottlenosedolphin',nameJa:'ハンドウイルカ',nameSci:'Tursiops truncatus',emoji:'🐬',taxon:'マイルカ科',biome:'海',status:'LC',pop:'推定 約60万頭以上（世界）',
+ {id:'commonbottlenosedolphin',nameJa:'ハンドウイルカ',nameSci:'Tursiops truncatus',emoji:'🐬',taxon:'マイルカ科',biome:'海',status:'LC',pop:'推定 約60万頭以上（2012・世界）',
   stats:{size:'体長2–4m',weight:'150–650kg',diet:'肉食（魚・イカ）',life:'野生で40–50年'},
   desc:'穏やかな笑みのような口元と高い知能で知られる、世界中の温帯・熱帯の海を駆ける社交的なイルカ。波に乗り船と並走する。',
   range:['USA','MEX','BRA','GBR','ESP','JPN','AUS','ZAF','ITA','NZL'],focus:{c:[-40,25],z:1.7},
   gbif:2440447,photo:'https://upload.wikimedia.org/wikipedia/commons/0/07/Sprung_Bottlenose_side.jpg'},
 
- {id:'peregrinefalcon',nameJa:'ハヤブサ',nameSci:'Falco peregrinus',emoji:'🦅',taxon:'ハヤブサ科',biome:'草原',status:'LC',pop:'推定 10万羽以上(世界)',
+ {id:'peregrinefalcon',nameJa:'ハヤブサ',nameSci:'Falco peregrinus',emoji:'🦅',taxon:'ハヤブサ科',biome:'草原',status:'LC',pop:'推定 10万羽以上（2021・世界）',
   stats:{size:'全長38–50cm',weight:'0.5–1.5kg',diet:'鳥類(空中で捕食)',life:'野生で約13年'},
   desc:'急降下時に時速300kmを超える、地球最速の生き物。開けた狩り場から都市の高層ビルまで、世界中で空の鳥を撃ち落とす。',
   range:['JPN','USA','GBR','AUS','ZAF','DEU','CAN','ARG','RUS','ESP'],focus:{c:[5,45],z:1.6},
@@ -1506,7 +1506,7 @@ const ANIMALS = [
   range:['NOR','SWE','FIN','RUS','GBR','FRA','CHE','CAN','USA','CHN'],focus:{c:[20,62],z:2.2},
   gbif:5219019,photo:'https://upload.wikimedia.org/wikipedia/commons/9/98/Mustela_erminea_upright.jpg'},
 
- {id:'scarlettanager',nameJa:'ベニフウキンチョウ',nameSci:'Piranga olivacea',emoji:'🔺',taxon:'ショウジョウコウカンチョウ科',biome:'森林',status:'LC',pop:'推定 約220万羽（安定〜やや減）',
+ {id:'scarlettanager',nameJa:'ベニフウキンチョウ',nameSci:'Piranga olivacea',emoji:'🔺',taxon:'ショウジョウコウカンチョウ科',biome:'森林',status:'LC',pop:'推定 約220万羽（2020 PIF・安定〜やや減）',
   stats:{size:'全長16–19cm',weight:'23–38g',diet:'昆虫・果実',life:'野生で約10年（最長11年以上）'},
   desc:'夏の北米の森を、黒い翼に真っ赤な体で照らす渡り鳥。秋には黄緑色へ衣替えし、はるか南米のアンデスの森まで旅をする。',
   range:['USA','CAN','COL','PER','ECU','BOL','PAN'],focus:{c:[-78,25],z:2.2},
@@ -1536,7 +1536,7 @@ const ANIMALS = [
   range:['IND','PAK','LKA','NPL','BGD','BTN'],focus:{c:[78,20],z:3},
   gbif:2470351,photo:'https://upload.wikimedia.org/wikipedia/commons/6/66/Indiancobra.jpg'},
 
- {id:'americanblackbear',nameJa:'アメリカクロクマ',nameSci:'Ursus americanus',emoji:'🐻',taxon:'クマ科',biome:'森林',status:'LC',pop:'推定 約90万頭',
+ {id:'americanblackbear',nameJa:'アメリカクロクマ',nameSci:'Ursus americanus',emoji:'🐻',taxon:'クマ科',biome:'森林',status:'LC',pop:'推定 約90万頭（2016 IUCN）',
   stats:{size:'体長1.2–2m',weight:'40–250kg',diet:'雑食（果実・木の実・昆虫・魚）',life:'野生で約20年'},
   desc:'北米の森を音もなく歩く最も身近なクマ。木登りが巧みで、ベリーから蜂蜜、魚まで何でも食べる森の旅人。',
   range:['USA','CAN','MEX'],focus:{c:[-100,48],z:2.5},
@@ -1566,13 +1566,13 @@ const ANIMALS = [
   range:['ESP','FRA','ITA','TUR','IND','CHN','ZAF','MAR','RUS'],focus:{c:[25,35],z:2},
   gbif:2498415,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Upupa_epops_1_Luc_Viatour.jpg/960px-Upupa_epops_1_Luc_Viatour.jpg'},
 
- {id:'tuatara',nameJa:'ムカシトカゲ',nameSci:'Sphenodon punctatus',emoji:'🦎',taxon:'ムカシトカゲ科',biome:'森林',status:'LC',pop:'推定 約6–10万頭（沖合の島嶼に限定）',
+ {id:'tuatara',nameJa:'ムカシトカゲ',nameSci:'Sphenodon punctatus',emoji:'🦎',taxon:'ムカシトカゲ科',biome:'森林',status:'LC',pop:'推定 約6–10万頭（1990・沖合の島嶼に限定）',
   stats:{size:'全長50–80cm',weight:'0.5–1.3kg',diet:'肉食（昆虫・甲殻類・小動物・卵）',life:'寿命60–100年以上'},
   desc:'恐竜時代から姿を変えず生き延びた、ニュージーランド固有の生きた化石。トカゲに似るが別系統で、頭頂に第三の眼の痕跡を持つ。',
   range:['NZL'],focus:{c:[175.5,-39],z:3.5},
   gbif:5227650,photo:'https://upload.wikimedia.org/wikipedia/commons/5/52/Tuatara.jpg'},
 
- {id:'californiasealion',nameJa:'カリフォルニアアシカ',nameSci:'Zalophus californianus',emoji:'🦭',taxon:'アシカ科',biome:'海',status:'LC',pop:'推定 約25–30万頭',
+ {id:'californiasealion',nameJa:'カリフォルニアアシカ',nameSci:'Zalophus californianus',emoji:'🦭',taxon:'アシカ科',biome:'海',status:'LC',pop:'推定 約25–30万頭（2014）',
   stats:{size:'雄 体長2.0–2.4m',weight:'雄 200–400kg',diet:'魚類・イカ',life:'寿命15–25年'},
   desc:'桟橋や岩場で群れて吠える、賢く好奇心旺盛な海の芸達者。前ヒレで水を掻き、波間を弾丸のように泳ぐ。',
   range:['USA','MEX','CAN'],focus:{c:[-119,33],z:2.6},
@@ -1590,7 +1590,7 @@ const ANIMALS = [
   range:['BRA','VEN','COL','PER','BOL','GUY','ECU','PRY'],focus:{c:[-62,-4],z:3},
   gbif:5225712,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Sucuri_verde.jpg/960px-Sucuri_verde.jpg'},
 
- {id:'wapitielk',nameJa:'ワピチ',nameSci:'Cervus canadensis',emoji:'🦌',taxon:'シカ科',biome:'草原',status:'LC',pop:'推定 100万頭以上',
+ {id:'wapitielk',nameJa:'ワピチ',nameSci:'Cervus canadensis',emoji:'🦌',taxon:'シカ科',biome:'草原',status:'LC',pop:'推定 100万頭以上（2018 IUCN）',
   stats:{size:'体長2–2.6m',weight:'230–450kg',diet:'草食（草・若芽・樹皮）',life:'野生で約10–13年'},
   desc:'開けた草原と山地林を巡る大型のシカ。秋の繁殖期、雄の甲高い咆哮『バグル』が谷にこだまする。',
   range:['USA','CAN','RUS','MNG','CHN','KAZ'],focus:{c:[-108,44],z:2.2},
@@ -1608,7 +1608,7 @@ const ANIMALS = [
   range:['ZAF','KEN','TZA','MOZ','ZWE','BWA','NAM','AGO','ETH','SOM'],focus:{c:[33,-10],z:3},
   gbif:8054654,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Dendroaspis_polylepis_head.jpg/960px-Dendroaspis_polylepis_head.jpg'},
 
- {id:'graywhale',nameJa:'コククジラ',nameSci:'Eschrichtius robustus',emoji:'🐋',taxon:'コククジラ科',biome:'海',status:'LC',pop:'推定 約2万頭（東部太平洋個体群）',
+ {id:'graywhale',nameJa:'コククジラ',nameSci:'Eschrichtius robustus',emoji:'🐋',taxon:'コククジラ科',biome:'海',status:'LC',pop:'推定 約2万頭（2019・東部太平洋個体群）',
   stats:{size:'体長12–15m',weight:'15–35トン',diet:'底生甲殻類・端脚類',life:'寿命50–70年'},
   desc:'毎年1万km以上を旅する灰色の大回遊者。北極圏の餌場と暖かい繁殖ラグーンを往復し、浅い海底を吸い込むように底生生物を漁る。',
   range:['USA','MEX','RUS','CAN','KOR','JPN'],focus:{c:[-120,32],z:2.2},
@@ -1620,7 +1620,7 @@ const ANIMALS = [
   range:['ZAF','KEN','NAM','TZA','ZWE','BWA','UGA','ZMB'],focus:{c:[28,-15],z:2.2},
   gbif:2473341,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Numida_meleagris_-Serengeti_National_Park%2C_Tanzania-8_%281%29.jpg/960px-Numida_meleagris_-Serengeti_National_Park%2C_Tanzania-8_%281%29.jpg'},
 
- {id:'gharial',nameJa:'インドガビアル',nameSci:'Gavialis gangeticus',emoji:'🐊',taxon:'ガビアル科',biome:'湿地',status:'CR',pop:'推定 成体 約650頭',
+ {id:'gharial',nameJa:'インドガビアル',nameSci:'Gavialis gangeticus',emoji:'🐊',taxon:'ガビアル科',biome:'湿地',status:'CR',pop:'推定 成体 約650頭（2019 IUCN）',
   stats:{size:'全長3.5〜6m',weight:'160〜250kg',diet:'肉食（ほぼ魚）',life:'野生で40〜60年'},
   desc:'鉛筆のように細長い吻で水中の魚をすくい捕る、インド亜大陸の清流の主。野生個体は数百にまで減り、生き残りをかける。',
   range:['IND','NPL','BGD'],focus:{c:[82,26.5],z:2.6},
@@ -1638,7 +1638,7 @@ const ANIMALS = [
   range:['GBR','FRA','ESP','DEU','USA','IND','AUS','ZAF','ARG','ITA'],focus:{c:[5,40],z:1.6},
   gbif:2497921,photo:'https://upload.wikimedia.org/wikipedia/commons/c/c1/Barn_owl.jpg'},
 
- {id:'aldabragianttortoise',nameJa:'アルダブラゾウガメ',nameSci:'Aldabrachelys gigantea',emoji:'🐢',taxon:'リクガメ科',biome:'草原',status:'VU',pop:'約10万頭（アルダブラ環礁に集中）',
+ {id:'aldabragianttortoise',nameJa:'アルダブラゾウガメ',nameSci:'Aldabrachelys gigantea',emoji:'🐢',taxon:'リクガメ科',biome:'草原',status:'VU',pop:'約10万頭（2004推定・アルダブラ環礁に集中）',
   stats:{size:'甲長100–120cm',weight:'150–250kg',diet:'草食（草・木の葉・果実）',life:'寿命100年以上（150年超の記録も）'},
   desc:'インド洋アルダブラ環礁に生きる、現生最大級の陸生カメ。ドーム状の巨体で島の草地を耕すように動き、生態系の庭師と呼ばれる。',
   range:['SYC','TZA','MUS'],focus:{c:[46.4,-9.4],z:3.5},
@@ -1650,7 +1650,7 @@ const ANIMALS = [
   range:['USA','CHL','ARG','COL','MEX','ECU','BRA','CRI'],focus:{c:[-80,-5],z:1.8},
   gbif:2435099,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Puma_concolor_in_shizuoka_city_nihondaira_zoo2.jpg/960px-Puma_concolor_in_shizuoka_city_nihondaira_zoo2.jpg'},
 
- {id:'snowyowl',nameJa:'シロフクロウ',nameSci:'Bubo scandiacus',emoji:'🦉',taxon:'フクロウ科',biome:'極地',status:'VU',pop:'推定 約2.8万羽（成熟個体）',
+ {id:'snowyowl',nameJa:'シロフクロウ',nameSci:'Bubo scandiacus',emoji:'🦉',taxon:'フクロウ科',biome:'極地',status:'VU',pop:'推定 約2.8万羽（2018・成熟個体）',
   stats:{size:'全長53–66cm',weight:'1.6–2.9kg',diet:'レミングなど小型哺乳類・鳥類',life:'野生で約10年'},
   desc:'北極ツンドラに棲む純白の大型フクロウ。終日明るい白夜の極北で、雪原を白い羽で滑空しながらレミングを狩る。',
   range:['CAN','USA','RUS','NOR','GRL','ISL','FIN','SWE'],focus:{c:[-95,68],z:2.2},
@@ -1662,7 +1662,7 @@ const ANIMALS = [
   range:['RUS','CHN','JPN','KOR','MNG','KAZ','FRA','DEU','BEL'],focus:{c:[105,52],z:2},
   gbif:2437450,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Streifenhoernchen.jpg/960px-Streifenhoernchen.jpg'},
 
- {id:'adeliepenguin',nameJa:'アデリーペンギン',nameSci:'Pygoscelis adeliae',emoji:'🐧',taxon:'ペンギン科',biome:'極地',status:'LC',pop:'推定 約1,000万羽以上',
+ {id:'adeliepenguin',nameJa:'アデリーペンギン',nameSci:'Pygoscelis adeliae',emoji:'🐧',taxon:'ペンギン科',biome:'極地',status:'LC',pop:'推定 約1,000万羽以上（2014センサス）',
   stats:{size:'全長約70cm',weight:'約3.8〜6kg',diet:'オキアミ・小魚',life:'野生で約10〜20年'},
   desc:'目を縁取る白いリングが愛らしい、南極大陸を象徴するペンギン。氷上に石を積んで巣を作り、数十万羽の大コロニーで子育てをする。',
   range:['ATA','AUS','NZL','ARG'],focus:{c:[0,-70],z:1.8},
@@ -1710,13 +1710,13 @@ const ANIMALS = [
   range:['USA','CAN','RUS','GRL','NOR'],focus:{c:[-150,71],z:2},
   gbif:2440330,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Bowhead-1_Kate_Stafford_edit_%2816272151841%29.jpg/960px-Bowhead-1_Kate_Stafford_edit_%2816272151841%29.jpg'},
 
- {id:'beniflamingo',nameJa:'ベニイロフラミンゴ',nameSci:'Phoenicopterus ruber',emoji:'🦩',taxon:'フラミンゴ科',biome:'湿地',status:'LC',pop:'推定 26万–33万羽',
+ {id:'beniflamingo',nameJa:'ベニイロフラミンゴ',nameSci:'Phoenicopterus ruber',emoji:'🦩',taxon:'フラミンゴ科',biome:'湿地',status:'LC',pop:'推定 26万–33万羽（2016）',
   stats:{size:'体高120–140cm',weight:'2.2–2.8kg',diet:'雑食（甲殻類・藻・微生物）',life:'30–40年'},
   desc:'フラミンゴの中でもっとも鮮烈な深紅に染まる種。カリブ海の塩性ラグーンに大群で集い、湖面を炎の色に変える。',
   range:['CUB','BHS','MEX','VEN','COL','ECU','DOM','HTI'],focus:{c:[-72,18],z:2.4},
   gbif:9691034,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Caribbean_flamingo10.jpg/960px-Caribbean_flamingo10.jpg'},
 
- {id:'muskox',nameJa:'ジャコウウシ',nameSci:'Ovibos moschatus',emoji:'🐂',taxon:'ウシ科',biome:'極地',status:'LC',pop:'推定 8万〜12万頭',
+ {id:'muskox',nameJa:'ジャコウウシ',nameSci:'Ovibos moschatus',emoji:'🐂',taxon:'ウシ科',biome:'極地',status:'LC',pop:'推定 8万〜12万頭（2008 IUCN）',
   stats:{size:'肩高1.1–1.5m',weight:'180–410kg',diet:'草食（草・地衣類・低木）',life:'野生で約12–20年'},
   desc:'厚い長毛に覆われ氷点下の嵐に耐える氷河期の生き残り。捕食者が迫ると角を外に向け輪を組み、子を中心に守る極北の守護者。',
   range:['CAN','GRL','USA','NOR','RUS'],focus:{c:[-42,74],z:2},
@@ -1728,7 +1728,7 @@ const ANIMALS = [
   range:['AUS'],focus:{c:[150.5,-35],z:3},
   gbif:2488980,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Superb_lyrbird_in_scrub.jpg/960px-Superb_lyrbird_in_scrub.jpg'},
 
- {id:'dromedary',nameJa:'ヒトコブラクダ',nameSci:'Camelus dromedarius',emoji:'🐪',taxon:'ラクダ科',biome:'乾燥地',status:'DD',pop:'推定 約3,500万頭（家畜）／豪州に野生化個体',
+ {id:'dromedary',nameJa:'ヒトコブラクダ',nameSci:'Camelus dromedarius',emoji:'🐪',taxon:'ラクダ科',biome:'乾燥地',status:'DD',pop:'推定 約3,500万頭（2018・家畜）／豪州に野生化個体',
   stats:{size:'体高1.8–2.0m',weight:'300–600kg',diet:'草食（乾燥植物・低木）',life:'約40年'},
   desc:'背に一つのこぶを持つ砂漠の船。灼熱と渇きに耐え、アラビアからサハラの砂丘を、隊商とともに何千年も渡り歩いてきた。',
   range:['SAU','ARE','OMN','EGY','MAR','DZA','IND','AUS'],focus:{c:[45,22],z:2},
@@ -1746,7 +1746,7 @@ const ANIMALS = [
   range:['USA','MEX','CAN','GTM','HND'],focus:{c:[-82,37.5],z:3},
   gbif:2437338,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Southern_flying_squirrel_B.jpg/960px-Southern_flying_squirrel_B.jpg'},
 
- {id:'budgerigar',nameJa:'セキセイインコ',nameSci:'Melopsittacus undulatus',emoji:'🦜',taxon:'インコ科',biome:'乾燥地',status:'LC',pop:'推定 500万羽以上（野生・豊富）',
+ {id:'budgerigar',nameJa:'セキセイインコ',nameSci:'Melopsittacus undulatus',emoji:'🦜',taxon:'インコ科',biome:'乾燥地',status:'LC',pop:'推定 500万羽以上（2000推定・野生・豊富）',
   stats:{size:'体長18cm',weight:'30〜40g',diet:'草の種子',life:'野生で5〜8年'},
   desc:'オーストラリア内陸の乾いた草原を、緑の波となって数千羽で渡り歩く小さな放浪者。水場を求めて大地を旅し続ける。',
   range:['AUS'],focus:{c:[134,-25],z:3},
@@ -1764,13 +1764,13 @@ const ANIMALS = [
   range:['ESP','FRA','ETH','NPL','IND','PAK','ZAF','CHN','ITA','GEO'],focus:{c:[42,35],z:1.8},
   gbif:2480649,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Bartgeier_Gypaetus_barbatus_front_Richard_Bartz.jpg/960px-Bartgeier_Gypaetus_barbatus_front_Richard_Bartz.jpg'},
 
- {id:'harpseal',nameJa:'タテゴトアザラシ',nameSci:'Pagophilus groenlandicus',emoji:'🦭',taxon:'アザラシ科',biome:'極地',status:'LC',pop:'推定 約760万頭',
+ {id:'harpseal',nameJa:'タテゴトアザラシ',nameSci:'Pagophilus groenlandicus',emoji:'🦭',taxon:'アザラシ科',biome:'極地',status:'LC',pop:'推定 約760万頭（2019）',
   stats:{size:'体長1.7–2.0m',weight:'130–150kg',diet:'魚類・甲殻類',life:'寿命30–35年'},
   desc:'流氷の上で生まれる、真っ白な毛玉のような子を持つ北の海獣。背の竪琴形の黒い模様が名の由来で、群れで氷縁を旅する。',
   range:['CAN','GRL','NOR','RUS','ISL'],focus:{c:[-55,65],z:1.9},
   gbif:2434801,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Harp_Seal_%28Pagophilus_groenlandicus%29%2C_Greenland_Sea_IMG_5075_%28cropped%29.jpg/960px-Harp_Seal_%28Pagophilus_groenlandicus%29%2C_Greenland_Sea_IMG_5075_%28cropped%29.jpg'},
 
- {id:'kuroerihakucho',nameJa:'クロエリハクチョウ',nameSci:'Cygnus melancoryphus',emoji:'🦢',taxon:'カモ科',biome:'湿地',status:'LC',pop:'推定 10万羽前後',
+ {id:'kuroerihakucho',nameJa:'クロエリハクチョウ',nameSci:'Cygnus melancoryphus',emoji:'🦢',taxon:'カモ科',biome:'湿地',status:'LC',pop:'推定 10万羽前後（2023）',
   stats:{size:'体長102–124cm',weight:'3.5–6.7kg',diet:'草食（水草・藻）',life:'10–20年'},
   desc:'純白の体に黒い首と頭を持つ南米最小のハクチョウ。赤い肉冠を額に灯し、パタゴニアの湖沼を静かに滑る。',
   range:['ARG','CHL','URY','BRA','PRY','FLK'],focus:{c:[-64,-40],z:2.4},
@@ -1800,7 +1800,7 @@ const ANIMALS = [
   range:['BRA','ARG','PRY','URY','BOL'],focus:{c:[-58,-28],z:2.4},
   gbif:2495165,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Greater_Rhea_%28Rhea_americana%29_-Argentina-8.jpg/960px-Greater_Rhea_%28Rhea_americana%29_-Argentina-8.jpg'},
 
- {id:'proboscismonkey',nameJa:'テングザル',nameSci:'Nasalis larvatus',emoji:'🐵',taxon:'オナガザル科',biome:'湿地',status:'EN',pop:'推定 約7,000頭以下',
+ {id:'proboscismonkey',nameJa:'テングザル',nameSci:'Nasalis larvatus',emoji:'🐵',taxon:'オナガザル科',biome:'湿地',status:'EN',pop:'推定 約7,000頭以下（2000推定）',
   stats:{size:'体長66–76cm',weight:'オス約20kg/メス約10kg',diet:'草食（若葉・未熟果実）',life:'野生で約20年'},
   desc:'垂れ下がる大きな鼻が特徴的な、ボルネオ島だけに棲むサル。マングローブと川辺の森を、水辺ぎりぎりで群れて暮らす。',
   range:['MYS','IDN','BRN'],focus:{c:[114.5,1.5],z:4},
