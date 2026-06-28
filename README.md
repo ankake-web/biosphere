@@ -14,16 +14,23 @@
 - 🗺️ **土地（国）をタップ** → そこへ寄り、図鑑の種＋**GBIF実データで「その国で多く記録される生きもの」を実写真つきで逆引き**（iNaturalist写真／GBIFへリンク）。
 - 🌿 **環境（biome）でしぼる** … サバンナ/森林/熱帯雨林/草原/寒帯林/高山/乾燥地/湿地/海/極地。
 - 🔍 **検索**（和名・学名・分類・環境）／ 🎲 **探検モード**（ランダムに1種へ旅）／ 🧭 **図鑑コンプ率**（端末に保存）。
+- 🔀 **並び替え・絞り込み**：生息数順／絶滅危機順／分類ごと、＋傾向（↑↓→）・保全状況・分類（哺乳/鳥/爬虫/両生/魚/昆虫/植物/無脊椎）でフィルタ。
+- 🕰️ **時系列スライダー**：年代（〜1990s/2000s/2010s/2020s〜）でGBIF分布の変化を見る。
+- 🏔️ **アトラス表示**：地形relief（Esri）＋地名の「アトラス」⇄「ミニマル（暗）」をワンタップ切替（分布は常に主役）。
+- 🔦 **収集ループ**：未発見はシルエット（ホバーで覗き見・クリックで発見）。環境/保全状況コンプでバッジ、全種で締め演出。自由閲覧は維持。
 - 🔗 **共有**：動物ごとのリンク（`…/#lion`）で開くとその種に直行。共有ボタン／OGP対応。
-- 図鑑カード：図鑑No.・和名・学名・分類・**推定生息数（IUCN保全状況の色）**・ステータス・解説・実写真・生息地。
+- ℹ️ **出典・クレジット**：各写真の撮影者・ライセンス、生息数の出典（IUCN・GBIF）リンク、Aboutモーダル。
+- 📖 **静的図鑑ページ**：`zukan.html`／`species/<id>.html` でJS無効でも全種テキストが読める（SEO・sitemap.xml対応）。
+- ♿ **アクセシビリティ**：ページ/ピンチズーム許可、キーボードフォーカスリング、低モーション/通信節約時は自動回転停止。
+- 図鑑カード：図鑑No.・和名・学名・分類・**推定生息数（IUCN保全状況の色）**・増減トレンド・ステータス・解説・実写真・生息地・出典。
 
 色＝推定生息数のめやす（IUCN保全状況）：多い（LC）→ やや減少（NT）→ 少ない（VU）→ ごくわずか（EN）→ 絶滅寸前（CR）。各種に推定野生個体数＋**増減トレンド（↑増加／↓減少／→横ばい）**を表示（約／推定表記、出典で幅あり）。
 
 ## データ
-- サンプル **82種**（実在のおおよそ正しい分布・ステータス。分布国はGBIF実観測から導出）。
-- 動物写真：**Wikimedia Commons**（読み込み失敗時は絵文字へ自動フォールバック）。
-- 実観測分布：**GBIF**（学名→taxonKey を解決し、occurrence density タイルを表示）。
-- 国境：**Natural Earth 110m**（ISO A3 / `ADM0_A3` で識別）。
+- **92種**（哺乳・鳥・爬虫・両生・魚・昆虫に加え、**植物（バオバブ/セコイア/ラフレシア）・無脊椎（タコ/オウムガイ/タカアシガニ）**まで）。分布国はGBIF実観測から導出。
+- 動物写真：**Wikimedia Commons**（撮影者・ライセンスを各種カードに明記。読み込み失敗時は絵文字へ自動フォールバック）。
+- 実観測分布：**GBIF**（学名→taxonKey を解決し、occurrence density タイルを表示。年代フィルタ対応）。
+- 地形（アトラス）：**Esri World Hillshade**／国境：**Natural Earth 110m**（`ADM0_A3` で識別）。
 
 ## アーキテクチャ（差し込み口＝seam）
 UIは `AnimalDataSource`（`DATA`）だけに依存。`MockDataSource` を `GbifDataSource` 等へ差し替えるだけで、地図とUIはそのまま実データへ移行できる。
@@ -31,14 +38,14 @@ UIは `AnimalDataSource`（`DATA`）だけに依存。`MockDataSource` を `Gbif
 ```
 listAnimals() / getAnimal(id) / getAnimalsByCountry(iso) / getAnimalsByBiome(biome)
 const DATA = MockDataSource;   // ← ここ1行を差し替える
-gbifTileURL(taxonKey)          // 実観測タイルのURL（実データ層の入口）
+gbifTileURL(taxonKey, year)    // 実観測タイルのURL（実データ層の入口・年代フィルタ対応）
 ```
 
 ## 技術
-MapLibre GL JS 5（globe投影）/ CARTO ダークタイル / Natural Earth / GBIF map API。依存はCDNのみ・単一HTML。
+MapLibre GL JS 5（globe投影）/ CARTO ダークタイル / Esri 地形relief / Natural Earth / GBIF map API / iNaturalist。依存はCDNのみ・**単一HTML（ビルド不要）**。静的SEOページは `tools/gen-static.js` で生成（本体の挙動は不変）。
 
 ## クレジット
-- Occurrence data: **GBIF.org** / Basemap: **© OpenStreetMap, © CARTO** / Borders: **Natural Earth** / Photos: **Wikimedia Commons**
+- Occurrence data: **GBIF.org** / Conservation status: **IUCN Red List** / Basemap: **© OpenStreetMap, © CARTO** / Terrain: **Esri** / Borders: **Natural Earth** / Photos: **Wikimedia Commons**（各撮影者・ライセンス明記） / Reverse photos: **iNaturalist** / Map library: **MapLibre GL JS**
 - 🤖 Built with [Claude Code](https://claude.com/claude-code)
 
 ## ライセンス
