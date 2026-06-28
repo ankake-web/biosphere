@@ -6,13 +6,13 @@
 <title>BIOSPHERE — 世界いきもの分布アトラス</title>
 <meta name="description" content="世界の生きものの分布を地球儀で旅する。GBIFの実観測データで本物の分布を、図鑑で詳細を。" />
 <meta property="og:title" content="BIOSPHERE — 世界いきもの分布アトラス" />
-<meta property="og:description" content="地球儀でGBIFの実観測データの動物分布を旅する。60種の図鑑、ズームで細密化する詳細分布。" />
+<meta property="og:description" content="地球儀でGBIFの実観測データの動物分布を旅する。82種の図鑑、ズームで細密化する詳細分布。" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://ankake-web.github.io/biosphere/" />
 <meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg/1200px-020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="BIOSPHERE — 世界いきもの分布アトラス" />
-<meta name="twitter:description" content="地球儀でGBIFの実観測データの動物分布を旅する。60種の図鑑。" />
+<meta name="twitter:description" content="地球儀でGBIFの実観測データの動物分布を旅する。82種の図鑑。" />
 
 <link href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
@@ -167,7 +167,9 @@ button{font-family:inherit;cursor:pointer;}
 .rare .rk{font-size:15px;font-weight:800;}
 .rare .popwrap{display:flex;flex-direction:column;line-height:1.15;min-width:0;}
 .rare .poplabel{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);font-weight:700;}
-.rare .popval{font-size:15px;font-weight:800;margin-top:2px;}
+.rare .popline{display:flex;align-items:baseline;gap:8px;margin-top:2px;flex-wrap:wrap;}
+.rare .popval{font-size:15px;font-weight:800;}
+.rare .trend{font-size:11.5px;font-weight:800;white-space:nowrap;}
 .rare .iucn{margin-left:auto;text-align:right;line-height:1.2;flex:0 0 auto;}
 .rare .iucn .code{font-size:11px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:6px;color:#06121a;}
 .rare .iucn .jp{font-size:11px;color:var(--muted);margin-top:3px;display:block;}
@@ -256,7 +258,7 @@ button{font-family:inherit;cursor:pointer;}
   <div class="spacer"></div>
   <div class="dex" id="dex" title="図鑑コンプ率">
     <div class="ring"><i id="dexEmoji">🧭</i></div>
-    <div class="lab"><b id="dexNum">0/60</b><span>図鑑</span></div>
+    <div class="lab"><b id="dexNum">0/82</b><span>図鑑</span></div>
   </div>
   <div class="search">
     <span class="ic">🔍</span>
@@ -330,7 +332,18 @@ const POP = {
   walrus:'約22万〜25万頭', narwhal:'約12万〜17万頭', meerkat:'安定（数十万）', okapi:'約1万〜5万頭（推定）',
   axolotl:'野生1,000頭未満（ほぼ絶滅）', loggerhead:'推定 数十万頭（成熟個体は減少）', slothbear:'約7,000〜2万頭', kingpenguin:'約160万つがい',
 };
-const popOf = (id)=>POP[id]||'データ不足';
+const popOf = (a)=>(a&&a.pop)||(a&&POP[a.id])||'データ不足';
+// 個体数トレンド（↑増加/↓減少/→横ばい/–不明）。回復種だけ明示し、他はIUCN状況から導出。
+const TREND_UP=['panda','tiger','eagle','bison','alligator','whale','beaver','galapagostortoise','otter','raccoon','arabianoryx','przewalski','whiterhino'];
+const TREND_DOWN=['monarch'];
+function trendOf(a){
+  if(TREND_UP.includes(a.id)) return 'up';
+  if(TREND_DOWN.includes(a.id)) return 'down';
+  if(a.status==='LC') return 'stable';
+  if(a.status==='DD') return 'unknown';
+  return 'down';
+}
+const TREND_META={up:{a:'↑',t:'増加',c:'#5fd39a'},down:{a:'↓',t:'減少',c:'#ff9a8a'},stable:{a:'→',t:'横ばい',c:'#9fb0bd'},unknown:{a:'–',t:'不明',c:'#9fb0bd'}};
 const BIOMES = {
   'サバンナ':{e:'🌾', g:['#caa24a','#7a5a1e']},
   '森林':    {e:'🌲', g:['#3f9d6b','#1c4a33']},
@@ -366,7 +379,10 @@ const CC = {
   ARE:['アラブ首長国連邦','🇦🇪'],ITA:['イタリア','🇮🇹'],GRC:['ギリシャ','🇬🇷'],NLD:['オランダ','🇳🇱'],
   TUR:['トルコ','🇹🇷'],PHL:['フィリピン','🇵🇭'],ATF:['仏領南方・南極','🇹🇫'],GBR:['イギリス','🇬🇧'],
   FLK:['フォークランド諸島','🇫🇰'],CHE:['スイス','🇨🇭'],ROU:['ルーマニア','🇷🇴'],
-  DZA:['アルジェリア','🇩🇿'],TUN:['チュニジア','🇹🇳'],
+  DZA:['アルジェリア','🇩🇿'],TUN:['チュニジア','🇹🇳'],MDG:['マダガスカル','🇲🇬'],EGY:['エジプト','🇪🇬'],
+  MAR:['モロッコ','🇲🇦'],MRT:['モーリタニア','🇲🇷'],SAH:['西サハラ','🇪🇭'],SAU:['サウジアラビア','🇸🇦'],
+  OMN:['オマーン','🇴🇲'],VNM:['ベトナム','🇻🇳'],GIN:['ギニア','🇬🇳'],LBR:['リベリア','🇱🇷'],SWZ:['エスワティニ','🇸🇿'],
+  NCL:['ニューカレドニア','🇳🇨'],PNG:['パプアニューギニア','🇵🇬'],VUT:['バヌアツ','🇻🇺'],
 };
 const ccName=(c)=>CC[c]?CC[c][0]:c;
 const ccFlag=(c)=>CC[c]?CC[c][1]:'📍';
@@ -732,6 +748,138 @@ const ANIMALS = [
   desc:'コウテイペンギンに次ぐ大きさ。亜南極の島々に巨大な繁殖コロニーを作る。',
   range:['ATA','AUS','ZAF','ATF','FLK','ARG','CHL'],focus:{c:[-30,-54],z:2.2},
   gbif:2481660,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/SGI-2016-South_Georgia_%28Fortuna_Bay%29%E2%80%93King_penguin_%28Aptenodytes_patagonicus%29_04.jpg/960px-SGI-2016-South_Georgia_%28Fortuna_Bay%29%E2%80%93King_penguin_%28Aptenodytes_patagonicus%29_04.jpg'},
+
+ {id:'whiterhino',nameJa:'シロサイ',nameSci:'Ceratotherium simum',emoji:'🦏',taxon:'サイ科',biome:'サバンナ',status:'NT',pop:'約1.6万頭',
+  stats:{size:'体長3.7–4m',weight:'1.8–2.5t',diet:'草食',life:'40–50年'},
+  desc:'草を食む世界最大級のサイ。密猟と闘いながら保護で持ち直した“南部の白いサイ”。',
+  range:['ZAF','KEN','NAM','TZA','UGA','BWA','ZWE','SWZ','ZMB'],focus:{c:[26,-26],z:2.8},
+  gbif:2440880,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/109_Male_White_rhinoceros_walking_in_the_Kalahari_Desert_of_Namibia_Photo_by_Giles_Laurent.jpg/960px-109_Male_White_rhinoceros_walking_in_the_Kalahari_Desert_of_Namibia_Photo_by_Giles_Laurent.jpg'},
+
+ {id:'wildebeest',nameJa:'オグロヌー',nameSci:'Connochaetes taurinus',emoji:'🐃',taxon:'ウシ科',biome:'サバンナ',status:'LC',pop:'約130万頭',
+  stats:{size:'体長1.7–2.4m',weight:'120–270kg',diet:'草食',life:'約20年'},
+  desc:'大移動（グレートマイグレーション）で知られる。大群でセレンゲティの草原を巡る。',
+  range:['ZAF','TZA','KEN','NAM','AGO','BWA','ZWE','ZMB'],focus:{c:[34,-3],z:2.8},
+  gbif:2441105,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Blue_Wildebeest%2C_Ngorongoro.jpg/960px-Blue_Wildebeest%2C_Ngorongoro.jpg'},
+
+ {id:'lemur',nameJa:'ワオキツネザル',nameSci:'Lemur catta',emoji:'🐒',taxon:'キツネザル科',biome:'乾燥地',status:'EN',pop:'約2,000〜数千頭',
+  stats:{size:'体長39–46cm',weight:'2.2–2.5kg',diet:'雑食',life:'16–19年'},
+  desc:'しま模様の尾を立てて歩くマダガスカル固有の霊長類。朝に日光浴を好む。',
+  range:['MDG'],focus:{c:[46,-22],z:3.6},
+  gbif:2436412,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Ring-tailed_lemur_%28Lemur_catta%29.jpg/960px-Ring-tailed_lemur_%28Lemur_catta%29.jpg'},
+
+ {id:'chimp',nameJa:'チンパンジー',nameSci:'Pan troglodytes',emoji:'🐵',taxon:'ヒト科',biome:'熱帯雨林',status:'EN',pop:'約17万〜30万頭（減少中）',
+  stats:{size:'体高1–1.7m',weight:'40–70kg',diet:'雑食',life:'40–50年'},
+  desc:'道具を使い複雑な社会をもつ、ヒトに最も近い動物のひとつ。',
+  range:['TZA','LBR','UGA','GIN','CMR','COD','CAF','GAB'],focus:{c:[15,3],z:3.0},
+  gbif:5219534,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/015_Chimpanzee_at_Kibale_forest_National_Park_Photo_by_Giles_Laurent.jpg/960px-015_Chimpanzee_at_Kibale_forest_National_Park_Photo_by_Giles_Laurent.jpg'},
+
+ {id:'dugong',nameJa:'ジュゴン',nameSci:'Dugong dugon',emoji:'🐋',taxon:'ジュゴン科',biome:'海',status:'VU',pop:'推定 約10万頭未満',
+  stats:{size:'体長2.4–3m',weight:'250–400kg',diet:'草食（海草）',life:'約70年'},
+  desc:'海草を食べる穏やかな海の草食獣。人魚伝説のモデルともいわれる。',
+  range:['AUS','NCL','PNG','VUT'],focus:{c:[125,-15],z:2.0},
+  gbif:9729967,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Dugong.JPG/960px-Dugong.JPG'},
+
+ {id:'beluga',nameJa:'シロイルカ',nameSci:'Delphinapterus leucas',emoji:'🐋',taxon:'イッカク科',biome:'極地',status:'LC',pop:'約20万頭',
+  stats:{size:'体長3.5–5.5m',weight:'0.5–1.6t',diet:'肉食',life:'35–50年'},
+  desc:'真っ白な体と豊かな表情から“海のカナリア”。北極の海で群れる。',
+  range:['USA','CAN','RUS','NOR','GRL'],focus:{c:[-90,70],z:1.9},
+  gbif:5220003,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Oceanogr%C3%A0fic_29102004.jpg/960px-Oceanogr%C3%A0fic_29102004.jpg'},
+
+ {id:'spermwhale',nameJa:'マッコウクジラ',nameSci:'Physeter macrocephalus',emoji:'🐳',taxon:'マッコウクジラ科',biome:'海',status:'VU',pop:'約30万頭',
+  stats:{size:'体長11–18m',weight:'15–45t',diet:'肉食（イカ）',life:'60–70年'},
+  desc:'歯クジラ最大。深海へ1,000m以上潜り、巨大イカを狩る。',
+  range:['PRT','USA','ESP','ATF','ISL','CHL','CAN','AUS','ATA','NZL'],focus:{c:[-150,0],z:1.5},
+  gbif:8123917,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Mother_and_baby_sperm_whale.jpg/960px-Mother_and_baby_sperm_whale.jpg'},
+
+ {id:'fennec',nameJa:'フェネックギツネ',nameSci:'Vulpes zerda',emoji:'🦊',taxon:'イヌ科',biome:'乾燥地',status:'LC',pop:'安定（数は不明）',
+  stats:{size:'体長24–40cm',weight:'0.8–1.5kg',diet:'雑食',life:'10–14年'},
+  desc:'砂漠の熱を逃がす巨大な耳をもつ、世界最小級のキツネ。',
+  range:['EGY','MAR','MRT','SAH','DZA','TUN','TCD'],focus:{c:[10,25],z:2.6},
+  gbif:5219310,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Fennec_Fox_Vulpes_zerda.jpg/960px-Fennec_Fox_Vulpes_zerda.jpg'},
+
+ {id:'arabianoryx',nameJa:'アラビアオリックス',nameSci:'Oryx leucoryx',emoji:'🐐',taxon:'ウシ科',biome:'乾燥地',status:'VU',pop:'約1,200頭（野生・回復）',
+  stats:{size:'体長1.5–2.4m',weight:'65–75kg',diet:'草食',life:'約20年'},
+  desc:'一度は野生絶滅したが再導入で復活した、砂漠の白い偶蹄類。',
+  range:['ISR','ARE','SAU','OMN'],focus:{c:[50,22],z:3.2},
+  gbif:5220164,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Arabian_oryx_%28oryx_leucoryx%29.jpg/960px-Arabian_oryx_%28oryx_leucoryx%29.jpg'},
+
+ {id:'przewalski',nameJa:'モウコノウマ',nameSci:'Equus przewalskii',emoji:'🐴',taxon:'ウマ科',biome:'草原',status:'EN',pop:'約2,000頭（回復中）',
+  stats:{size:'体長2.1–2.6m',weight:'250–360kg',diet:'草食',life:'20–25年'},
+  desc:'家畜化されなかった唯一の野生馬。モンゴルの草原に再導入された。',
+  range:['MNG','CHN','UKR','RUS','KAZ'],focus:{c:[100,46],z:3.0},
+  gbif:5787169,photo:'https://upload.wikimedia.org/wikipedia/commons/f/f5/Przewalskis_horse_02.jpg'},
+
+ {id:'kingcobra',nameJa:'キングコブラ',nameSci:'Ophiophagus hannah',emoji:'🐍',taxon:'コブラ科',biome:'熱帯雨林',status:'VU',pop:'推定 減少中（数は不明）',
+  stats:{size:'全長3–5.5m',weight:'6–9kg',diet:'肉食（ヘビ）',life:'約20年'},
+  desc:'世界最長の毒ヘビ。主に他のヘビを食べ、巣を作る珍しいヘビ。',
+  range:['IND','THA','CHN','VNM','IDN','PHL','MYS','MMR','NPL','BTN'],focus:{c:[95,15],z:2.6},
+  gbif:2469850,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg/960px-12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg'},
+
+ {id:'marineiguana',nameJa:'ウミイグアナ',nameSci:'Amblyrhynchus cristatus',emoji:'🦎',taxon:'イグアナ科',biome:'海',status:'VU',pop:'約20万〜30万頭',
+  stats:{size:'全長1–1.5m',weight:'1–12kg',diet:'草食（藻）',life:'約12年'},
+  desc:'海に潜って藻を食べる世界唯一の海生トカゲ。ガラパゴス固有。',
+  range:['ECU'],focus:{c:[-91,-0.5],z:5.0},
+  gbif:5224602,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Amblyrhynchus_cristatus_%283838137696%29.jpg/960px-Amblyrhynchus_cristatus_%283838137696%29.jpg'},
+
+ {id:'chameleon',nameJa:'パンサーカメレオン',nameSci:'Furcifer pardalis',emoji:'🦎',taxon:'カメレオン科',biome:'熱帯雨林',status:'LC',pop:'安定',
+  stats:{size:'全長40–52cm',weight:'140–180g',diet:'食虫',life:'5–7年'},
+  desc:'色を自在に変え、左右別々に動く目をもつマダガスカルの宝石。',
+  range:['MDG'],focus:{c:[49,-15],z:4.0},
+  gbif:5221988,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Panther_chameleon_%28Furcifer_pardalis%29_male_Nosy_Be.jpg/960px-Panther_chameleon_%28Furcifer_pardalis%29_male_Nosy_Be.jpg'},
+
+ {id:'giantsalamander',nameJa:'オオサンショウウオ',nameSci:'Andrias japonicus',emoji:'🦎',taxon:'オオサンショウウオ科',biome:'湿地',status:'VU',pop:'推定 減少中',
+  stats:{size:'全長1–1.5m',weight:'最大25kg',diet:'肉食',life:'50–80年'},
+  desc:'世界最大級の両生類。日本の清流に潜む“生きた化石”。',
+  range:['JPN'],focus:{c:[133,35],z:4.5},
+  gbif:2432039,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Japanese_giant_salamander_in_Tottori_Prefecture%2C_Japan.jpg/960px-Japanese_giant_salamander_in_Tottori_Prefecture%2C_Japan.jpg'},
+
+ {id:'dartfrog',nameJa:'イチゴヤドクガエル',nameSci:'Oophaga pumilio',emoji:'🐸',taxon:'ヤドクガエル科',biome:'熱帯雨林',status:'LC',pop:'安定',
+  stats:{size:'全長1.7–2.4cm',weight:'数g',diet:'食虫',life:'約8年'},
+  desc:'鮮やかな赤い体に毒をもつ小さなカエル。中米の森で子を背に運ぶ。',
+  range:['CRI','PAN','NIC'],focus:{c:[-83,9],z:4.5},
+  gbif:2429135,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Strawberry_poison_dart_frog_%2870539%29.jpg/960px-Strawberry_poison_dart_frog_%2870539%29.jpg'},
+
+ {id:'monarch',nameJa:'オオカバマダラ',nameSci:'Danaus plexippus',emoji:'🦋',taxon:'タテハチョウ科',biome:'草原',status:'LC',pop:'渡り個体群は激減',
+  stats:{size:'翅開長9–10cm',weight:'約0.5g',diet:'植食',life:'数週〜8か月'},
+  desc:'数千kmを世代をまたいで旅する蝶。北米とメキシコを結ぶ大移動で有名。',
+  range:['USA','CAN','MEX'],focus:{c:[-100,30],z:2.2},
+  gbif:5133088,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Monarch_Butterfly_Danaus_plexippus_Male_2664px.jpg/960px-Monarch_Butterfly_Danaus_plexippus_Male_2664px.jpg'},
+
+ {id:'clownfish',nameJa:'カクレクマノミ',nameSci:'Amphiprion ocellaris',emoji:'🐠',taxon:'スズメダイ科',biome:'海',status:'LC',pop:'安定',
+  stats:{size:'全長6–11cm',weight:'数十g',diet:'雑食',life:'6–10年'},
+  desc:'イソギンチャクと共生するオレンジの魚。映画でも有名な珊瑚礁の住人。',
+  range:['IDN','PHL','MYS','THA','JPN','MMR','AUS','IND'],focus:{c:[125,-5],z:2.6},
+  gbif:5212106,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Clown_fish_in_the_Andaman_Coral_Reef.jpg/960px-Clown_fish_in_the_Andaman_Coral_Reef.jpg'},
+
+ {id:'mantaray',nameJa:'ナンヨウマンタ',nameSci:'Mobula alfredi',emoji:'🐟',taxon:'トビエイ科',biome:'海',status:'VU',pop:'推定 減少中',
+  stats:{size:'体盤幅3–5m',weight:'最大1.4t',diet:'肉食（プランクトン）',life:'約40年'},
+  desc:'翼開長5mに達する優雅なエイ。プランクトンを濾し取り、珊瑚礁を舞う。',
+  range:['AUS','IDN','USA'],focus:{c:[120,-8],z:2.2},
+  gbif:9241141,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Dharavandhoo_Thila_-_Manata_Black_Pearl.JPG/960px-Dharavandhoo_Thila_-_Manata_Black_Pearl.JPG'},
+
+ {id:'seahorse',nameJa:'オオウミウマ',nameSci:'Hippocampus kuda',emoji:'🐠',taxon:'ヨウジウオ科',biome:'海',status:'VU',pop:'推定 減少中',
+  stats:{size:'全長17–30cm',weight:'数十g',diet:'肉食',life:'1–5年'},
+  desc:'オスが育児嚢で子を育てる魚。直立して泳ぐ、インド太平洋の珊瑚礁の住人。',
+  range:['NCL','IDN','PHL','JPN','CHN','IND','AUS','THA','VNM'],focus:{c:[120,5],z:2.2},
+  gbif:5201037,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Hal_-_Hippocampus_kuda_-_4.jpg/960px-Hal_-_Hippocampus_kuda_-_4.jpg'},
+
+ {id:'ostrich',nameJa:'ダチョウ',nameSci:'Struthio camelus',emoji:'🐦',taxon:'ダチョウ科',biome:'サバンナ',status:'LC',pop:'安定（数は不明）',
+  stats:{size:'体高2.1–2.8m',weight:'90–130kg',diet:'雑食',life:'30–40年'},
+  desc:'世界最大の鳥。飛べない代わりに時速70kmで走る。',
+  range:['ZAF','KEN','NAM','TZA','BWA'],focus:{c:[25,-2],z:2.6},
+  gbif:2495150,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Struthio_camelus_-_Etosha_2014_%283%29.jpg/960px-Struthio_camelus_-_Etosha_2014_%283%29.jpg'},
+
+ {id:'steller',nameJa:'オオワシ',nameSci:'Haliaeetus pelagicus',emoji:'🦅',taxon:'タカ科',biome:'海',status:'VU',pop:'約4,000〜5,000羽',
+  stats:{size:'翼開長2–2.5m',weight:'6–9kg',diet:'肉食（魚）',life:'約20年'},
+  desc:'世界最大級のワシ。冬に北海道へ渡り、流氷の上で魚を狩る。',
+  range:['JPN','USA','RUS','CAN','KOR','CHN'],focus:{c:[145,50],z:2.6},
+  gbif:2480445,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Haliaeetus_pelagicus_%28Rausu%2C_Japan%29.jpg/960px-Haliaeetus_pelagicus_%28Rausu%2C_Japan%29.jpg'},
+
+ {id:'peafowl',nameJa:'インドクジャク',nameSci:'Pavo cristatus',emoji:'🦚',taxon:'キジ科',biome:'森林',status:'LC',pop:'安定',
+  stats:{size:'全長1–2.3m',weight:'4–6kg',diet:'雑食',life:'15–20年'},
+  desc:'オスが鮮やかな飾り羽を扇状に広げて求愛する。南アジアの森の宝石。',
+  range:['IND','LKA','NPL'],focus:{c:[78,20],z:3.0},
+  gbif:9451184,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Peacock_on_tree_%2852077240794%29.jpg/960px-Peacock_on_tree_%2852077240794%29.jpg'},
 ];
 ANIMALS.forEach((a,i)=>a.no=i+1);
 
@@ -971,7 +1119,7 @@ const panelEl=$('#panel');
 function openPanel(){ panelEl.classList.add('open'); }
 function closePanel(){ panelEl.classList.remove('open'); }
 function renderAnimalCard(a){
-  const r=RARITY[a.status], g=BIOMES[a.biome]?BIOMES[a.biome].g:['#1b3a43','#0d1b22'];
+  const r=RARITY[a.status], g=BIOMES[a.biome]?BIOMES[a.biome].g:['#1b3a43','#0d1b22'], tm=TREND_META[trendOf(a)];
   panelEl.innerHTML=`
     <button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button>
     <div class="grab"></div>
@@ -987,7 +1135,7 @@ function renderAnimalCard(a){
       <div class="rare" style="background:${hexA(r.color,.1)}">
         <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
         <span class="gem" style="color:${r.color}">${r.gem}</span>
-        <span class="popwrap"><span class="poplabel">推定生息数（野生）</span><span class="popval" style="color:${r.color}">${popOf(a.id)}</span></span>
+        <span class="popwrap"><span class="poplabel">推定生息数（野生）</span><span class="popline"><span class="popval" style="color:${r.color}">${popOf(a)}</span><span class="trend" style="color:${tm.c}">${tm.a} ${tm.t}</span></span></span>
         <span class="iucn"><span class="code" style="background:${r.color}">${a.status}</span><span class="jp">${r.jp}・${r.band}</span></span>
       </div>
       <div class="stats">
