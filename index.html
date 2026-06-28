@@ -19,7 +19,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
 :root{
@@ -1186,6 +1186,8 @@ const $=(s)=>document.querySelector(s);
 let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true, A3toA2={};
 let gbifOn=true, currentAnimal=null, currentMode={type:'overview'};
 let atlasOn=false;   // アトラス表示（地形relief）のON/OFF。スタイルは入れ替えず重畳トグル
+// 低モーション/通信節約：自動回転を止めて電力・CPU・通信を節約（モバイル配慮＋アクセシビリティ）
+const LOW_MOTION=(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)||!!(navigator.connection&&navigator.connection.saveData);
 const SEEN = new Set(JSON.parse(localStorage.getItem('biosphere_seen')||'[]'));
 const BADGES = new Set(JSON.parse(localStorage.getItem('biosphere_badges')||'[]'));   // 達成済みのコンプ演出（再表示しない）
 const filterState = {biome:null, q:'', facet:''};   // 環境/検索/分類傾向の絞り込みを一元管理
@@ -1237,7 +1239,9 @@ map.on('load', async ()=>{
 
   mapReady=true; drawOverview(); bindMap(); updateDex();
   if(atlasOn) setAtlas(true);
-  $('#boot').classList.add('gone'); spinLoop();
+  $('#boot').classList.add('gone');
+  if(LOW_MOTION) spinning=false;   // 低モーション/通信節約時は自動回転しない
+  spinLoop();
   const deeplink=location.hash.replace('#','');
   if(deeplink && ANIMALS.some(a=>a.id===deeplink)){ selectAnimal(deeplink); }
   else { toast('🌍','動物を選ぶと図鑑に登録（未発見はシルエット）。地図の土地を選ぶと住人が出ます。🎲で旅へ。',5200); }
@@ -1274,9 +1278,14 @@ function showYearbar(on){
     $('#yearSlider').value=i; $('#yearLabel').textContent=YEAR_STOPS[i].label; yb.removeAttribute('hidden'); }
   else yb.setAttribute('hidden','');
 }
+let yearTileTimer=null;
 function applyYear(idx){
   const st=YEAR_STOPS[idx]||YEAR_STOPS[0]; gbifYear=st.y; $('#yearLabel').textContent=st.label;
-  if(currentAnimal && gbifOn && currentAnimal.gbif){ addGbif(currentAnimal.gbif); setMode(animalModeText(currentAnimal)); }
+  if(currentAnimal && gbifOn && currentAnimal.gbif){
+    setMode(animalModeText(currentAnimal));                        // ラベル/モードは即時更新（操作感）
+    clearTimeout(yearTileTimer);                                   // タイル再取得はデバウンス（ドラッグ中の連続リクエストを抑制）
+    yearTileTimer=setTimeout(()=>{ if(currentAnimal&&gbifOn&&currentAnimal.gbif) addGbif(currentAnimal.gbif); },180);
+  }
 }
 function animalModeText(a){
   const yl=(gbifOn&&gbifYear)?('・'+((YEAR_STOPS.find(s=>s.y===gbifYear)||{}).label||'')):'';
