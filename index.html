@@ -107,6 +107,18 @@ button{font-family:inherit;cursor:pointer;}
 .bm[aria-pressed="true"]{color:#06201d;}
 .bm:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
 
+/* 並び替え・絞り込み */
+.dexhead{display:flex;align-items:center;gap:8px;margin:0 4px 1px;}
+.dexhead .lab{margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sortfilter{display:flex;gap:6px;flex:0 0 auto;}
+.sf{background:var(--glass);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+  padding:5px 9px;font-size:11.5px;font-weight:600;font-family:inherit;backdrop-filter:blur(10px);
+  outline:none;max-width:43vw;cursor:pointer;transition:border-color .15s;}
+.sf:hover{border-color:var(--line-2);}
+.sf:focus-visible{outline:2px solid var(--teal);outline-offset:1px;}
+.sf option,.sf optgroup{background:#0c1420;color:var(--ink);}
+@media(max-width:520px){.dexhead .lab{display:none;}}
+
 .chips{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:thin;scroll-snap-type:x proximity;}
 .chips::-webkit-scrollbar{height:5px;}
 .chips::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px;}
@@ -282,7 +294,13 @@ button{font-family:inherit;cursor:pointer;}
     <div class="biomes" id="biomes" role="group" aria-label="生息環境でしぼる"></div>
   </div>
   <div>
-    <div class="lab">いきものを選ぶ → 棲む土地へ飛ぶ</div>
+    <div class="dexhead">
+      <div class="lab">いきものを選ぶ → 棲む土地へ飛ぶ</div>
+      <div class="sortfilter">
+        <select id="sortSel" class="sf" aria-label="並び替え"></select>
+        <select id="facetSel" class="sf" aria-label="絞り込み"></select>
+      </div>
+    </div>
     <div class="chips" id="chips" role="group" aria-label="動物を選ぶ"></div>
   </div>
 </div>
@@ -344,6 +362,31 @@ function trendOf(a){
   return 'down';
 }
 const TREND_META={up:{a:'↑',t:'増加',c:'#5fd39a'},down:{a:'↓',t:'減少',c:'#ff9a8a'},stable:{a:'→',t:'横ばい',c:'#9fb0bd'},unknown:{a:'–',t:'不明',c:'#9fb0bd'}};
+// 高位分類（哺乳/鳥/爬虫/両生/魚/昆虫/植物/無脊椎）。図鑑の絞り込み用にidで明示（既定＝哺乳類）。
+const CLASS={
+  鳥類:['penguin','eagle','condor','crane','toucan','flamingo','shoebill','albatross','humboldtpenguin','kiwi','kingpenguin','ostrich','steller','peafowl'],
+  魚類:['clownfish','mantaray','seahorse','whaleshark','greatwhite'],
+  爬虫類:['komodo','galapagostortoise','alligator','greenturtle','loggerhead','kingcobra','marineiguana','chameleon'],
+  両生類:['axolotl','giantsalamander','dartfrog'],
+  昆虫:['monarch','honeybee','firefly'],
+  植物:['baobab','sequoia','rafflesia'],
+  無脊椎:['octopus','nautilus','spidercrab'],
+};
+const clsOrder=['哺乳類','鳥類','爬虫類','両生類','魚類','昆虫','植物','無脊椎'];
+function classOf(a){ for(const k in CLASS){ if(CLASS[k].includes(a.id)) return k; } return '哺乳類'; }
+// 生息数文字列をおおよその数値へ（ソート用）。範囲は上限・万/億・あいまい表現も解釈。不明は-1で末尾。
+function popNum(a){
+  let s=popOf(a); if(!s||/データ不足|不明/.test(s)) return -1;
+  s=s.replace(/,/g,'');
+  const re=/([0-9]+(?:\.[0-9]+)?)\s*(億|万)?/g, mult={'億':1e8,'万':1e4}; let m,best=-1;
+  while((m=re.exec(s))){ let v=parseFloat(m[1]); if(m[2])v*=mult[m[2]]; if(v>best)best=v; }
+  if(best>=0) return best;
+  const vague=[['数千万',5e7],['数百万',5e6],['数十万',5e5],['数万',5e4],['数千',5e3]];
+  for(const [k,v] of vague){ if(s.includes(k)) return v; }
+  if(/豊富/.test(s)) return 1e7;
+  if(/安定/.test(s)) return 1e5;
+  return -1;
+}
 const BIOMES = {
   'サバンナ':{e:'🌾', g:['#caa24a','#7a5a1e']},
   '森林':    {e:'🌲', g:['#3f9d6b','#1c4a33']},
@@ -907,6 +950,7 @@ const $=(s)=>document.querySelector(s);
 let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true, A3toA2={};
 let gbifOn=true, currentAnimal=null, currentMode={type:'overview'};
 const SEEN = new Set(JSON.parse(localStorage.getItem('biosphere_seen')||'[]'));
+const filterState = {biome:null, q:'', facet:''};   // 環境/検索/分類傾向の絞り込みを一元管理
 
 const map = window.map = new maplibregl.Map({
   container:'map',
@@ -1018,6 +1062,8 @@ ANIMALS.forEach((a,i)=>{
   b.className='chip'+(SEEN.has(a.id)?' is-seen':''); b.style.animationDelay=(i*22)+'ms';
   b.setAttribute('aria-pressed','false'); b.dataset.id=a.id; b.dataset.biome=a.biome;
   b.dataset.q=(a.nameJa+' '+a.nameSci+' '+a.taxon+' '+a.biome).toLowerCase();
+  b.dataset.no=a.no; b.dataset.status=a.status; b.dataset.cls=classOf(a);
+  b.dataset.trend=trendOf(a); b.dataset.popnum=popNum(a); b.dataset.name=a.nameJa;
   b.innerHTML=avatar(a)+`<span class="meta"><span class="n">${a.nameJa}</span><span class="s">${a.nameSci}</span></span>`
     +`<span class="rk" style="background:${RARITY[a.status].color};box-shadow:0 0 8px ${RARITY[a.status].color}"></span>`
     +`<span class="seen">✓</span>`;
@@ -1037,11 +1083,62 @@ const allBtn=document.createElement('button'); allBtn.className='bm'; allBtn.inn
     d.innerHTML=`<span class="sw" style="background:${r.color}"></span><b>${r.band}</b><span style="margin-left:auto;color:var(--muted-2)">${s}</span>`;legendEl.appendChild(d);});
   const f=document.createElement('div');f.className='lf';f.innerHTML='地図の<b>黄〜赤のメッシュ</b>は GBIF の実観測地点。<b>ズームで細かく</b>なります。🛰️で表示切替。';legendEl.appendChild(f);
 })();
+buildSortFilter();
 
 /* ---------- セレクション ---------- */
 function pressChip(id){ chipsEl.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.id===id?'true':'false')); }
 function pressBiome(bm){ biomesEl.querySelectorAll('.bm').forEach(c=>c.setAttribute('aria-pressed',c.dataset.bm===bm?'true':'false')); }
-function filterChips(bm){ chipsEl.querySelectorAll('.chip').forEach(c=>{c.style.display=(!bm||c.dataset.biome===bm)?'':'none';}); }
+function filterChips(bm){ filterState.biome=bm; applyFilters(); }
+// 環境・検索・分類/傾向/保全 をAND結合して表示/非表示を決める（一元化）
+function applyFilters(){
+  const {biome:bm,q,facet}=filterState; let ft=null,fv=null;
+  if(facet){ const i=facet.indexOf(':'); ft=facet.slice(0,i); fv=facet.slice(i+1); }
+  chipsEl.querySelectorAll('.chip').forEach(c=>{
+    let ok=true;
+    if(bm && c.dataset.biome!==bm) ok=false;
+    if(ok && q && !c.dataset.q.includes(q)) ok=false;
+    if(ok && ft){
+      if(ft==='cls')    ok=(c.dataset.cls===fv);
+      else if(ft==='trend')  ok=(c.dataset.trend===fv);
+      else if(ft==='status') ok=(c.dataset.status===fv);
+    }
+    c.style.display=ok?'':'none';
+  });
+}
+// チップの並び替え（DOM順を入れ替え。並び替え後は入場アニメを止めてスナップ）
+function sortChips(mode){
+  const so='CR EN VU NT LC DD';
+  const cmps={
+    'no':(a,b)=>(+a.dataset.no)-(+b.dataset.no),
+    'pop-desc':(a,b)=>(+b.dataset.popnum)-(+a.dataset.popnum)||(+a.dataset.no)-(+b.dataset.no),
+    'pop-asc':(a,b)=>{const x=+a.dataset.popnum,y=+b.dataset.popnum,xu=x<0,yu=y<0;
+      if(xu&&yu)return (+a.dataset.no)-(+b.dataset.no); if(xu)return 1; if(yu)return -1; return x-y;},
+    'status':(a,b)=>so.indexOf(a.dataset.status)-so.indexOf(b.dataset.status)||(+a.dataset.no)-(+b.dataset.no),
+    'cls':(a,b)=>clsOrder.indexOf(a.dataset.cls)-clsOrder.indexOf(b.dataset.cls)||(+a.dataset.no)-(+b.dataset.no),
+    'name':(a,b)=>a.dataset.name.localeCompare(b.dataset.name,'ja'),
+  };
+  const arr=[...chipsEl.querySelectorAll('.chip')]; arr.sort(cmps[mode]||cmps.no);
+  arr.forEach(c=>{ c.style.animation='none'; c.style.animationDelay='0ms'; chipsEl.appendChild(c); });
+}
+// 並び替え/絞り込みセレクトを生成（実データに存在する分類・保全状況のみ）
+function buildSortFilter(){
+  const sortSel=$('#sortSel'), facetSel=$('#facetSel');
+  sortSel.innerHTML=`<option value="no">№順（標準）</option>`
+    +`<option value="pop-desc">生息数 多い順</option>`
+    +`<option value="pop-asc">生息数 少ない順</option>`
+    +`<option value="status">絶滅危機が高い順</option>`
+    +`<option value="cls">分類ごと</option>`
+    +`<option value="name">名前順（あいうえお）</option>`;
+  const clsP=clsOrder.filter(k=>ANIMALS.some(a=>classOf(a)===k));
+  const stL={CR:'近絶滅 CR',EN:'絶滅危惧 EN',VU:'危急 VU',NT:'準絶滅危惧 NT',LC:'軽度懸念 LC',DD:'データ不足 DD'};
+  const stP='CR EN VU NT LC DD'.split(' ').filter(s=>ANIMALS.some(a=>a.status===s));
+  facetSel.innerHTML=`<option value="">🔎 すべて表示</option>`
+    +`<optgroup label="分類で">`+clsP.map(k=>`<option value="cls:${k}">${k}</option>`).join('')+`</optgroup>`
+    +`<optgroup label="傾向で"><option value="trend:up">↑ 増えている</option><option value="trend:down">↓ 減っている</option><option value="trend:stable">→ 横ばい</option></optgroup>`
+    +`<optgroup label="保全状況で">`+stP.map(s=>`<option value="status:${s}">${stL[s]}</option>`).join('')+`</optgroup>`;
+  sortSel.onchange=()=>sortChips(sortSel.value);
+  facetSel.onchange=()=>{ filterState.facet=facetSel.value; applyFilters(); };
+}
 function markSeen(id){ if(!SEEN.has(id)){ SEEN.add(id); localStorage.setItem('biosphere_seen',JSON.stringify([...SEEN])); const ch=chipsEl.querySelector(`.chip[data-id="${id}"]`); if(ch)ch.classList.add('is-seen'); updateDex(); } }
 function updateDex(){ const n=SEEN.size,t=ANIMALS.length; $('#dexNum').textContent=`${n}/${t}`; $('#dex').querySelector('.ring').style.setProperty('--p',Math.round(n/t*100)); $('#dexEmoji').textContent=n>=t?'🏆':(n>0?'🐾':'🧭'); }
 
@@ -1103,7 +1200,10 @@ async function fetchLocalSpecies(code){
   }catch(e){ el.innerHTML='<span class="muted">実データ取得に失敗しました（オフライン？）。</span>'; }
 }
 function fmtN(n){ return n>=1000? (n/1000).toFixed(n>=10000?0:1)+'k' : String(n); }
-function resetAll(){ pressChip(null); pressBiome(null); filterChips(null); closePanel(); drawOverview();
+function resetAll(){ pressChip(null); pressBiome(null);
+  filterState.biome=null; filterState.facet=''; filterState.q='';
+  const ss=$('#sortSel'),fs=$('#facetSel'),sr=$('#search'); if(fs)fs.value=''; if(sr)sr.value=''; if(ss)ss.value='no';
+  sortChips('no'); applyFilters(); closePanel(); drawOverview();
   map.flyTo({center:[18,16],zoom:1.45,speed:.7,curve:1.5,essential:true}); }
 function explore(){
   // まだ見ていない種を優先してランダムに（全部見たら全体から）
@@ -1194,8 +1294,7 @@ function bindMap(){
 }
 
 /* ---------- ツール ---------- */
-$('#search').addEventListener('input',(e)=>{const q=e.target.value.trim().toLowerCase();
-  chipsEl.querySelectorAll('.chip').forEach(c=>{c.style.display=(!q||c.dataset.q.includes(q))?'':'none';});});
+$('#search').addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); applyFilters(); });
 let isGlobe=true;
 $('#globeBtn').addEventListener('click',()=>{ isGlobe=!isGlobe; try{ map.setProjection({type:isGlobe?'globe':'mercator'}); }catch(e){}
   $('#globeBtn').setAttribute('aria-pressed',String(isGlobe)); $('#globeBtn').textContent=isGlobe?'🌐':'🗺️'; toast(isGlobe?'🌐':'🗺️',isGlobe?'地球儀表示':'平面表示',1500);});
