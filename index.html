@@ -358,6 +358,13 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .sbv.pk{background:#34d8c6;}
 .sbl{font-size:9px;color:#8497a7;}
 .snote{font-size:10.5px;color:var(--muted);margin-top:7px;line-height:1.5;}
+/* ---- 近くの絶滅危惧種ハイライト（タスクC） ---- */
+.nearrow.threat{border-color:rgba(255,176,46,.5);background:rgba(255,176,46,.08);box-shadow:inset 3px 0 0 #ffb02e;}
+.stpill{font-size:10px;font-weight:800;color:#06231f;border-radius:6px;padding:2px 6px;flex:0 0 auto;white-space:nowrap;}
+.thsum{display:inline-block;background:rgba(255,176,46,.14);border:1px solid rgba(255,176,46,.4);color:#ffd089;font-size:12px;font-weight:700;border-radius:999px;padding:4px 11px;cursor:pointer;margin:2px 0;}
+.thsum:hover{background:rgba(255,176,46,.22);}
+.thsum.on{background:#ffb02e;border-color:#ffb02e;color:#3a2200;}
+.thsum b{color:inherit;}
 .pshare{cursor:pointer;}
 .pshare:hover{border-color:var(--teal);color:#fff;background:rgba(52,216,198,.12);}
 
@@ -3383,9 +3390,10 @@ const NEAR_DEFAULT_R=10;
 const NEAR_PRESETS=[['東京',35.68,139.76],['大阪',34.69,135.50],['札幌',43.06,141.35],['那覇',26.21,127.68],['ニューヨーク',40.71,-74.01],['ロンドン',51.51,-0.13],['シンガポール',1.35,103.82],['シドニー',-33.87,151.21],['ナイロビ',-1.29,36.82],['リオデジャネイロ',-22.91,-43.17]];
 const NEAR_ICONIC={Aves:'鳥類',Mammalia:'哺乳類',Reptilia:'爬虫類',Amphibia:'両生類',Actinopterygii:'魚類',Chondrichthyes:'魚類（軟骨魚）'};
 const NEAR_CLASSES=[['','すべて'],['Aves','🐦鳥'],['Mammalia','🦫哺乳'],['Reptilia','🦎爬虫'],['Amphibia','🐸両生'],['Fish','🐟魚']];
-const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_';
+const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_', LS_IUCN='biosphere_iucn_';
+const THREAT_CATS=new Set(['VU','EN','CR']);   // 絶滅危惧（Threatened）
 let nearState=null;                 // {lat,lng,radius,label}
-let nearMarker=null, nearPick=false, nearTimer=null, nearClass='', nearRows=[], nearPtsOn=false;
+let nearMarker=null, nearPick=false, nearTimer=null, nearClass='', nearThreatOnly=false, nearRows=[], nearPtsOn=false;
 function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
 function classMatch(ic){ if(!nearClass)return true; if(nearClass==='Fish')return ic==='Actinopterygii'||ic==='Chondrichthyes'; return ic===nearClass; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
@@ -3417,6 +3425,17 @@ async function resolveSpeciesKey(sci){
   try{ const j=await (await fetch(`https://api.gbif.org/v1/species/match?name=${encodeURIComponent(sci)}`)).json();
     const k=j.usageKey||j.speciesKey||0; try{localStorage.setItem(LS_SKEY+sci,String(k||0));}catch(e){} return k||null;
   }catch(e){ return null; }
+}
+// 保全状況（IUCNカテゴリ）を GBIF から直接取得（IUCN APIの商用制約を回避）。RARITYコードへ写像しキャッシュ。
+const STMAP_I={LEAST_CONCERN:'LC',NEAR_THREATENED:'NT',VULNERABLE:'VU',ENDANGERED:'EN',CRITICALLY_ENDANGERED:'CR',DATA_DEFICIENT:'DD',NOT_EVALUATED:'NE',EXTINCT_IN_THE_WILD:'EW',EXTINCT:'EX'};
+function iucnGet(s){ try{const v=localStorage.getItem(LS_IUCN+s); return v===null?undefined:v;}catch(e){return undefined;} }
+function iucnSet(s,v){ try{localStorage.setItem(LS_IUCN+s,v);}catch(e){} }
+async function resolveIucn(sci){
+  const c=iucnGet(sci); if(c!==undefined) return c;
+  const key=await resolveSpeciesKey(sci); if(!key){ iucnSet(sci,''); return ''; }
+  try{ const r=await fetch(`https://api.gbif.org/v1/species/${key}/iucnRedListCategory`);
+    if(r.ok){ const j=await r.json(); const code=STMAP_I[j.category]||''; iucnSet(sci,code); return code; } }catch(e){}
+  iucnSet(sci,''); return '';
 }
 // GBIF scientificName facet を二名に正規化＆統合（種に限定）
 function mergeBinomials(counts){
@@ -3455,7 +3474,7 @@ function setNearPin(latRaw,lngRaw,label,radius){
   nearState={lat,lng,radius:radius||(nearState&&nearState.radius)||NEAR_DEFAULT_R,label:label||'指定地点'};
   currentMode={type:'near',lat,lng};
   setMode('📍 '+nearState.label+'の近くの生き物'); showYearbar(false);
-  removeNearPoints(); nearClass='';
+  removeNearPoints(); nearClass=''; nearThreatOnly=false;
   drawNearVisuals(lat,lng,nearState.radius);
   stopSpin(); map.flyTo({center:[lng,lat],zoom:ZOOM_BY_R[nearState.radius]||9,speed:.9,curve:1.4,essential:true});
   queryNear();
@@ -3524,7 +3543,7 @@ function renderNearList(overrideInner){
 function resolveAllRows(){
   nearRows.forEach((c,i)=>{
     if(c.done){ applyRowDom(i); return; }
-    inatEnqueue(async()=>{ const v=await inatResolve(c.name); Object.assign(c,v,{done:true}); applyRowDom(i); applyNearFilter(); });
+    inatEnqueue(async()=>{ const v=await inatResolve(c.name); Object.assign(c,v); c.st2=await resolveIucn(c.name); c.done=true; applyRowDom(i); applyNearFilter(); });
   });
   applyNearFilter();
 }
@@ -3533,17 +3552,30 @@ function applyRowDom(i){
   const c=nearRows[i], av=row.querySelector('.locav'), ja=row.querySelector('.nja');
   if(c.ph&&av&&!av.querySelector('img')) av.innerHTML=`<img src="${c.ph}" alt="" onload="this.style.opacity=1">`;
   if(ja) ja.textContent=c.ja||'（和名なし）';
-  row.dataset.ic=c.ic||'';
+  row.dataset.ic=c.ic||''; row.dataset.th=THREAT_CATS.has(c.st2)?'1':'';
+  // 保全状況ピル（絶滅危惧VU/EN/CRのみ強調＝レア度カラー）
+  if(THREAT_CATS.has(c.st2) && RARITY[c.st2]){
+    let pill=row.querySelector('.stpill');
+    if(!pill){ pill=document.createElement('span'); pill.className='stpill'; row.insertBefore(pill,row.querySelector('.cnt2')); }
+    pill.style.background=RARITY[c.st2].color; pill.textContent='⚠'+c.st2; pill.title=RARITY[c.st2].jp+'（絶滅危惧）';
+    row.classList.add('threat');
+  }
 }
+function toggleNearThreat(){ nearThreatOnly=!nearThreatOnly; applyNearFilter(); }
 function applyNearFilter(){
-  let vis=0; document.querySelectorAll('#nearlist .nearrow').forEach(row=>{
-    const c=nearRows[+row.dataset.i]; const show=!nearClass || (c.done? classMatch(c.ic) : false);
+  let vis=0, thCount=0;
+  document.querySelectorAll('#nearlist .nearrow').forEach(row=>{
+    const c=nearRows[+row.dataset.i]; const th=THREAT_CATS.has(c.st2); if(th)thCount++;
+    const show=(!nearClass||(c.done?classMatch(c.ic):false)) && (!nearThreatOnly||th);
     row.style.display=show?'':'none'; if(show)vis++;
   });
-  const sum=document.getElementById('nearsum');
-  if(sum){ if(nearClass){ const lab=(NEAR_CLASSES.find(x=>x[0]===nearClass)||['',''])[1];
-      sum.innerHTML=`<b>${lab}</b>でしぼり込み：<b>${vis}種</b><br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIF実観測</span>`; }
-    else sum.innerHTML=`この範囲で記録の多い脊椎動物 <b>${nearRows.length}種</b><br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIF実観測（タップで詳細／📖は図鑑収録）</span>`; }
+  const sum=document.getElementById('nearsum'); if(!sum)return;
+  const thChip=`<button class="thsum${nearThreatOnly?' on':''}" onclick="toggleNearThreat()">⚠ 近くの絶滅危惧 <b>${thCount}</b>種${nearThreatOnly?'（解除）':''}</button>`;
+  let head;
+  if(nearThreatOnly) head=`この範囲の<b>絶滅危惧</b> <b>${vis}種</b>`;
+  else if(nearClass){ const lab=(NEAR_CLASSES.find(x=>x[0]===nearClass)||['',''])[1]; head=`<b>${lab}</b>でしぼり込み <b>${vis}種</b>`; }
+  else head=`この範囲で記録の多い脊椎動物 <b>${nearRows.length}種</b>`;
+  sum.innerHTML=`${head}<br>${thChip}<br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIF実観測（タップで詳細／📖は図鑑収録）</span>`;
 }
 function openNearDetail(btn){
   const c=nearRows[+btn.dataset.i]||{name:btn.dataset.sci,count:+btn.dataset.cnt}, sci=c.name, cnt=c.count;
@@ -3561,7 +3593,7 @@ function openNearDetail(btn){
         ${v.at?`<div class="ndcred">📷 ${v.at}（iNaturalist）</div>`:''}
         <div class="ndja">${v.ja||'（和名なし）'}</div>
         <div class="ndsci">${sci}</div>
-        <div class="ndtags">${cls?`<span class="ndtag">${cls}</span>`:''}<span class="ndtag">この範囲で ${fmtN(cnt)}件</span>${v.st?`<span class="ndtag warn">保全：${v.st}</span>`:''}</div>
+        <div class="ndtags">${cls?`<span class="ndtag">${cls}</span>`:''}<span class="ndtag">この範囲で ${fmtN(cnt)}件</span><span id="ndstatus"></span></div>
         <div class="ndsec"><div class="ndsech">📅 観察が多い月（出会いやすさの目安）</div><div id="seasonwrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
         <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sci.replace(/'/g,'')}',this)">📍 観測スポットを地図に表示</button>
         <p class="ndnote">あなたの範囲（半径${nearState?nearState.radius:''}km）でGBIFに記録された生き物です。出会えるかは季節・時間帯によります。写真は iNaturalist（CC）。</p>
@@ -3569,6 +3601,10 @@ function openNearDetail(btn){
         <a class="ndlink" target="_blank" rel="noopener" href="https://www.gbif.org/species/search?q=${encodeURIComponent(sci)}">GBIFで記録を見る ↗</a>
       </div>`;
     openPanel(); loadSeason(sci);
+    resolveIucn(sci).then(code=>{ const el=document.getElementById('ndstatus'); if(!el||!code||!RARITY[code])return;
+      const th=THREAT_CATS.has(code), r=RARITY[code];
+      el.outerHTML=`<span class="ndtag" style="background:${r.color};color:#06231f;border-color:${r.color}">${th?'⚠ ':''}保全：${r.jp}（${code}）</span>`;
+      c.st2=code; });
   });
 }
 function backToNear(){ removeNearPoints(); if(nearState) renderNearList(); }
