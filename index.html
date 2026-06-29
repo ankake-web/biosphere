@@ -307,6 +307,33 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .locrow .cnt2{font-size:11px;font-weight:700;color:#ffb02e;white-space:nowrap;}
 .locrow .locav{width:30px;height:30px;border-radius:8px;flex:0 0 auto;display:grid;place-items:center;font-size:14px;overflow:hidden;background:rgba(255,255,255,.06);}
 .locrow .locav img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s;}
+/* ---- 近くの生き物 ---- */
+.tbtn.near{background:linear-gradient(135deg,#1f9e8e,#34d8c6);border-color:#34d8c6;color:#04201d;}
+.tbtn.near:hover{filter:brightness(1.08);}
+.nearbody{padding:0 16px 18px;}
+.nearsum{font-size:12.5px;color:#cdd9df;padding:2px 16px 10px;}
+.nearsum b{color:#34d8c6;}
+.nearrow .ln2{display:flex;flex-direction:column;gap:1px;align-items:flex-start;font-style:normal;flex:1;min-width:0;}
+.nearrow .nja{font-size:13px;font-weight:700;color:#eaf2f6;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.nearrow .nsci{font-size:11px;font-style:italic;color:#9fb0bd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.nearrow{background:rgba(52,216,198,.06);border-color:rgba(52,216,198,.2);cursor:pointer;text-align:left;width:100%;font:inherit;}
+.nearrow:hover{background:rgba(52,216,198,.14);border-color:rgba(52,216,198,.45);}
+.nbhint{font-size:12.5px;color:#9fb0bd;margin:8px 16px 6px;}
+.nbchips{display:flex;flex-wrap:wrap;gap:7px;padding:2px 16px 6px;}
+.nbchip{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;color:#e7eef2;font-size:12.5px;padding:6px 12px;cursor:pointer;}
+.nbchip:hover{background:rgba(52,216,198,.16);border-color:#34d8c6;}
+.nbback{background:none;border:none;color:#34d8c6;font-size:13px;cursor:pointer;padding:14px 16px 4px;}
+.nd{padding:0 16px 18px;}
+.ndimg{width:100%;height:200px;object-fit:cover;border-radius:12px;background:rgba(255,255,255,.05);}
+.ndnoimg{display:grid;place-items:center;font-size:42px;}
+.ndja{font-size:20px;font-weight:800;margin:12px 0 2px;}
+.ndsci{font-style:italic;color:#9fb0bd;font-size:13px;}
+.ndtags{display:flex;flex-wrap:wrap;gap:7px;margin:11px 0;}
+.ndtag{font-size:11.5px;background:rgba(255,255,255,.07);border:1px solid var(--line);border-radius:7px;padding:4px 9px;color:#cdd9df;}
+.ndtag.warn{background:rgba(255,176,46,.14);border-color:rgba(255,176,46,.4);color:#ffd089;}
+.ndnote{font-size:12.5px;color:#aebcc6;line-height:1.6;margin:6px 0 12px;}
+.ndlink{display:inline-block;font-size:12.5px;color:#9fb0bd;margin-top:8px;}
+.nearpin{font-size:26px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));pointer-events:none;transform:translateY(2px);}
 .pshare{cursor:pointer;}
 .pshare:hover{border-color:var(--teal);color:#fff;background:rgba(52,216,198,.12);}
 
@@ -374,7 +401,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   <div style="position:fixed;inset:0;z-index:100;overflow:auto;background:#070b11;color:#eef4f7;padding:26px;line-height:1.8;font-family:system-ui,'Noto Sans JP',sans-serif">
     <h1 style="font-weight:800">🐾 BIOSPHERE — 世界いきもの分布アトラス</h1>
     <p>3D地球儀で世界のいきもの92種の分布を旅する図鑑です（地球儀表示にはJavaScriptが必要です）。テキスト版は以下からご覧ください。</p>
-    <p style="font-size:18px"><a href="zukan.html" style="color:#34d8c6">▶ 図鑑インデックス（全92種のテキスト一覧）</a></p>
+    <p style="font-size:18px"><a href="zukan.html" style="color:#34d8c6">▶ 図鑑インデックス（全218種のテキスト一覧）</a></p>
     <p><a href="about.html" style="color:#34d8c6">このサイトについて・データ出典</a></p>
   </div>
 </noscript>
@@ -394,6 +421,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
     <input id="search" type="search" placeholder="動物・学名・環境で検索…" autocomplete="off" aria-label="動物を検索" />
   </div>
   <div class="tools">
+    <button class="tbtn near" id="nearBtn" title="近くにいる生き物を探す">📍</button>
     <button class="tbtn" id="exploreBtn" title="ランダムに1種へ旅する">🎲</button>
     <button class="tbtn gbif" id="gbifBtn" aria-pressed="true" title="GBIF実観測データの表示切替">🛰️</button>
     <button class="tbtn" id="globeBtn" aria-pressed="true" title="地球儀 / 平面 切替">🌐</button>
@@ -441,7 +469,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
     <button class="pclose" onclick="closeAbout()" aria-label="閉じる">✕</button>
     <h2>🐾 BIOSPHERE について</h2>
     <p>世界のいきものの分布を3D地球儀で旅する図鑑。分布・写真・地図はすべて実在のオープンソースに基づいています。</p>
-    <p><a href="zukan.html" target="_blank" rel="noopener">📖 図鑑インデックス（全92種のテキスト版）</a> ・ <a href="about.html" target="_blank" rel="noopener">出典の詳細ページ</a></p>
+    <p><a href="zukan.html" target="_blank" rel="noopener">📖 図鑑インデックス（全218種のテキスト版）</a> ・ <a href="about.html" target="_blank" rel="noopener">出典の詳細ページ</a></p>
     <h3>データ・地図の出典</h3>
     <ul>
       <li><b>分布データ</b>：<a href="https://www.gbif.org/" target="_blank" rel="noopener">GBIF</a>（Global Biodiversity Information Facility）の実観測データ。各種カードの「GBIF ↗」から種ページへ。</li>
@@ -450,7 +478,8 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
       <li><b>ベースマップ</b>：<a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> Dark（© OpenStreetMap contributors © CARTO）。</li>
       <li><b>地形（アトラス表示 🏔️）</b>：<a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> World Hillshade。</li>
       <li><b>国境</b>：<a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>（パブリックドメイン）。</li>
-      <li><b>逆引きの実写真</b>：<a href="https://www.inaturalist.org/" target="_blank" rel="noopener">iNaturalist</a>。<b>地図ライブラリ</b>：<a href="https://maplibre.org/" target="_blank" rel="noopener">MapLibre GL JS</a>。</li>
+      <li><b>逆引き・近くの実写真</b>：<a href="https://www.inaturalist.org/" target="_blank" rel="noopener">iNaturalist</a>（写真はCC・撮影者は各写真ページに表示）。<b>地図ライブラリ</b>：<a href="https://maplibre.org/" target="_blank" rel="noopener">MapLibre GL JS</a>。</li>
+      <li><b>📍 近くの生き物</b>：端末の位置情報から周辺の脊椎動物を<a href="https://www.gbif.org/" target="_blank" rel="noopener">GBIF</a>の実観測で表示。<b>位置情報はGBIF/iNaturalistへの問い合わせにのみ使用</b>し、精密な座標の保存・第三者送信は行いません（約1kmに丸めて使用）。許可しない場合は地図タップや都市選択で代替できます。</li>
     </ul>
     <p class="note">※写真はファイルごとにライセンス（CC BY／CC BY-SA／パブリックドメイン等）と帰属条件が異なります。本サイトを商用利用する場合、NC（非営利）条件の素材やIUCN APIの利用可否に注意が必要です。</p>
   </div>
@@ -2605,6 +2634,7 @@ function updateDex(){ const n=SEEN.size,t=ANIMALS.length; $('#dexNum').textConte
 
 async function selectAnimal(id){
   const a=await DATA.getAnimal(id); if(!a)return;
+  removeNearbyVisuals();
   currentMode={type:'animal',id}; currentAnimal=a;
   pressChip(id); pressBiome(null); filterChips(null);
   paintAnimal(a); flyTo(a.focus.c,a.focus.z); renderAnimalCard(a); markSeen(id);
@@ -2612,6 +2642,7 @@ async function selectAnimal(id){
   setMode(animalModeText(a)); showYearbar(gbifOn);
 }
 async function selectBiome(bm){
+  removeNearbyVisuals();
   currentMode={type:'biome',bm}; currentAnimal=null;
   pressBiome(bm); pressChip(null); filterChips(bm); paintBiome(bm); closePanel(); showYearbar(false);
   const list=await DATA.getAnimalsByBiome(bm);
@@ -2619,7 +2650,7 @@ async function selectBiome(bm){
   if(list[0]) flyTo(list[0].focus.c, Math.max(1.6,list[0].focus.z-0.8));
 }
 async function showCountry(code, lngLat){
-  if(!code)return; currentMode={type:'country',code}; currentAnimal=null; pressChip(null); showYearbar(false);
+  if(!code)return; removeNearbyVisuals(); currentMode={type:'country',code}; currentAnimal=null; pressChip(null); showYearbar(false);
   const animals=await DATA.getAnimalsByCountry(code); paintCountry(code); renderCountryCard(code,animals);
   setMode(`${ccFlag(code)} ${ccName(code)} に棲むいきもの`);
   const center = lngLat ? [lngLat.lng,lngLat.lat] : countryCentroid(code);
@@ -2678,7 +2709,7 @@ function fetchLocalSpecies(code){
   },250);
 }
 function fmtN(n){ return n>=1000? (n/1000).toFixed(n>=10000?0:1)+'k' : String(n); }
-function resetAll(){ pressChip(null); pressBiome(null);
+function resetAll(){ pressChip(null); pressBiome(null); removeNearbyVisuals();
   filterState.biome=null; filterState.facet=''; filterState.q='';
   const ss=$('#sortSel'),fs=$('#facetSel'),sr=$('#search'); if(fs)fs.value=''; if(sr)sr.value=''; if(ss)ss.value='no';
   sortChips('no'); applyFilters(); closePanel(); drawOverview();
@@ -2806,8 +2837,8 @@ window.openRedlist=openRedlist; window.closeRedlist=closeRedlist; window.filterS
 
 /* ---------- 地図インタラクション ---------- */
 function bindMap(){
-  map.on('click','c-fill',(e)=>showCountry(e.features[0].properties[CODE_PROP], e.lngLat));
-  map.on('click',(e)=>{ if(!map.queryRenderedFeatures(e.point,{layers:['c-fill']}).length) closePanel(); });
+  map.on('click','c-fill',(e)=>{ if(nearPick)return; showCountry(e.features[0].properties[CODE_PROP], e.lngLat); });
+  map.on('click',(e)=>{ if(nearPick){ runNearby(e.lngLat.lat,e.lngLat.lng,'選んだ場所'); return; } if(!map.queryRenderedFeatures(e.point,{layers:['c-fill']}).length) closePanel(); });
   const tip=$('#maptip');
   map.on('mousemove','c-fill',(e)=>{
     const f=e.features[0], code=f.properties[CODE_PROP];
@@ -2821,7 +2852,176 @@ function bindMap(){
   map.on('mouseleave','c-fill',()=>{ map.setFilter('c-hover',['==',['get',CODE_PROP],'__none__']); map.getCanvas().style.cursor=''; $('#maptip').classList.remove('show'); });
 }
 
+/* ---------- 近くの生き物（脊椎動物・Chordata=taxonKey44） ----------
+   現在地→GBIF geoDistance facet で周辺の種一覧→iNatで和名/写真を遅延付与。
+   プライバシー：座標は~1km丸めしGBIF/iNatの問い合わせにのみ使用（保存はローカルのみ）。 */
+const NEAR_RADIUS_KM=30;
+const NEAR_PRESETS=[['東京',35.68,139.76],['大阪',34.69,135.50],['札幌',43.06,141.35],['那覇',26.21,127.68],['ニューヨーク',40.71,-74.01],['ロンドン',51.51,-0.13],['シンガポール',1.35,103.82],['シドニー',-33.87,151.21],['ナイロビ',-1.29,36.82],['リオデジャネイロ',-22.91,-43.17]];
+const NEAR_ICONIC={Aves:'鳥類',Mammalia:'哺乳類',Reptilia:'爬虫類',Amphibia:'両生類',Actinopterygii:'魚類',Chondrichthyes:'魚類（軟骨魚）'};
+const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_';
+let nearMarker=null, nearPick=false, nearLast=null, nearTimer=null, nearObserver=null;
+function nearKey(lat,lng){ return lat.toFixed(2)+','+lng.toFixed(2); }
+// iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
+function inatGet(s){ try{const o=JSON.parse(localStorage.getItem(LS_INAT+s)||'null'); if(o&&(Date.now()-o.t)<2592e6)return o.v;}catch(e){} return null; }
+function inatSet(s,v){ try{localStorage.setItem(LS_INAT+s,JSON.stringify({t:Date.now(),v}));}catch(e){} }
+function nearCacheGet(k){ try{const o=JSON.parse(localStorage.getItem(LS_NEAR+k)||'null'); if(o&&(Date.now()-o.t)<864e5)return o.c;}catch(e){} return null; }
+function nearCacheSet(k,c){ try{localStorage.setItem(LS_NEAR+k,JSON.stringify({t:Date.now(),c}));}catch(e){} }
+// iNat呼び出しはthrottle（同時3・間隔120ms）で礼儀正しく
+let inatQueue=[], inatBusy=0;
+function inatEnqueue(fn){ inatQueue.push(fn); pumpInat(); }
+function pumpInat(){ while(inatBusy<3 && inatQueue.length){ const fn=inatQueue.shift(); inatBusy++; Promise.resolve(fn()).catch(()=>{}).finally(()=>{ inatBusy--; setTimeout(pumpInat,120); }); } }
+async function inatResolve(sci){
+  const c=inatGet(sci); if(c) return c;
+  for(let i=0;i<3;i++){
+    try{
+      const r=await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(sci)}&rank=species&per_page=1&locale=ja`);
+      if(r.status===429){ await new Promise(s=>setTimeout(s,1500*(i+1))); continue; }
+      const d=await r.json(), x=d.results&&d.results[0];
+      const v=x?{ja:x.preferred_common_name||'',ph:(x.default_photo&&x.default_photo.square_url)||'',ic:x.iconic_taxon_name||'',st:(x.conservation_status&&x.conservation_status.status_name)||''}:{ja:'',ph:'',ic:'',st:''};
+      inatSet(sci,v); return v;
+    }catch(e){ await new Promise(s=>setTimeout(s,600)); }
+  }
+  return {ja:'',ph:'',ic:'',st:''};
+}
+// GBIF scientificName facet を二名に正規化＆統合（種に限定）
+function mergeBinomials(counts){
+  const m=new Map();
+  for(const c of counts){ const p=(c.name||'').trim().split(/\s+/);
+    if(p.length<2||!/^[A-Z][a-zé-]+$/.test(p[0])||!/^[a-zé-]+$/.test(p[1])) continue;
+    const key=p[0]+' '+p[1]; m.set(key,(m.get(key)||0)+c.count); }
+  return [...m.entries()].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
+}
+function renderNearShell(title,inner){
+  panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
+    <div class="cc-head"><div class="lbl">📍 あなたの近く</div><div class="cname">${title}</div></div>
+    <div class="nearbody">${inner}</div>`;
+}
+function openNearby(){
+  closePanel(); stopSpin();
+  if(!('geolocation' in navigator)){ nearbyFallback('お使いの環境では現在地を取得できません。'); return; }
+  renderNearShell('近くの生き物','<div class="nearsum">現在地を確認しています…<br><span style="color:#9fb0bd">ブラウザの確認ダイアログで「許可」を選んでください。</span></div>'); openPanel();
+  navigator.geolocation.getCurrentPosition(
+    pos=>runNearby(pos.coords.latitude,pos.coords.longitude,'現在地'),
+    err=>nearbyFallback(err&&err.code===1?'位置情報の利用が許可されませんでした。':'現在地を取得できませんでした。'),
+    {enableHighAccuracy:false,timeout:8000,maximumAge:300000});
+}
+function nearbyFallback(msg){
+  const chips=NEAR_PRESETS.map(([n,la,lo])=>`<button class="nbchip" onclick="runNearby(${la},${lo},'${n}')">${n}</button>`).join('');
+  renderNearShell('近くの生き物',
+    `<div class="nearsum">${msg}</div>
+     <div class="nbhint">場所を選ぶ、または<b>地図をタップ</b>して指定してください。</div>
+     <div class="nbchips">${chips}</div>`);
+  openPanel(); nearPick=true; toast('📍','地図をタップして場所を指定できます',2600);
+}
+function runNearby(latRaw,lngRaw,label){
+  const lat=Math.round(latRaw*100)/100, lng=Math.round(lngRaw*100)/100;   // ~1km丸め（プライバシー）
+  nearPick=false; currentAnimal=null; currentMode={type:'near',lat,lng};
+  setMode('📍 '+label+'の近くの生き物'); showYearbar(false);
+  stopSpin(); map.flyTo({center:[lng,lat],zoom:8.2,speed:.9,curve:1.4,essential:true});
+  showNearMarker(lat,lng);
+  const k=nearKey(lat,lng), cached=nearCacheGet(k);
+  if(cached&&cached.length) renderNearList(cached,label,lat,lng);
+  else { renderNearShell(label+'の近く','<div class="nearsum">🛰️ 周辺の記録を集めています…</div>'); openPanel(); }
+  clearTimeout(nearTimer);
+  nearTimer=setTimeout(async()=>{
+    const y2=new Date().getFullYear(), y1=y2-10;
+    try{
+      const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${NEAR_RADIUS_KM}km&taxonKey=44&hasCoordinate=true&year=${y1},${y2}&limit=0&facet=scientificName&facetLimit=60`;
+      const d=await (await fetch(url)).json();
+      let counts=mergeBinomials((d.facets&&d.facets[0]&&d.facets[0].counts)||[]).slice(0,40);
+      if(!currentMode||currentMode.type!=='near'||nearKey(currentMode.lat,currentMode.lng)!==k) return;
+      if(!counts.length){ renderNearShell(label+'の近く','<div class="nearsum">この周辺の脊椎動物の記録は見つかりませんでした。場所を変えてみてください。</div>'); openPanel(); return; }
+      nearCacheSet(k,counts); renderNearList(counts,label,lat,lng);
+    }catch(e){
+      if(!currentMode||currentMode.type!=='near') return;
+      if(!cached||!cached.length){ renderNearShell(label+'の近く','<div class="nearsum">実データの取得に失敗しました（オフライン？）。少し時間をおいて再度お試しください。</div>'); openPanel(); }
+    }
+  },250);
+}
+function renderNearList(counts,label,lat,lng){
+  nearLast={counts,label,lat,lng};
+  const rows=counts.map(c=>{const sci=c.name, e=encodeURIComponent(sci);
+    return `<button class="locrow nearrow" data-sci="${sci}" data-cnt="${c.count}" onclick="openNearDetail(this)">
+      <span class="locav" data-sci="${e}">🐾</span>
+      <span class="ln2"><b class="nja">…</b><span class="nsci">${sci}</span></span>
+      <span class="cnt2">${fmtN(c.count)}件</span></button>`;}).join('');
+  renderNearShell(label+'の近く',
+    `<div class="nearsum">この周辺で記録の多い脊椎動物 <b>${counts.length}種</b><br><span style="color:#9fb0bd">半径${NEAR_RADIUS_KM}km・GBIF実観測（タップで詳細）</span></div>
+     <div class="locsp" id="nearlist">${rows}</div>`);
+  openPanel(); observeNear();
+}
+function observeNear(){
+  if(nearObserver) nearObserver.disconnect();
+  const list=document.getElementById('nearlist'); if(!list)return;
+  nearObserver=new IntersectionObserver((ents)=>{
+    ents.forEach(e=>{ if(e.isIntersecting){ const row=e.target; nearObserver.unobserve(row); inatEnqueue(()=>fillNearRow(row)); } });
+  },{root:list.closest('.panel'),rootMargin:'120px'});
+  list.querySelectorAll('.nearrow').forEach(r=>nearObserver.observe(r));
+}
+async function fillNearRow(row){
+  const av=row.querySelector('.locav'); if(!av)return;
+  const sci=decodeURIComponent(av.dataset.sci);
+  const v=await inatResolve(sci);
+  if(!row.isConnected)return;
+  if(v.ph){ av.innerHTML=`<img src="${v.ph}" alt="" onload="this.style.opacity=1">`; }
+  const ja=row.querySelector('.nja'); if(ja) ja.textContent=v.ja||'（和名なし）';
+}
+function openNearDetail(btn){
+  const sci=btn.dataset.sci, cnt=+btn.dataset.cnt;
+  const hit=ANIMALS.find(a=>(a.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===sci.toLowerCase());
+  if(hit){ selectAnimal(hit.id); return; }
+  renderNearShell(sci,'<div class="nearsum">情報を読み込んでいます…</div>'); openPanel();
+  inatResolve(sci).then(v=>{
+    if(!currentMode||currentMode.type!=='near')return;
+    const cls=NEAR_ICONIC[v.ic]||'';
+    panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
+      <button class="nbback" onclick="backToNear()">← 近くの一覧へ</button>
+      <div class="nd">
+        ${v.ph?`<img class="ndimg" src="${v.ph.replace('/square.','/medium.')}" alt="" onerror="this.src='${v.ph}'">`:'<div class="ndimg ndnoimg">🐾</div>'}
+        <div class="ndja">${v.ja||'（和名なし）'}</div>
+        <div class="ndsci">${sci}</div>
+        <div class="ndtags">${cls?`<span class="ndtag">${cls}</span>`:''}<span class="ndtag">この周辺で ${fmtN(cnt)}件</span>${v.st?`<span class="ndtag warn">保全：${v.st}</span>`:''}</div>
+        <p class="ndnote">あなたの周辺（半径${NEAR_RADIUS_KM}km）でGBIFに記録された生き物です。出会えるかは季節・時間帯によります。写真は iNaturalist（CC・撮影者は各写真ページに表示）。</p>
+        <a class="cta" target="_blank" rel="noopener" href="https://www.inaturalist.org/taxa/search?q=${encodeURIComponent(sci)}">iNaturalistで詳しく見る ↗</a><br>
+        <a class="ndlink" target="_blank" rel="noopener" href="https://www.gbif.org/species/search?q=${encodeURIComponent(sci)}">GBIFで記録を見る ↗</a>
+      </div>`;
+    openPanel();
+  });
+}
+function backToNear(){ if(nearLast) renderNearList(nearLast.counts,nearLast.label,nearLast.lat,nearLast.lng); }
+// 半径円（近似ポリゴン）＋現在地ピン
+function circlePolygon(lat,lng,km,pts=64){
+  const R=6371,d=km/R,la=lat*Math.PI/180,lo=lng*Math.PI/180,co=[];
+  for(let i=0;i<=pts;i++){ const b=2*Math.PI*i/pts;
+    const la2=Math.asin(Math.sin(la)*Math.cos(d)+Math.cos(la)*Math.sin(d)*Math.cos(b));
+    const lo2=lo+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la),Math.cos(d)-Math.sin(la)*Math.sin(la2));
+    co.push([lo2*180/Math.PI,la2*180/Math.PI]); }
+  return {type:'Feature',geometry:{type:'Polygon',coordinates:[co]}};
+}
+function addNearCircle(lat,lng){
+  if(!mapReady)return; const gj=circlePolygon(lat,lng,NEAR_RADIUS_KM);
+  if(map.getSource('nearc')){ map.getSource('nearc').setData(gj); return; }
+  map.addSource('nearc',{type:'geojson',data:gj});
+  const before=map.getLayer('c-glow')?'c-glow':undefined;
+  map.addLayer({id:'nearc-fill',type:'fill',source:'nearc',paint:{'fill-color':'#34d8c6','fill-opacity':.08}},before);
+  map.addLayer({id:'nearc-line',type:'line',source:'nearc',paint:{'line-color':'#34d8c6','line-width':1.6,'line-opacity':.7,'line-dasharray':[2,2]}},before);
+}
+function showNearMarker(lat,lng){
+  addNearCircle(lat,lng);
+  if(nearMarker)nearMarker.remove();
+  const el=document.createElement('div'); el.className='nearpin'; el.textContent='📍';
+  try{ nearMarker=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lng,lat]).addTo(map); }catch(e){}
+}
+function removeNearbyVisuals(){
+  nearPick=false;
+  if(nearMarker){ try{nearMarker.remove();}catch(e){} nearMarker=null; }
+  if(!mapReady)return;
+  ['nearc-line','nearc-fill'].forEach(l=>{ if(map.getLayer(l))map.removeLayer(l); });
+  if(map.getSource('nearc'))map.removeSource('nearc');
+}
+
 /* ---------- ツール ---------- */
+$('#nearBtn').addEventListener('click',openNearby);
 $('#search').addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); applyFilters(); });
 let isGlobe=true;
 function syncGlobeBtn(){ const g=$('#globeBtn'); if(g){ g.setAttribute('aria-pressed',String(isGlobe)); g.textContent=isGlobe?'🌐':'🗺️'; } }
