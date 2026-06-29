@@ -464,6 +464,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
     <button class="tbtn gbif" id="gbifBtn" aria-pressed="true" title="GBIF実観測データの表示切替">🛰️</button>
     <button class="tbtn" id="globeBtn" aria-pressed="true" title="地球儀 / 平面 切替">🌐</button>
     <button class="tbtn" id="atlasBtn" aria-pressed="false" title="地形（アトラス）表示の切替">🏔️</button>
+    <button class="tbtn" id="labelBtn" aria-pressed="false" title="地名（アトラス）基図に切替（明色・地名ラベル付き）">🏷️</button>
     <button class="tbtn" id="d3dBtn" aria-pressed="false" title="分布を3D（立体）で表示（試験）">🧊</button>
     <button class="tbtn" id="homeBtn" title="全体表示にもどる">⌂</button>
     <button class="tbtn" id="aboutBtn" title="このサイトについて・出典">ℹ️</button>
@@ -514,7 +515,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
       <li><b>保全状況・生息数のめやす</b>：<a href="https://www.iucnredlist.org/" target="_blank" rel="noopener">IUCN レッドリスト</a> 等を参考に編集（数値は推定・出典年により幅があります）。<a href="#" onclick="closeAbout();openRedlist();return false;">🛟 カテゴリの意味を見る</a></li>
       <li><b>写真</b>：<a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a>。各写真の撮影者・ライセンスは図鑑カード（📷）に明記。</li>
       <li><b>ベースマップ</b>：<a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> Dark（© OpenStreetMap contributors © CARTO）。</li>
-      <li><b>地形（アトラス表示 🏔️）</b>：<a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> World Hillshade。</li>
+      <li><b>地形（アトラス表示 🏔️）</b>：<a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> World Hillshade。<b>地名ラベル（アトラス基図 🏷️）</b>：<a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a> Voyager（明色・地名ラベル付き／© OpenStreetMap contributors © CARTO）。</li>
       <li><b>国境</b>：<a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>（パブリックドメイン）。</li>
       <li><b>逆引き・近くの実写真</b>：<a href="https://www.inaturalist.org/" target="_blank" rel="noopener">iNaturalist</a>（写真はCC・撮影者は各写真ページに表示）。<b>地図ライブラリ</b>：<a href="https://maplibre.org/" target="_blank" rel="noopener">MapLibre GL JS</a>。</li>
       <li><b>📍 近くの生き物</b>：端末の位置情報から周辺の脊椎動物を<a href="https://www.gbif.org/" target="_blank" rel="noopener">GBIF</a>の実観測で表示。保全状況（IUCNカテゴリ）もGBIFから取得。<b>位置情報はGBIF/iNaturalist/地名検索への問い合わせにのみ使用</b>し、精密な座標の保存・第三者送信は行いません（約1kmに丸めて使用）。許可しない場合は地図タップや都市選択で代替できます。シェアカードの地名は <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>（Nominatim）の粗い逆ジオコーディング（市区町村レベル）で、精密な座標はカードに出しません。</li>
@@ -2873,6 +2874,14 @@ map.on('load', async ()=>{
     map.addLayer({id:'relief',type:'raster',source:'relief',layout:{visibility:'none'},paint:{'raster-opacity':.22,'raster-saturation':-.4,'raster-brightness-max':.62,'raster-contrast':.12,'raster-fade-duration':300}},'c-fill');
   }catch(e){}
 
+  // 地名ラベル（アトラス）基図：CARTO Voyager（明色・地名ラベル付き＝サーバ側で各地の地名を描画）を🏷️でトグル。
+  // setStyle不使用＝既存の carto/relief/countries/gbif/near-me 層をすべて維持し、dark基図と visibility 切替するだけ。
+  try{
+    map.addSource('carto-atlas',{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png','https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png','https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png','https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap © CARTO'});
+    const baseBefore=map.getLayer('relief')?'relief':'c-fill';
+    map.addLayer({id:'carto-atlas',type:'raster',source:'carto-atlas',layout:{visibility:'none'},paint:{'raster-opacity':.95}},baseBefore);
+  }catch(e){}
+
   mapReady=true; drawOverview(); bindMap(); updateDex();
   if(atlasOn) setAtlas(true);
   $('#boot').classList.add('gone');
@@ -3821,6 +3830,16 @@ function setAtlas(on){ atlasOn=on; if(mapReady && map.getLayer('relief')) map.se
   const b=$('#atlasBtn'); if(b)b.setAttribute('aria-pressed',String(on)); }
 $('#atlasBtn').addEventListener('click',()=>{ setAtlas(!atlasOn);
   toast(atlasOn?'🏔️':'🗺️', atlasOn?'アトラス表示：地形と地名で旅する':'ミニマル表示にもどしました',1900); });
+// 地名ラベル（アトラス）トグル：OpenFreeMapのベクター地名を日本語優先で表示。基図はラベルなしへ切替え重複回避。
+let atlasLabelsOn=false;
+function setAtlasLabels(on){
+  if(!mapReady)return; atlasLabelsOn=on;
+  if(map.getLayer('carto')) map.setLayoutProperty('carto','visibility',on?'none':'visible');
+  if(map.getLayer('carto-atlas')) map.setLayoutProperty('carto-atlas','visibility',on?'visible':'none');
+  const b=$('#labelBtn'); if(b) b.setAttribute('aria-pressed',String(on));
+}
+$('#labelBtn').addEventListener('click',()=>{ setAtlasLabels(!atlasLabelsOn);
+  toast('🏷️', atlasLabelsOn?'地名（アトラス）基図：明色・地名ラベル付き':'ダーク基図にもどしました',1800); });
 // 分布3D（立体）トグル：fill-extrusionはglobeでは描画されないため、3D中は自動で平面(mercator)＋傾きにし、
 // OFFで地球儀に復帰。地球儀を主役に保ちつつ「立体で詳しく見る」没入オプションとして提供。
 function setDist3D(on){ dist3D=on; const b=$('#d3dBtn'); if(b)b.setAttribute('aria-pressed',String(on));
