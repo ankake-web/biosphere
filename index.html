@@ -333,7 +333,31 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .ndtag.warn{background:rgba(255,176,46,.14);border-color:rgba(255,176,46,.4);color:#ffd089;}
 .ndnote{font-size:12.5px;color:#aebcc6;line-height:1.6;margin:6px 0 12px;}
 .ndlink{display:inline-block;font-size:12.5px;color:#9fb0bd;margin-top:8px;}
-.nearpin{font-size:26px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));pointer-events:none;transform:translateY(2px);}
+.nearpin{font-size:26px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));cursor:grab;transform:translateY(2px);}
+.nearctl{padding:0 16px 8px;display:flex;flex-direction:column;gap:7px;}
+.ctlrow{display:flex;align-items:center;gap:8px;}
+.ctll{font-size:11px;color:var(--muted);width:30px;flex:0 0 auto;}
+.rchips,.cchips{display:flex;flex-wrap:wrap;gap:5px;flex:1;}
+.rchip,.cchip{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;color:#cdd9df;font-size:11.5px;padding:4px 9px;cursor:pointer;}
+.rchip.on,.cchip.on{background:#34d8c6;border-color:#34d8c6;color:#04201d;font-weight:700;}
+.rchip:hover,.cchip:hover{border-color:#34d8c6;}
+.ctlbtns{gap:6px;margin-top:1px;}
+.nbtn{background:rgba(52,216,198,.1);border:1px solid rgba(52,216,198,.35);border-radius:9px;color:#bdeee7;font-size:12px;padding:6px 10px;cursor:pointer;}
+.nbtn:hover{background:rgba(52,216,198,.2);}
+.nbtn.wide{display:block;width:calc(100% - 32px);margin:10px 16px 2px;text-align:center;padding:9px;}
+.nbtn.on{background:rgba(255,176,46,.16);border-color:rgba(255,176,46,.5);color:#ffd089;}
+.catbadge{font-size:13px;flex:0 0 auto;opacity:.9;}
+.ndcred{font-size:10.5px;color:var(--muted);margin:5px 0 0;line-height:1.4;}
+.ndsec{margin:14px 0 6px;}
+.ndsech{font-size:12px;letter-spacing:.04em;color:var(--muted);margin-bottom:7px;}
+.seasonwrap{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:10px 10px 8px;}
+.seasonwrap .muted{color:var(--muted);font-size:12px;}
+.sbars{display:flex;align-items:flex-end;gap:3px;height:62px;}
+.sbar{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;}
+.sbv{width:100%;max-width:14px;background:rgba(52,216,198,.45);border-radius:3px 3px 0 0;transition:height .3s;}
+.sbv.pk{background:#34d8c6;}
+.sbl{font-size:9px;color:#8497a7;}
+.snote{font-size:10.5px;color:var(--muted);margin-top:7px;line-height:1.5;}
 .pshare{cursor:pointer;}
 .pshare:hover{border-color:var(--teal);color:#fff;background:rgba(52,216,198,.12);}
 
@@ -2308,7 +2332,7 @@ const map = window.map = new maplibregl.Map({
       tileSize:256, attribution:'© OpenStreetMap © CARTO'}},
     layers:[{id:'bg',type:'background',paint:{'background-color':'#070b11'}},
       {id:'carto',type:'raster',source:'carto',paint:{'raster-opacity':.9,'raster-saturation':-.1,'raster-contrast':.05}}]},
-  center:[18,16], zoom:1.45, minZoom:.7, maxZoom:8, attributionControl:false, dragRotate:true, pitchWithRotate:false
+  center:[18,16], zoom:1.45, minZoom:.7, maxZoom:16, attributionControl:false, dragRotate:true, pitchWithRotate:false
 });
 map.addControl(new maplibregl.AttributionControl({compact:true, customAttribution:'観測点: GBIF.org'}), 'bottom-right');
 map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'bottom-right');
@@ -2838,7 +2862,7 @@ window.openRedlist=openRedlist; window.closeRedlist=closeRedlist; window.filterS
 /* ---------- 地図インタラクション ---------- */
 function bindMap(){
   map.on('click','c-fill',(e)=>{ if(nearPick)return; showCountry(e.features[0].properties[CODE_PROP], e.lngLat); });
-  map.on('click',(e)=>{ if(nearPick){ runNearby(e.lngLat.lat,e.lngLat.lng,'選んだ場所'); return; } if(!map.queryRenderedFeatures(e.point,{layers:['c-fill']}).length) closePanel(); });
+  map.on('click',(e)=>{ if(nearPick){ setNearPin(e.lngLat.lat,e.lngLat.lng,'指定地点',nearState?nearState.radius:NEAR_DEFAULT_R); return; } if(!map.queryRenderedFeatures(e.point,{layers:['c-fill']}).length) closePanel(); });
   const tip=$('#maptip');
   map.on('mousemove','c-fill',(e)=>{
     const f=e.features[0], code=f.properties[CODE_PROP];
@@ -2855,12 +2879,17 @@ function bindMap(){
 /* ---------- 近くの生き物（脊椎動物・Chordata=taxonKey44） ----------
    現在地→GBIF geoDistance facet で周辺の種一覧→iNatで和名/写真を遅延付与。
    プライバシー：座標は~1km丸めしGBIF/iNatの問い合わせにのみ使用（保存はローカルのみ）。 */
-const NEAR_RADIUS_KM=30;
+const NEAR_RADII=[1,3,5,10,30,50,100];                       // 半径(km)の選択肢
+const ZOOM_BY_R={1:13.2,3:11.9,5:11,10:10,30:8.4,50:7.6,100:6.6};  // 半径→ズーム（円が収まる程度）
+const NEAR_DEFAULT_R=10;
 const NEAR_PRESETS=[['東京',35.68,139.76],['大阪',34.69,135.50],['札幌',43.06,141.35],['那覇',26.21,127.68],['ニューヨーク',40.71,-74.01],['ロンドン',51.51,-0.13],['シンガポール',1.35,103.82],['シドニー',-33.87,151.21],['ナイロビ',-1.29,36.82],['リオデジャネイロ',-22.91,-43.17]];
 const NEAR_ICONIC={Aves:'鳥類',Mammalia:'哺乳類',Reptilia:'爬虫類',Amphibia:'両生類',Actinopterygii:'魚類',Chondrichthyes:'魚類（軟骨魚）'};
-const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_';
-let nearMarker=null, nearPick=false, nearLast=null, nearTimer=null, nearObserver=null;
-function nearKey(lat,lng){ return lat.toFixed(2)+','+lng.toFixed(2); }
+const NEAR_CLASSES=[['','すべて'],['Aves','🐦鳥'],['Mammalia','🦫哺乳'],['Reptilia','🦎爬虫'],['Amphibia','🐸両生'],['Fish','🐟魚']];
+const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_';
+let nearState=null;                 // {lat,lng,radius,label}
+let nearMarker=null, nearPick=false, nearTimer=null, nearClass='', nearRows=[], nearPtsOn=false;
+function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
+function classMatch(ic){ if(!nearClass)return true; if(nearClass==='Fish')return ic==='Actinopterygii'||ic==='Chondrichthyes'; return ic===nearClass; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
 function inatGet(s){ try{const o=JSON.parse(localStorage.getItem(LS_INAT+s)||'null'); if(o&&(Date.now()-o.t)<2592e6)return o.v;}catch(e){} return null; }
 function inatSet(s,v){ try{localStorage.setItem(LS_INAT+s,JSON.stringify({t:Date.now(),v}));}catch(e){} }
@@ -2876,12 +2905,20 @@ async function inatResolve(sci){
     try{
       const r=await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(sci)}&rank=species&per_page=1&locale=ja`);
       if(r.status===429){ await new Promise(s=>setTimeout(s,1500*(i+1))); continue; }
-      const d=await r.json(), x=d.results&&d.results[0];
-      const v=x?{ja:x.preferred_common_name||'',ph:(x.default_photo&&x.default_photo.square_url)||'',ic:x.iconic_taxon_name||'',st:(x.conservation_status&&x.conservation_status.status_name)||''}:{ja:'',ph:'',ic:'',st:''};
+      const d=await r.json(), x=d.results&&d.results[0], dp=x&&x.default_photo;
+      const at=(dp&&dp.attribution||'').replace(/<[^>]*>/g,'').replace(/\(c\)/gi,'©');
+      const v=x?{ja:x.preferred_common_name||'',ph:(dp&&dp.square_url)||'',ic:x.iconic_taxon_name||'',st:(x.conservation_status&&x.conservation_status.status_name)||'',at}:{ja:'',ph:'',ic:'',st:'',at:''};
       inatSet(sci,v); return v;
     }catch(e){ await new Promise(s=>setTimeout(s,600)); }
   }
-  return {ja:'',ph:'',ic:'',st:''};
+  return {ja:'',ph:'',ic:'',st:'',at:''};
+}
+// GBIF種キー解決（species/match、localStorageキャッシュ）＝月別/観測点に使用
+async function resolveSpeciesKey(sci){
+  try{ const c=localStorage.getItem(LS_SKEY+sci); if(c)return c==='0'?null:+c; }catch(e){}
+  try{ const j=await (await fetch(`https://api.gbif.org/v1/species/match?name=${encodeURIComponent(sci)}`)).json();
+    const k=j.usageKey||j.speciesKey||0; try{localStorage.setItem(LS_SKEY+sci,String(k||0));}catch(e){} return k||null;
+  }catch(e){ return null; }
 }
 // GBIF scientificName facet を二名に正規化＆統合（種に限定）
 function mergeBinomials(counts){
@@ -2901,95 +2938,158 @@ function openNearby(){
   if(!('geolocation' in navigator)){ nearbyFallback('お使いの環境では現在地を取得できません。'); return; }
   renderNearShell('近くの生き物','<div class="nearsum">現在地を確認しています…<br><span style="color:#9fb0bd">ブラウザの確認ダイアログで「許可」を選んでください。</span></div>'); openPanel();
   navigator.geolocation.getCurrentPosition(
-    pos=>runNearby(pos.coords.latitude,pos.coords.longitude,'現在地'),
+    pos=>setNearPin(pos.coords.latitude,pos.coords.longitude,'現在地',NEAR_DEFAULT_R),
     err=>nearbyFallback(err&&err.code===1?'位置情報の利用が許可されませんでした。':'現在地を取得できませんでした。'),
     {enableHighAccuracy:false,timeout:8000,maximumAge:300000});
 }
 function nearbyFallback(msg){
-  const chips=NEAR_PRESETS.map(([n,la,lo])=>`<button class="nbchip" onclick="runNearby(${la},${lo},'${n}')">${n}</button>`).join('');
+  const chips=NEAR_PRESETS.map(([n,la,lo])=>`<button class="nbchip" onclick="setNearPin(${la},${lo},'${n}',NEAR_DEFAULT_R)">${n}</button>`).join('');
   renderNearShell('近くの生き物',
     `<div class="nearsum">${msg}</div>
      <div class="nbhint">場所を選ぶ、または<b>地図をタップ</b>して指定してください。</div>
      <div class="nbchips">${chips}</div>`);
   openPanel(); nearPick=true; toast('📍','地図をタップして場所を指定できます',2600);
 }
-function runNearby(latRaw,lngRaw,label){
+// 任意地点に「ピン」を置く（現在地/都市/タップ/ドラッグ 共通の入口）
+function setNearPin(latRaw,lngRaw,label,radius){
   const lat=Math.round(latRaw*100)/100, lng=Math.round(lngRaw*100)/100;   // ~1km丸め（プライバシー）
-  nearPick=false; currentAnimal=null; currentMode={type:'near',lat,lng};
-  setMode('📍 '+label+'の近くの生き物'); showYearbar(false);
-  stopSpin(); map.flyTo({center:[lng,lat],zoom:8.2,speed:.9,curve:1.4,essential:true});
-  showNearMarker(lat,lng);
-  const k=nearKey(lat,lng), cached=nearCacheGet(k);
-  if(cached&&cached.length) renderNearList(cached,label,lat,lng);
-  else { renderNearShell(label+'の近く','<div class="nearsum">🛰️ 周辺の記録を集めています…</div>'); openPanel(); }
+  nearPick=false; currentAnimal=null;
+  nearState={lat,lng,radius:radius||(nearState&&nearState.radius)||NEAR_DEFAULT_R,label:label||'指定地点'};
+  currentMode={type:'near',lat,lng};
+  setMode('📍 '+nearState.label+'の近くの生き物'); showYearbar(false);
+  removeNearPoints(); nearClass='';
+  drawNearVisuals(lat,lng,nearState.radius);
+  stopSpin(); map.flyTo({center:[lng,lat],zoom:ZOOM_BY_R[nearState.radius]||9,speed:.9,curve:1.4,essential:true});
+  queryNear();
+}
+function setNearRadius(r){ if(!nearState)return; nearState.radius=r; removeNearPoints();
+  drawNearVisuals(nearState.lat,nearState.lng,r);
+  map.flyTo({center:[nearState.lng,nearState.lat],zoom:ZOOM_BY_R[r]||9,speed:.8,curve:1.3,essential:true});
+  queryNear(); }
+function setNearClass(c){ nearClass=c; if(nearState) renderNearList(); }
+function armNearPick(){ nearPick=true; toast('📌','地図をタップすると、その地点に移動します',2400); }
+function recenterCurrent(){
+  if(!('geolocation' in navigator)){ toast('📍','現在地を取得できません',2000); return; }
+  toast('📍','現在地を確認しています…',1800);
+  navigator.geolocation.getCurrentPosition(
+    pos=>setNearPin(pos.coords.latitude,pos.coords.longitude,'現在地',nearState?nearState.radius:NEAR_DEFAULT_R),
+    ()=>toast('📍','現在地を取得できませんでした',2200),{enableHighAccuracy:false,timeout:8000,maximumAge:300000});
+}
+// GBIFファセットで近傍の種一覧を取得→nearRowsへ
+function queryNear(){
+  const {lat,lng,radius}=nearState, k=nearKey(lat,lng,radius), cached=nearCacheGet(k);
+  if(cached&&cached.length){ nearRows=cached.map(c=>({name:c.name,count:c.count})); renderNearList(); }
+  else { nearRows=[]; renderNearList('<div class="nearsum">🛰️ 周辺の記録を集めています…</div>'); }
   clearTimeout(nearTimer);
   nearTimer=setTimeout(async()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
     try{
-      const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${NEAR_RADIUS_KM}km&taxonKey=44&hasCoordinate=true&year=${y1},${y2}&limit=0&facet=scientificName&facetLimit=60`;
+      const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=44&hasCoordinate=true&year=${y1},${y2}&limit=0&facet=scientificName&facetLimit=80`;
       const d=await (await fetch(url)).json();
       let counts=mergeBinomials((d.facets&&d.facets[0]&&d.facets[0].counts)||[]).slice(0,40);
-      if(!currentMode||currentMode.type!=='near'||nearKey(currentMode.lat,currentMode.lng)!==k) return;
-      if(!counts.length){ renderNearShell(label+'の近く','<div class="nearsum">この周辺の脊椎動物の記録は見つかりませんでした。場所を変えてみてください。</div>'); openPanel(); return; }
-      nearCacheSet(k,counts); renderNearList(counts,label,lat,lng);
+      if(!currentMode||currentMode.type!=='near'||nearKey(currentMode.lat,currentMode.lng,nearState.radius)!==k) return;
+      if(!counts.length){ nearRows=[]; renderNearList('<div class="nearsum">この範囲の脊椎動物の記録は見つかりませんでした。半径を広げるか場所を変えてみてください。</div>'); return; }
+      nearCacheSet(k,counts); nearRows=counts.map(c=>({name:c.name,count:c.count})); renderNearList();
     }catch(e){
       if(!currentMode||currentMode.type!=='near') return;
-      if(!cached||!cached.length){ renderNearShell(label+'の近く','<div class="nearsum">実データの取得に失敗しました（オフライン？）。少し時間をおいて再度お試しください。</div>'); openPanel(); }
+      if(!nearRows.length) renderNearList('<div class="nearsum">実データの取得に失敗しました（オフライン？）。少し時間をおいて再度お試しください。</div>');
     }
   },250);
 }
-function renderNearList(counts,label,lat,lng){
-  nearLast={counts,label,lat,lng};
-  const rows=counts.map(c=>{const sci=c.name, e=encodeURIComponent(sci);
-    return `<button class="locrow nearrow" data-sci="${sci}" data-cnt="${c.count}" onclick="openNearDetail(this)">
+function nearControlsHTML(){
+  const rchips=NEAR_RADII.map(r=>`<button class="rchip${nearState.radius===r?' on':''}" onclick="setNearRadius(${r})">${r}km</button>`).join('');
+  const cchips=NEAR_CLASSES.map(([k,l])=>`<button class="cchip${nearClass===k?' on':''}" onclick="setNearClass('${k}')">${l}</button>`).join('');
+  return `<div class="nearctl">
+    <div class="ctlrow"><span class="ctll">半径</span><div class="rchips">${rchips}</div></div>
+    <div class="ctlrow"><span class="ctll">種別</span><div class="cchips">${cchips}</div></div>
+    <div class="ctlrow ctlbtns"><button class="nbtn" onclick="recenterCurrent()">📍 現在地</button><button class="nbtn" onclick="armNearPick()">📌 タップで移動</button></div>
+  </div>`;
+}
+function renderNearList(overrideInner){
+  if(!nearState)return;
+  const controls=nearControlsHTML();
+  if(overrideInner){ renderNearShell(nearState.label+'の近く', controls+overrideInner); openPanel(); return; }
+  const rows=nearRows.map((c,i)=>{const sci=c.name, e=encodeURIComponent(sci);
+    const cat=ANIMALS.find(a=>(a.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===sci.toLowerCase());
+    return `<button class="locrow nearrow" data-sci="${sci}" data-cnt="${c.count}" data-i="${i}" onclick="openNearDetail(this)">
       <span class="locav" data-sci="${e}">🐾</span>
-      <span class="ln2"><b class="nja">…</b><span class="nsci">${sci}</span></span>
+      <span class="ln2"><b class="nja">${c.ja||'…'}</b><span class="nsci">${sci}</span></span>
+      ${cat?'<span class="catbadge" title="図鑑に収録">📖</span>':''}
       <span class="cnt2">${fmtN(c.count)}件</span></button>`;}).join('');
-  renderNearShell(label+'の近く',
-    `<div class="nearsum">この周辺で記録の多い脊椎動物 <b>${counts.length}種</b><br><span style="color:#9fb0bd">半径${NEAR_RADIUS_KM}km・GBIF実観測（タップで詳細）</span></div>
+  renderNearShell(nearState.label+'の近く',
+    controls+
+    `<div class="nearsum" id="nearsum">この範囲で記録の多い脊椎動物 <b>${nearRows.length}種</b><br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIF実観測（タップで詳細／📖は図鑑収録）</span></div>
      <div class="locsp" id="nearlist">${rows}</div>`);
-  openPanel(); observeNear();
+  openPanel(); resolveAllRows();
 }
-function observeNear(){
-  if(nearObserver) nearObserver.disconnect();
-  const list=document.getElementById('nearlist'); if(!list)return;
-  nearObserver=new IntersectionObserver((ents)=>{
-    ents.forEach(e=>{ if(e.isIntersecting){ const row=e.target; nearObserver.unobserve(row); inatEnqueue(()=>fillNearRow(row)); } });
-  },{root:list.closest('.panel'),rootMargin:'120px'});
-  list.querySelectorAll('.nearrow').forEach(r=>nearObserver.observe(r));
+// 全行のiNat（和名/写真/クラス）を throttle で解決＝クラス絞り込みも可能に
+function resolveAllRows(){
+  nearRows.forEach((c,i)=>{
+    if(c.done){ applyRowDom(i); return; }
+    inatEnqueue(async()=>{ const v=await inatResolve(c.name); Object.assign(c,v,{done:true}); applyRowDom(i); applyNearFilter(); });
+  });
+  applyNearFilter();
 }
-async function fillNearRow(row){
-  const av=row.querySelector('.locav'); if(!av)return;
-  const sci=decodeURIComponent(av.dataset.sci);
-  const v=await inatResolve(sci);
-  if(!row.isConnected)return;
-  if(v.ph){ av.innerHTML=`<img src="${v.ph}" alt="" onload="this.style.opacity=1">`; }
-  const ja=row.querySelector('.nja'); if(ja) ja.textContent=v.ja||'（和名なし）';
+function applyRowDom(i){
+  const row=document.querySelector(`#nearlist .nearrow[data-i="${i}"]`); if(!row)return;
+  const c=nearRows[i], av=row.querySelector('.locav'), ja=row.querySelector('.nja');
+  if(c.ph&&av&&!av.querySelector('img')) av.innerHTML=`<img src="${c.ph}" alt="" onload="this.style.opacity=1">`;
+  if(ja) ja.textContent=c.ja||'（和名なし）';
+  row.dataset.ic=c.ic||'';
+}
+function applyNearFilter(){
+  let vis=0; document.querySelectorAll('#nearlist .nearrow').forEach(row=>{
+    const c=nearRows[+row.dataset.i]; const show=!nearClass || (c.done? classMatch(c.ic) : false);
+    row.style.display=show?'':'none'; if(show)vis++;
+  });
+  const sum=document.getElementById('nearsum');
+  if(sum){ if(nearClass){ const lab=(NEAR_CLASSES.find(x=>x[0]===nearClass)||['',''])[1];
+      sum.innerHTML=`<b>${lab}</b>でしぼり込み：<b>${vis}種</b><br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIF実観測</span>`; }
+    else sum.innerHTML=`この範囲で記録の多い脊椎動物 <b>${nearRows.length}種</b><br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIF実観測（タップで詳細／📖は図鑑収録）</span>`; }
 }
 function openNearDetail(btn){
-  const sci=btn.dataset.sci, cnt=+btn.dataset.cnt;
+  const c=nearRows[+btn.dataset.i]||{name:btn.dataset.sci,count:+btn.dataset.cnt}, sci=c.name, cnt=c.count;
   const hit=ANIMALS.find(a=>(a.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===sci.toLowerCase());
   if(hit){ selectAnimal(hit.id); return; }
   renderNearShell(sci,'<div class="nearsum">情報を読み込んでいます…</div>'); openPanel();
   inatResolve(sci).then(v=>{
     if(!currentMode||currentMode.type!=='near')return;
+    Object.assign(c,v,{done:true});
     const cls=NEAR_ICONIC[v.ic]||'';
     panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
       <button class="nbback" onclick="backToNear()">← 近くの一覧へ</button>
       <div class="nd">
         ${v.ph?`<img class="ndimg" src="${v.ph.replace('/square.','/medium.')}" alt="" onerror="this.src='${v.ph}'">`:'<div class="ndimg ndnoimg">🐾</div>'}
+        ${v.at?`<div class="ndcred">📷 ${v.at}（iNaturalist）</div>`:''}
         <div class="ndja">${v.ja||'（和名なし）'}</div>
         <div class="ndsci">${sci}</div>
-        <div class="ndtags">${cls?`<span class="ndtag">${cls}</span>`:''}<span class="ndtag">この周辺で ${fmtN(cnt)}件</span>${v.st?`<span class="ndtag warn">保全：${v.st}</span>`:''}</div>
-        <p class="ndnote">あなたの周辺（半径${NEAR_RADIUS_KM}km）でGBIFに記録された生き物です。出会えるかは季節・時間帯によります。写真は iNaturalist（CC・撮影者は各写真ページに表示）。</p>
+        <div class="ndtags">${cls?`<span class="ndtag">${cls}</span>`:''}<span class="ndtag">この範囲で ${fmtN(cnt)}件</span>${v.st?`<span class="ndtag warn">保全：${v.st}</span>`:''}</div>
+        <div class="ndsec"><div class="ndsech">📅 観察が多い月（出会いやすさの目安）</div><div id="seasonwrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
+        <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sci.replace(/'/g,'')}',this)">📍 観測スポットを地図に表示</button>
+        <p class="ndnote">あなたの範囲（半径${nearState?nearState.radius:''}km）でGBIFに記録された生き物です。出会えるかは季節・時間帯によります。写真は iNaturalist（CC）。</p>
         <a class="cta" target="_blank" rel="noopener" href="https://www.inaturalist.org/taxa/search?q=${encodeURIComponent(sci)}">iNaturalistで詳しく見る ↗</a><br>
         <a class="ndlink" target="_blank" rel="noopener" href="https://www.gbif.org/species/search?q=${encodeURIComponent(sci)}">GBIFで記録を見る ↗</a>
       </div>`;
-    openPanel();
+    openPanel(); loadSeason(sci);
   });
 }
-function backToNear(){ if(nearLast) renderNearList(nearLast.counts,nearLast.label,nearLast.lat,nearLast.lng); }
-// 半径円（近似ポリゴン）＋現在地ピン
+function backToNear(){ removeNearPoints(); if(nearState) renderNearList(); }
+// 季節性：その種の月別記録数（geoDistance内）を取得して棒グラフ
+async function loadSeason(sci){
+  const wrap=document.getElementById('seasonwrap'); if(!wrap||!nearState)return;
+  const key=await resolveSpeciesKey(sci); const {lat,lng,radius}=nearState;
+  if(!key){ wrap.innerHTML='<span class="muted">季節データを取得できませんでした。</span>'; return; }
+  try{
+    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true&limit=0&facet=month&facetLimit=12`;
+    const d=await (await fetch(u)).json();
+    if(document.getElementById('seasonwrap')!==wrap)return;
+    const counts=(d.facets&&d.facets[0]&&d.facets[0].counts)||[];
+    if(!counts.length){ wrap.innerHTML='<span class="muted">この範囲では月別の記録が十分ありません。</span>'; return; }
+    const months=Array(12).fill(0); counts.forEach(c=>{const m=+c.name; if(m>=1&&m<=12)months[m-1]=c.count;});
+    wrap.innerHTML=renderSeasonBars(months);
+  }catch(e){ wrap.innerHTML='<span class="muted">季節データの取得に失敗しました。</span>'; }
+}
+// 半径円（近似ポリゴン）
 function circlePolygon(lat,lng,km,pts=64){
   const R=6371,d=km/R,la=lat*Math.PI/180,lo=lng*Math.PI/180,co=[];
   for(let i=0;i<=pts;i++){ const b=2*Math.PI*i/pts;
@@ -2998,24 +3098,58 @@ function circlePolygon(lat,lng,km,pts=64){
     co.push([lo2*180/Math.PI,la2*180/Math.PI]); }
   return {type:'Feature',geometry:{type:'Polygon',coordinates:[co]}};
 }
-function addNearCircle(lat,lng){
-  if(!mapReady)return; const gj=circlePolygon(lat,lng,NEAR_RADIUS_KM);
+function renderSeasonBars(months){
+  const max=Math.max(1,...months), L=['1','2','3','4','5','6','7','8','9','10','11','12'];
+  return '<div class="sbars">'+months.map((c,i)=>{const h=Math.round(c/max*100),pk=c>=max*0.75;
+    return `<div class="sbar" title="${L[i]}月: ${c}件"><div class="sbv${pk?' pk':''}" style="height:${Math.max(5,h)}%"></div><div class="sbl">${L[i]}</div></div>`;}).join('')
+    +'</div><div class="snote">棒が高い月ほど観察記録が多い＝出会いやすい目安（GBIF）。</div>';
+}
+// 半径円＋📍ピン（ドラッグで移動可）
+function addNearCircle(lat,lng,km){
+  if(!mapReady)return; const gj=circlePolygon(lat,lng,km);
   if(map.getSource('nearc')){ map.getSource('nearc').setData(gj); return; }
   map.addSource('nearc',{type:'geojson',data:gj});
   const before=map.getLayer('c-glow')?'c-glow':undefined;
   map.addLayer({id:'nearc-fill',type:'fill',source:'nearc',paint:{'fill-color':'#34d8c6','fill-opacity':.08}},before);
   map.addLayer({id:'nearc-line',type:'line',source:'nearc',paint:{'line-color':'#34d8c6','line-width':1.6,'line-opacity':.7,'line-dasharray':[2,2]}},before);
 }
-function showNearMarker(lat,lng){
-  addNearCircle(lat,lng);
+function drawNearVisuals(lat,lng,km){
+  addNearCircle(lat,lng,km);
   if(nearMarker)nearMarker.remove();
   const el=document.createElement('div'); el.className='nearpin'; el.textContent='📍';
-  try{ nearMarker=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lng,lat]).addTo(map); }catch(e){}
+  try{
+    nearMarker=new maplibregl.Marker({element:el,anchor:'bottom',draggable:true}).setLngLat([lng,lat]).addTo(map);
+    nearMarker.on('dragend',()=>{ const ll=nearMarker.getLngLat(); setNearPin(ll.lat,ll.lng,'指定地点',nearState?nearState.radius:NEAR_DEFAULT_R); });
+  }catch(e){}
+}
+// 観測点（観察スポット）：その種の実観測点をクラスタで重畳＝「どこで見られるか」
+function addNearPoints(feats){
+  if(!mapReady)return; removeNearPoints();
+  map.addSource('nearpts',{type:'geojson',data:{type:'FeatureCollection',features:feats},cluster:true,clusterRadius:42,clusterMaxZoom:15});
+  const before=map.getLayer('c-glow')?'c-glow':undefined;
+  map.addLayer({id:'nearpts-cl',type:'circle',source:'nearpts',filter:['has','point_count'],paint:{'circle-color':'#ff9a1a','circle-opacity':.45,'circle-stroke-color':'#ffb02e','circle-stroke-width':1.2,'circle-radius':['step',['get','point_count'],13,10,18,50,26]}},before);
+  map.addLayer({id:'nearpts-pt',type:'circle',source:'nearpts',filter:['!',['has','point_count']],paint:{'circle-color':'#ff7a1a','circle-radius':5,'circle-stroke-color':'#fff','circle-stroke-width':1,'circle-opacity':.9}},before);
+}
+function removeNearPoints(){ if(!mapReady){nearPtsOn=false;return;} ['nearpts-cl','nearpts-pt'].forEach(l=>{if(map.getLayer(l))map.removeLayer(l);}); if(map.getSource('nearpts'))map.removeSource('nearpts'); nearPtsOn=false; }
+async function toggleNearPoints(sci,btn){
+  if(nearPtsOn){ removeNearPoints(); btn.textContent='📍 観測スポットを地図に表示'; btn.classList.remove('on'); return; }
+  if(!nearState)return; btn.textContent='読み込み中…';
+  const key=await resolveSpeciesKey(sci); const {lat,lng,radius}=nearState;
+  if(!key){ btn.textContent='📍 観測スポットを地図に表示'; toast('📍','観測点を取得できませんでした',2000); return; }
+  try{
+    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true&limit=300`;
+    const d=await (await fetch(u)).json();
+    const feats=(d.results||[]).filter(o=>o.decimalLatitude!=null&&o.decimalLongitude!=null).map(o=>({type:'Feature',geometry:{type:'Point',coordinates:[o.decimalLongitude,o.decimalLatitude]},properties:{}}));
+    if(!feats.length){ btn.textContent='📍 観測スポットを地図に表示'; toast('📍','この範囲の観測点は見つかりませんでした',2200); return; }
+    addNearPoints(feats); nearPtsOn=true; btn.textContent='✓ 観測スポット表示中（タップで消す）'; btn.classList.add('on');
+    toast('📍',feats.length+'件の観測スポットを地図に表示しました',2400);
+  }catch(e){ btn.textContent='📍 観測スポットを地図に表示'; toast('📍','観測点の取得に失敗しました',2000); }
 }
 function removeNearbyVisuals(){
-  nearPick=false;
+  nearPick=false; nearClass='';
   if(nearMarker){ try{nearMarker.remove();}catch(e){} nearMarker=null; }
   if(!mapReady)return;
+  removeNearPoints();
   ['nearc-line','nearc-fill'].forEach(l=>{ if(map.getLayer(l))map.removeLayer(l); });
   if(map.getSource('nearc'))map.removeSource('nearc');
 }
