@@ -509,11 +509,11 @@ const RL=Object.fromEntries(REDLIST.map(r=>[r.code,r]));
 // 推定生息数（野生・おおよそ。出典/年により幅あり）
 const POP = {
   lion:'約2万〜2.5万頭（2023）', elephant:'約41.5万頭（2016・減少中）', polarbear:'約2.2万〜3.1万頭（2015 IUCN）', penguin:'約25万つがい（2012）',
-  kangaroo:'豊富（数千万頭）', panda:'約1,864頭（2014年全国調査）', tiger:'約4,500〜5,600頭（2023推定）', wolf:'約20万〜30万頭',
-  jaguar:'約17万頭（減少中）', snowleopard:'約4,000〜6,500頭（2016推定）', gorilla:'約31.6万頭（2013推定・急減中）', koala:'約33万頭（2012推定）',
+  kangaroo:'豊富（数千万頭）', panda:'約1,864頭（2014年全国調査）', tiger:'約4,500〜5,600頭（2023推定）', wolf:'約20万〜25万頭（2018推定）',
+  jaguar:'約6.4万頭未満（2017 IUCN・成熟個体）', snowleopard:'約4,000〜6,500頭（2016推定）', gorilla:'約31.6万頭（2013推定・急減中）', koala:'約33万頭（2012推定）',
   giraffe:'約11.7万頭（2016）', cheetah:'約6,500〜7,000頭（2016推定）', zebra:'約50万頭（2016 IUCN）', hippo:'約11万〜13万頭（2016 IUCN）',
   orangutan:'約10万頭（2016・急減中）', redpanda:'約1万頭未満（2015 IUCN）', komodo:'約3,000〜3,400頭（2023センサス）', bison:'約3万〜4万頭（2017 IUCN）',
-  eagle:'約30万羽以上（2021・回復）', anteater:'推定 数万頭（減少中）', condor:'約6,700羽（2020 IUCN）', otter:'約12.5万頭',
+  eagle:'約30万羽以上（2021・回復）', anteater:'推定 数万頭（減少中）', condor:'約6,700羽（2020 IUCN）', otter:'約12.9万頭（2021 IUCN）',
   whale:'約13.5万頭（2018・回復）', arcticfox:'数十万頭（地域差大）', macaque:'約11万頭（1989・日本）', crane:'約3,000羽（2021）',
   rhino:'約6,400頭（2022）', leopard:'推定 数十万頭（減少中）', asianelephant:'約4万〜5万頭（2018 IUCN）', moose:'約150万頭以上',
   raccoon:'豊富（数百万以上）', beaver:'約1,000万〜1,500万頭', capybara:'豊富（数百万）', sloth:'安定（数は不明）',
@@ -522,7 +522,7 @@ const POP = {
   greatwhite:'推定 希少（数は不明）', albatross:'約2万羽（2018 IUCN）', humboldtpenguin:'約2万〜3万羽（2020）', platypus:'推定 数万〜数十万頭',
   tasmaniandevil:'約2万〜2.5万頭（激減）', kiwi:'約3.5万羽（2000推定）', redfox:'豊富（数百万以上）', brownbear:'約20万頭（2016 IUCN）',
   walrus:'約22万〜25万頭', narwhal:'約12万〜17万頭（2017 IUCN）', meerkat:'安定（数十万）', okapi:'約1万〜3.5万頭（2015 IUCN）',
-  axolotl:'野生1,000頭未満（2019 IUCN・ほぼ絶滅）', loggerhead:'推定 数十万頭（成熟個体は減少）', slothbear:'約7,000〜2万頭（2016 IUCN）', kingpenguin:'約160万つがい',
+  axolotl:'野生1,000頭未満（2019 IUCN・ほぼ絶滅）', loggerhead:'推定 数十万頭（成熟個体は減少）', slothbear:'約7,000〜2万頭（2016 IUCN）', kingpenguin:'約223万つがい（2020 BirdLife・増加中）',
 };
 const popOf = (a)=>(a&&a.pop)||(a&&POP[a.id])||'データ不足';
 // 個体数トレンド（↑増加/↓減少/→横ばい/–不明）。回復種だけ明示し、他はIUCN状況から導出。
@@ -966,7 +966,7 @@ const ANIMALS = [
   range:['ATA','AUS','ZAF','ATF','FLK','ARG','CHL'],focus:{c:[-30,-54],z:2.2},
   gbif:2481660,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/SGI-2016-South_Georgia_%28Fortuna_Bay%29%E2%80%93King_penguin_%28Aptenodytes_patagonicus%29_04.jpg/960px-SGI-2016-South_Georgia_%28Fortuna_Bay%29%E2%80%93King_penguin_%28Aptenodytes_patagonicus%29_04.jpg'},
 
- {id:'whiterhino',nameJa:'シロサイ',nameSci:'Ceratotherium simum',emoji:'🦏',taxon:'サイ科',biome:'サバンナ',status:'NT',pop:'約1.6万頭',
+ {id:'whiterhino',nameJa:'シロサイ',nameSci:'Ceratotherium simum',emoji:'🦏',taxon:'サイ科',biome:'サバンナ',status:'NT',pop:'約1.6万頭（2021 AfRSG）',
   stats:{size:'体長3.7–4m',weight:'1.8–2.5t',diet:'草食',life:'40–50年'},
   desc:'草を食む世界最大級のサイ。密猟と闘いながら保護で持ち直した“南部の白いサイ”。',
   range:['ZAF','KEN','NAM','TZA','UGA','BWA','ZWE','SWZ','ZMB'],focus:{c:[26,-26],z:2.8},
@@ -1405,7 +1405,7 @@ const ANIMALS = [
   range:['USA','CAN','MEX'],focus:{c:[-120,37],z:2.6},
   gbif:2476674,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Calypte-anna-002.jpg/960px-Calypte-anna-002.jpg'},
 
- {id:'nilecrocodile',nameJa:'ナイルワニ',nameSci:'Crocodylus niloticus',emoji:'🐊',taxon:'クロコダイル科',biome:'湿地',status:'LC',pop:'推定 25万〜50万頭',
+ {id:'nilecrocodile',nameJa:'ナイルワニ',nameSci:'Crocodylus niloticus',emoji:'🐊',taxon:'クロコダイル科',biome:'湿地',status:'LC',pop:'推定 約5万〜7万頭（2017 IUCN・成熟個体）',
   stats:{size:'全長3.5〜5m',weight:'225〜750kg',diet:'肉食（魚・哺乳類・鳥）',life:'野生で50〜70年'},
   desc:'アフリカの大河と湿地に潜む、大陸最大級の捕食者。水際で待ち伏せ、渡るヌーの群れさえ一瞬で水中へ引き込む。',
   range:['EGY','SDN','KEN','TZA','ZAF','ZMB','ZWE','ETH','UGA','MOZ'],focus:{c:[31,5],z:2},
@@ -1627,7 +1627,7 @@ const ANIMALS = [
   range:['IND','NPL','BGD'],focus:{c:[82,26.5],z:2.6},
   gbif:2441360,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Gavial_du_Gange_%28Gavialis_gangeticus%29%2C_Ferme_aux_crocodiles.JPG/960px-Gavial_du_Gange_%28Gavialis_gangeticus%29%2C_Ferme_aux_crocodiles.JPG'},
 
- {id:'bluewhale',nameJa:'シロナガスクジラ',nameSci:'Balaenoptera musculus',emoji:'🐋',taxon:'ナガスクジラ科',biome:'海',status:'EN',pop:'推定 約1万–2.5万頭',
+ {id:'bluewhale',nameJa:'シロナガスクジラ',nameSci:'Balaenoptera musculus',emoji:'🐋',taxon:'ナガスクジラ科',biome:'海',status:'EN',pop:'推定 約1万–2.5万頭（2018 IUCN）',
   stats:{size:'体長24–30m',weight:'100–150t',diet:'肉食（主にオキアミ）',life:'野生で80–90年'},
   desc:'地球史上最大の動物。体長30mに迫る巨体で大洋を回遊し、オキアミの群れを丸ごと飲み込む青き巨人。',
   range:['USA','CAN','CHL','ISL','NOR','AUS','NZL','ZAF','LKA','PRT'],focus:{c:[-30,20],z:1.6},
@@ -1669,7 +1669,7 @@ const ANIMALS = [
   range:['ATA','AUS','NZL','ARG'],focus:{c:[0,-70],z:1.8},
   gbif:2481663,photo:'https://upload.wikimedia.org/wikipedia/commons/0/03/Adelie_Penguin.jpg'},
 
- {id:'africanbuffalo',nameJa:'アフリカスイギュウ',nameSci:'Syncerus caffer',emoji:'🐃',taxon:'ウシ科',biome:'サバンナ',status:'NT',pop:'推定 約40万頭',
+ {id:'africanbuffalo',nameJa:'アフリカスイギュウ',nameSci:'Syncerus caffer',emoji:'🐃',taxon:'ウシ科',biome:'サバンナ',status:'NT',pop:'推定 約51万頭（2014センサス・減少中）',
   stats:{size:'体長1.7–3.4m',weight:'300–900kg',diet:'草食（イネ科草本）',life:'野生で約20年'},
   desc:'アフリカのサバンナを大群で移動する屈強な野牛。気性は荒く、ライオンさえ退ける『ビッグファイブ』の一角。',
   range:['ZAF','KEN','TZA','UGA','BWA','AGO','NAM','BEN'],focus:{c:[25,-10],z:2.2},
@@ -1735,7 +1735,7 @@ const ANIMALS = [
   range:['SAU','ARE','OMN','EGY','MAR','DZA','IND','AUS'],focus:{c:[45,22],z:2},
   gbif:9055455,photo:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Camelus_dromedarius_in_Nuweiba.jpg/960px-Camelus_dromedarius_in_Nuweiba.jpg'},
 
- {id:'momoiropelican',nameJa:'モモイロペリカン',nameSci:'Pelecanus onocrotalus',emoji:'🐦',taxon:'ペリカン科',biome:'湿地',status:'LC',pop:'推定 29万–52万羽',
+ {id:'momoiropelican',nameJa:'モモイロペリカン',nameSci:'Pelecanus onocrotalus',emoji:'🐦',taxon:'ペリカン科',biome:'湿地',status:'LC',pop:'推定 約26万–30万羽（2018 BirdLife）',
   stats:{size:'体長140–180cm',weight:'9–15kg',diet:'肉食（魚）',life:'15–25年'},
   desc:'繁殖期にほのかな桃色を帯びる巨大なペリカン。仲間と隊列を組んで魚を浅瀬へ追い込み、喉袋ですくい取る。',
   range:['TZA','KEN','ZAF','EGY','GRC','ROU','TUR','KAZ','IND'],focus:{c:[30,10],z:1.9},
@@ -1783,7 +1783,7 @@ const ANIMALS = [
   range:['USA','CAN'],focus:{c:[-75,45],z:3},
   gbif:2436248,photo:'https://upload.wikimedia.org/wikipedia/commons/e/ef/Condylura.jpg'},
 
- {id:'greycrownedcrane',nameJa:'カンムリヅル',nameSci:'Balearica regulorum',emoji:'🐦',taxon:'ツル科',biome:'湿地',status:'EN',pop:'推定 1万7千〜2万2千羽',
+ {id:'greycrownedcrane',nameJa:'カンムリヅル',nameSci:'Balearica regulorum',emoji:'🐦',taxon:'ツル科',biome:'湿地',status:'EN',pop:'推定 1万7千〜2万2千羽（2012 BirdLife・成熟個体）',
   stats:{size:'全長約1m',weight:'3〜4kg',diet:'雑食（種子・昆虫・小動物）',life:'野生で約22年'},
   desc:'頭上に金色の冠羽を戴く、東・南部アフリカの湿地に立つ優美なツル。番いで鳴き交わし、草原と沼沢を行き来して舞う。',
   range:['KEN','UGA','TZA','ZAF','ZWE','ZMB','RWA','COD'],focus:{c:[33,-2],z:2.2},
