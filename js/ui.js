@@ -344,6 +344,60 @@ window.closePanel=closePanel; window.showCountry=showCountry; window.selectAnima
 window.flyCountry=flyCountry; window.shareAnimal=shareAnimal; window.closeAbout=closeAbout;
 window.openRedlist=openRedlist; window.closeRedlist=closeRedlist; window.filterStatus=filterStatus; window.filterThreat=filterThreat;
 
+/* ---------- 地図ホバー（国＝代表5種の実写真／ズーム時＝この辺りの実観測＋地名）---------- */
+const ZOOM_LOCAL_HOVER=6;   // この拡大率以上で「国」→「この辺り」のローカル表示に切替
+function thumbHTML(photo,name,emoji){
+  return `<span class="mt-th"><span class="mt-im">${photo?`<img src="${esc(photo)}" alt="" loading="lazy" onerror="this.parentNode.textContent='${emoji||''}'">`:(emoji||'')}</span><b>${esc(name)}</b></span>`;
+}
+function countryHoverHTML(code,name){
+  const here=ANIMALS.filter(a=>a.range.includes(code)).slice(0,5);   // 代表5種まで（図鑑掲載順）
+  const thumbs=here.length
+    ? `<div class="mt-thumbs">${here.map(a=>thumbHTML(a.photo,a.nameJa,a.emoji)).join('')}</div>`
+    : `<div class="mt-sub">図鑑の代表種は未登録（クリックで実データを表示）</div>`;
+  return `<div class="mt-name">${ccFlag(code)} ${esc(name)}</div>${thumbs}`;
+}
+// ⑤ ズーム時：カーソル付近の地名（OFMベクタータイルの地名ラベルをローカル取得＝ネットワーク不要）＋GBIF実観測の代表5種。
+let _lhTimer=null, _lhKey=null; const _lhCache={};   // 種サムネ部分のみグリッドキャッシュ（地名は都度ローカル取得で最新）
+function cancelLocalHover(){ clearTimeout(_lhTimer); _lhKey=null; }
+// OFMの地名ラベル(place source-layer)から、カーソル付近の最も細かい地名を拾う（逆ジオコーディング不要）。
+function getPlaceNameAt(point){
+  if(typeof ofmLoaded==='undefined'||!ofmLoaded||!point) return '';
+  let feats=[]; try{ feats=map.queryRenderedFeatures([[point.x-50,point.y-50],[point.x+50,point.y+50]]).filter(f=>f.sourceLayer==='place'); }catch(e){ return ''; }
+  if(!feats.length) return '';
+  const rank={neighbourhood:0,suburb:1,quarter:1,hamlet:2,village:3,town:4,island:4,city:5,county:6,state:7,province:7,region:7};
+  feats.sort((a,b)=>(rank[a.properties.class]==null?9:rank[a.properties.class])-(rank[b.properties.class]==null?9:rank[b.properties.class]));
+  const pr=feats[0].properties; return pr['name:ja']||pr.name||pr['name:latin']||'';
+}
+function localHover(lngLat, point){
+  const lat=lngLat.lat, lng=lngLat.lng, gk=(Math.round(lat*20)/20)+','+(Math.round(lng*20)/20);   // ~5kmグリッド
+  const tip=$('#maptip'), place=getPlaceNameAt(point)||'この辺り';
+  _lhKey=gk;
+  if(_lhCache[gk]){ tip.innerHTML=`<div class="mt-name">📍 ${esc(place)}</div>`+_lhCache[gk]; tip.classList.add('show'); refillHoverPhotos(tip,gk); return; }
+  tip.innerHTML=`<div class="mt-name">📍 ${esc(place)}</div><div class="mt-sub">この辺りの生き物を確認中…</div>`; tip.classList.add('show');
+  clearTimeout(_lhTimer); _lhTimer=setTimeout(()=>fetchLocalHover(lat,lng,gk,place),420);
+}
+async function fetchLocalHover(lat,lng,gk,place){
+  const tip=$('#maptip'), y2=new Date().getFullYear(), y1=y2-10;
+  const gbifU=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat.toFixed(3)},${lng.toFixed(3)},8km&taxonKey=44&hasCoordinate=true&year=${y1},${y2}&limit=0&facet=scientificName&facetLimit=25`;
+  let sp=[];
+  try{ const gd=await fetch(gbifU).then(r=>r.ok?r.json():{}); sp=mergeBinomials((gd.facets&&gd.facets[0]&&gd.facets[0].counts)||[]).slice(0,5); }catch(e){}
+  const thumbs = sp.length
+    ? `<div class="mt-thumbs">${sp.map(c=>{const cat=ANIMALS.find(a=>(a.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===c.name.toLowerCase());
+        return `<span class="mt-th" data-sci="${esc(c.name)}"><span class="mt-im">${cat?`<img src="${esc(cat.photo)}" alt="">`:''}</span><b>${esc(cat?cat.nameJa:c.name)}</b></span>`;}).join('')}</div>`
+    : '<div class="mt-sub">この辺りのGBIF実観測は見つかりませんでした</div>';
+  _lhCache[gk]=thumbs;
+  if(_lhKey===gk){ tip.innerHTML=`<div class="mt-name">📍 ${esc(place||'この辺り')}</div>`+thumbs; tip.classList.add('show'); refillHoverPhotos(tip,gk); }
+}
+// 図鑑外の種は iNat 写真を後追い（このtipが同じグリッドを指す間だけ）。絵文字は使わず、未取得は空サムネ。
+function refillHoverPhotos(tip,gk){
+  tip.querySelectorAll('.mt-th[data-sci]').forEach(thmb=>{ const im=thmb.querySelector('.mt-im'); if(!im||im.querySelector('img'))return;   // 図鑑種は写真済み→スキップ
+    const sci=thmb.getAttribute('data-sci');
+    inatEnqueue(async()=>{ const v=await inatResolve(sci); if(_lhKey!==gk)return;
+      const im2=thmb.querySelector('.mt-im'); if(im2&&!im2.querySelector('img')&&v&&v.ph) im2.innerHTML=`<img src="${esc(v.ph)}" alt="">`;
+      const b=thmb.querySelector('b'); if(b&&v&&v.ja) b.textContent=v.ja; });   // 和名も補完
+  });
+}
+
 /* ---------- 地図インタラクション ---------- */
 function bindMap(){
   map.on('click','c-fill',(e)=>{ if(nearPick)return; showCountry(e.features[0].properties[CODE_PROP], e.lngLat); });
@@ -352,12 +406,13 @@ function bindMap(){
   map.on('mousemove','c-fill',(e)=>{
     const f=e.features[0], code=f.properties[CODE_PROP];
     map.setFilter('c-hover',['==',['get',CODE_PROP],code]); map.getCanvas().style.cursor='pointer';
+    if(map.getZoom()>=ZOOM_LOCAL_HOVER){ localHover(e.lngLat, e.point); return; }   // ⑤ ズーム時＝この辺りの実観測＋地名
+    cancelLocalHover();
     const name=f.properties.NAME_JA||(CC[code]?CC[code][0]:null)||f.properties.NAME||f.properties.ADMIN||code;
-    const here=ANIMALS.filter(a=>a.range.includes(code));
-    tip.innerHTML=`${ccFlag(code)} ${name}`+(here.length?`<span class="sub">${here.map(a=>a.emoji).join(' ')} ${here.length}種</span>`:`<span class="sub">サンプル登録なし</span>`);
+    tip.innerHTML=countryHoverHTML(code,name);   // ④ 国名＋代表5種（実写真）
     tip.classList.add('show');
   });
   map.on('mousemove',(e)=>{const t=$('#maptip');t.style.left=(e.originalEvent.clientX+14)+'px';t.style.top=(e.originalEvent.clientY+14)+'px';});
-  map.on('mouseleave','c-fill',()=>{ map.setFilter('c-hover',['==',['get',CODE_PROP],'__none__']); map.getCanvas().style.cursor=''; $('#maptip').classList.remove('show'); });
+  map.on('mouseleave','c-fill',()=>{ map.setFilter('c-hover',['==',['get',CODE_PROP],'__none__']); map.getCanvas().style.cursor=''; $('#maptip').classList.remove('show'); cancelLocalHover(); });
 }
 

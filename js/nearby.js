@@ -41,11 +41,11 @@ async function inatResolve(sci){
         if(r.status===429){ await new Promise(s=>setTimeout(s,1500*(i+1))); continue; }
         const d=await r.json(), x=d.results&&d.results[0], dp=x&&x.default_photo;
         const at=(dp&&dp.attribution||'').replace(/<[^>]*>/g,'').replace(/\(c\)/gi,'©');
-        const v=x?{ja:x.preferred_common_name||'',ph:(dp&&dp.square_url)||'',ic:x.iconic_taxon_name||'',st:(x.conservation_status&&x.conservation_status.status_name)||'',at}:{ja:'',ph:'',ic:'',st:'',at:''};
+        const v=x?{ja:x.preferred_common_name||'',ph:(dp&&dp.square_url)||'',ic:x.iconic_taxon_name||'',st:(x.conservation_status&&x.conservation_status.status_name)||'',at,id:x.id||0}:{ja:'',ph:'',ic:'',st:'',at:'',id:0};
         inatSet(sci,v); return v;
       }catch(e){ await new Promise(s=>setTimeout(s,600)); }
     }
-    return {ja:'',ph:'',ic:'',st:'',at:''};
+    return {ja:'',ph:'',ic:'',st:'',at:'',id:0};
   });
 }
 // GBIF種キー解決（species/match、localStorageキャッシュ）＝月別/観測点に使用
@@ -224,7 +224,7 @@ function applyNearFilter(){
 function openNearDetail(btn){
   const c=nearRows[+btn.dataset.i]||{name:btn.dataset.sci,count:+btn.dataset.cnt}, sci=c.name, cnt=c.count;
   const hit=ANIMALS.find(a=>(a.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===sci.toLowerCase());
-  if(hit){ selectAnimal(hit.id); return; }
+  // ★地図は動かさず、その場で詳細を表示（世界地図への引き＝分布ビューはボタンで任意に）。図鑑収録種は分布ボタンを出す。
   renderNearShell(sci,'<div class="nearsum">情報を読み込んでいます…</div>'); openPanel();
   inatResolve(sci).then(v=>{
     if(!currentMode||currentMode.type!=='near')return;
@@ -239,13 +239,15 @@ function openNearDetail(btn){
         <div class="ndsci">${esc(sci)}</div>
         <div class="ndtags">${cls?`<span class="ndtag">${cls}</span>`:''}<span class="ndtag">この範囲で ${fmtN(cnt)}件</span><span id="ndstatus"></span></div>
         <div class="ndsec"><div class="ndsech">📅 観察が多い月（出会いやすさの目安）</div><div id="seasonwrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
+        <div class="ndsec"><div class="ndsech">🕐 観察が多い時間帯（朝・昼・夕の目安）</div><div id="timewrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
         <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sciKey(sci)}',this)">📍 観測スポットを地図に表示</button>
+        ${hit?`<button class="nbtn wide" onclick="selectAnimal('${hit.id}')">🌍 世界地図で分布を見る（図鑑）</button>`:''}
         <button class="nbtn wide" onclick="shareSpeciesCard('${sciKey(sci)}',this)">📤 この種をシェア</button>
         <p class="ndnote">あなたの範囲（半径${nearState?nearState.radius:''}km）でGBIFに記録された生き物です。出会えるかは季節・時間帯によります。写真は iNaturalist（CC）。</p>
         <a class="cta" target="_blank" rel="noopener" href="https://www.inaturalist.org/taxa/search?q=${encodeURIComponent(sci)}">iNaturalistで詳しく見る ↗</a><br>
         <a class="ndlink" target="_blank" rel="noopener" href="https://www.gbif.org/species/search?q=${encodeURIComponent(sci)}">GBIFで記録を見る ↗</a>
       </div>`;
-    openPanel(); loadSeason(sci);
+    openPanel(); loadSeason(sci); loadTimeOfDay(v.id);
     resolveIucn(sci).then(code=>{ const el=document.getElementById('ndstatus'); if(!el||!code||!RARITY[code])return;
       const th=THREAT_CATS.has(code), r=RARITY[code];
       el.outerHTML=`<span class="ndtag" style="background:${r.color};color:#06231f;border-color:${r.color}">${th?'⚠ ':''}保全：${r.jp}（${code}）</span>`;
@@ -267,6 +269,28 @@ async function loadSeason(sci){
     const months=Array(12).fill(0); counts.forEach(c=>{const m=+c.name; if(m>=1&&m<=12)months[m-1]=c.count;});
     wrap.innerHTML=renderSeasonBars(months);
   }catch(e){ wrap.innerHTML='<span class="muted">季節データの取得に失敗しました。</span>'; }
+}
+// 時間帯：iNat に hour_of_day ヒストグラムが無いため、観測サンプル(最大200件)の observed_on_details.hour
+// （各観測の現地時刻）を時間帯別に集計。「朝・昼・夕いつ観察が多いか」の目安（その種・世界全体）。
+async function loadTimeOfDay(inatId){
+  const wrap=document.getElementById('timewrap'); if(!wrap)return;
+  if(!inatId){ wrap.innerHTML='<span class="muted">時間帯データを取得できませんでした。</span>'; return; }
+  try{
+    const u=`https://api.inaturalist.org/v1/observations?taxon_id=${inatId}&quality_grade=research&per_page=200&order_by=created_at`;
+    const d=await (await fetch(u)).json();
+    if(document.getElementById('timewrap')!==wrap)return;
+    const hours=Array(24).fill(0); let n=0;
+    (d.results||[]).forEach(o=>{ const h=o.observed_on_details&&o.observed_on_details.hour; if(typeof h==='number'&&h>=0&&h<24){ hours[h]++; n++; } });
+    if(n<10){ wrap.innerHTML='<span class="muted">時間帯の記録が十分ありません。</span>'; return; }
+    wrap.innerHTML=renderHourBars(hours);
+  }catch(e){ wrap.innerHTML='<span class="muted">時間帯データの取得に失敗しました。</span>'; }
+}
+function renderHourBars(hours){
+  const max=Math.max(1,...hours), peak=hours.indexOf(max);
+  const period = peak<5?'未明':peak<9?'早朝':peak<11?'朝':peak<14?'昼':peak<17?'午後':peak<20?'夕方':'夜';
+  const bars='<div class="sbars hbars">'+hours.map((c,i)=>{const h=Math.round(c/max*100),pk=c>=max*0.8;
+    return `<div class="sbar" title="${i}時台: ${c}件"><div class="sbv${pk?' pk':''}" style="height:${Math.max(4,h)}%"></div><div class="sbl">${i%6===0?i:''}</div></div>`;}).join('');
+  return bars+`</div><div class="snote">観察が多いのは <b>${peak}時ごろ（${period}）</b>。iNaturalistの観察時刻分布（人が見た時間の傾向を含む）。</div>`;
 }
 // 半径円（近似ポリゴン）
 function circlePolygon(lat,lng,km,pts=64){
@@ -358,16 +382,19 @@ function spawnCreatures(list){
   list.forEach((it,idx)=>{
     const el=document.createElement('div'); el.className='cmk-wrap';
     const bub=document.createElement('div'); bub.className='cmk'; bub.style.setProperty('--d',(idx*55)+'ms'); bub.textContent=classEmoji(it.cls);
-    el.appendChild(bub);
+    const lab=document.createElement('div'); lab.className='cmk-lab'; lab.innerHTML=`<i>${esc(it.sci)}</i>`;   // ホバーで和名/分類/保全を表示
+    el.appendChild(bub); el.appendChild(lab);
     el.addEventListener('click',(e)=>{ e.stopPropagation(); openCreature(it.sci,it.n); });
     let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(it.c).addTo(map); }catch(e){ return; }
     creatureMarkers.push(mk);
-    // 写真サムネに差し替え（iNat・キャッシュ/throttle 共有）。鮮度ガード＝古い世代/撤去済みマーカーは何もしない。
+    // 写真サムネに差し替え＆ホバーラベル更新（iNat・キャッシュ/throttle 共有）。鮮度ガード＝古い世代/撤去済みは何もしない。
     inatEnqueue(async()=>{ if(creaturesKey!==myKey||!bub.isConnected) return; const v=await inatResolve(it.sci);
       if(creaturesKey!==myKey||!bub.isConnected) return;
+      const clsLab=NEAR_ICONIC[v.ic]||'';
+      if(v.ja||clsLab) lab.innerHTML=(v.ja?`<b>${esc(v.ja)}</b>`:`<i>${esc(it.sci)}</i>`)+(clsLab?` <span class="cl">${clsLab}</span>`:'');
       if(v&&v.ph&&!bub.querySelector('img')){ const img=document.createElement('img'); img.src=v.ph; img.alt=''; img.onload=()=>img.classList.add('on'); bub.appendChild(img); } });
-    // 近くの絶滅危惧種を強調（「近所にコレ!?」）
-    resolveIucn(it.sci).then(code=>{ if(creaturesKey!==myKey||!bub.isConnected) return; if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); } });
+    // 近くの絶滅危惧種を強調（「近所にコレ!?」）＋ラベルにも保全状況
+    resolveIucn(it.sci).then(code=>{ if(creaturesKey!==myKey||!bub.isConnected) return; if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); lab.classList.add('th'); lab.insertAdjacentHTML('afterbegin',`<span class="w">⚠${code}</span> `); } });
   });
 }
 function openCreature(sci,cnt){

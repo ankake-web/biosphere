@@ -347,6 +347,14 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .nearpin{font-size:26px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));cursor:grab;transform:translateY(2px);}
 /* ---- 近くの生き物マーカー（ポケGO風・有限CSSアニメ。外側wrap=MapLibreが位置制御、内側.cmk=アニメ） ---- */
 .cmk-wrap{cursor:pointer;}
+/* ホバーで和名・分類・保全をふきだし表示 */
+.cmk-lab{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);white-space:nowrap;max-width:210px;overflow:hidden;text-overflow:ellipsis;
+  background:rgba(8,14,20,.95);border:1px solid var(--line-2);border-radius:9px;padding:4px 10px;font-size:11.5px;color:#eaf2f6;
+  pointer-events:none;opacity:0;transition:opacity .14s,transform .14s;transform:translateX(-50%) translateY(3px);box-shadow:0 5px 14px rgba(0,0,0,.55);z-index:3;}
+.cmk-wrap:hover .cmk-lab{opacity:1;transform:translateX(-50%) translateY(0);}
+.cmk-lab b{font-weight:800;}.cmk-lab i{font-style:italic;color:#cdd9df;}
+.cmk-lab .cl{font-size:10px;color:#9fb0bd;margin-left:4px;}.cmk-lab .w{color:#ffb02e;font-weight:800;margin-right:3px;}
+.cmk-lab.th{border-color:rgba(255,176,46,.55);}
 .cmk{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:21px;position:relative;overflow:hidden;
   background:radial-gradient(circle at 50% 34%,rgba(22,32,42,.97),rgba(8,14,20,.97));
   border:2px solid rgba(255,255,255,.86);box-shadow:0 3px 11px rgba(0,0,0,.5);
@@ -378,8 +386,10 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .seasonwrap{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:10px 10px 8px;}
 .seasonwrap .muted{color:var(--muted);font-size:12px;}
 .sbars{display:flex;align-items:flex-end;gap:3px;height:62px;}
+.sbars.hbars{gap:1.5px;}   /* 24本の時間帯バーはギャップを詰める */
 .sbar{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;}
 .sbv{width:100%;max-width:14px;background:rgba(52,216,198,.45);border-radius:3px 3px 0 0;transition:height .3s;}
+.hbars .sbv{max-width:none;border-radius:2px 2px 0 0;}
 .sbv.pk{background:#34d8c6;}
 .sbl{font-size:9px;color:#8497a7;}
 .snote{font-size:10.5px;color:var(--muted);margin-top:7px;line-height:1.5;}
@@ -438,9 +448,16 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .toast{position:fixed;top:66px;left:50%;transform:translateX(-50%) translateY(-12px);z-index:40;background:var(--glass-strong);border:1px solid var(--line);border-radius:12px;padding:11px 17px;font-size:13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;display:flex;align-items:center;gap:9px;max-width:88vw;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast .e{font-size:16px;}
-.maptip{position:fixed;z-index:12;pointer-events:none;background:rgba(8,12,18,.92);border:1px solid var(--line-2);border-radius:9px;padding:6px 11px;font-size:12.5px;font-weight:600;opacity:0;transform:translateY(4px);transition:opacity .12s;white-space:nowrap;box-shadow:0 8px 20px -6px rgba(0,0,0,.6);}
+.maptip{position:fixed;z-index:12;pointer-events:none;background:rgba(8,12,18,.94);border:1px solid var(--line-2);border-radius:11px;padding:8px 11px;font-size:12.5px;font-weight:600;opacity:0;transform:translateY(4px);transition:opacity .12s;white-space:nowrap;box-shadow:0 10px 24px -6px rgba(0,0,0,.65);max-width:300px;backdrop-filter:blur(8px);}
 .maptip.show{opacity:1;transform:translateY(0);}
-.maptip .sub{display:block;font-size:10.5px;color:var(--muted);font-weight:500;margin-top:2px;}
+.maptip .sub,.maptip .mt-sub{display:block;font-size:10.5px;color:var(--muted);font-weight:500;margin-top:3px;white-space:normal;}
+/* 国/ローカル ホバーの「名前＋代表5種（実写真）」 */
+.maptip .mt-name{font-size:13px;font-weight:800;color:var(--ink);}
+.maptip .mt-thumbs{display:flex;gap:6px;margin-top:7px;}
+.maptip .mt-th{display:flex;flex-direction:column;align-items:center;gap:3px;width:48px;flex:0 0 auto;}
+.maptip .mt-th .mt-im{width:44px;height:44px;border-radius:10px;overflow:hidden;background:rgba(255,255,255,.07);display:grid;place-items:center;font-size:21px;}
+.maptip .mt-th .mt-im img{width:100%;height:100%;object-fit:cover;}
+.maptip .mt-th b{font-size:9.5px;font-weight:600;color:#cdd9df;line-height:1.15;text-align:center;white-space:normal;max-width:48px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
 
 #boot{position:fixed;inset:0;z-index:60;background:radial-gradient(120% 120% at 50% 30%,#0d1726,#070b11);display:grid;place-items:center;transition:opacity .6s;}
 #boot.gone{opacity:0;pointer-events:none;}
