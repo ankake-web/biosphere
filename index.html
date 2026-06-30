@@ -137,6 +137,10 @@ button{font-family:inherit;cursor:pointer;}
   font-size:22px;position:relative;overflow:hidden;}
 .chip .av .ph{position:absolute;inset:0;object-fit:cover;width:100%;height:100%;opacity:0;transition:opacity .4s;}
 .chip .av .ph.loaded{opacity:1;}
+/* 図鑑読み込み中スケルトン（種データ到着＝initCatalog で除去） */
+.chip.sk{width:150px;height:60px;border:1px solid transparent;background:linear-gradient(100deg,#0e1a26 30%,#16293a 50%,#0e1a26 70%);background-size:200% 100%;animation:sksh 1.1s linear infinite;pointer-events:none;}
+@keyframes sksh{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.chip.sk{animation:none;}}
 .chip .meta{min-width:0;line-height:1.15;}
 .chip .meta .n{font-weight:700;font-size:14px;white-space:nowrap;}
 .chip .meta .s{font-size:10px;color:var(--muted);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
@@ -496,7 +500,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
         <select id="facetSel" class="sf" aria-label="絞り込み"></select>
       </div>
     </div>
-    <div class="chips" id="chips" role="group" aria-label="動物を選ぶ"></div>
+    <div class="chips" id="chips" role="group" aria-label="動物を選ぶ"><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div></div>
   </div>
 </div>
 
@@ -1061,8 +1065,7 @@ function avatar(a,cls=''){
   return `<span class="av ${cls}" style="background:linear-gradient(140deg,${g[0]},${g[1]})"><span>${a.emoji}</span>`
     +`<img class="ph" loading="lazy" src="${a.photo}" alt="" onload="this.classList.add('loaded')" onerror="this.remove()"></span>`;
 }
-function initCatalog(){
-ANIMALS.forEach((a,i)=>{
+function makeChip(a,i){
   const b=document.createElement('button');
   b.className='chip'+(SEEN.has(a.id)?' is-seen':''); b.style.animationDelay=(i*22)+'ms';
   b.setAttribute('aria-pressed','false'); b.dataset.id=a.id; b.dataset.biome=a.biome;
@@ -1073,8 +1076,15 @@ ANIMALS.forEach((a,i)=>{
     +`<span class="rk" style="background:${RARITY[a.status].color};box-shadow:0 0 8px ${RARITY[a.status].color}"></span>`
     +`<span class="seen">✓</span><span class="undisc">？</span>`;
   b.onclick=()=>selectAnimal(a.id);
-  chipsEl.appendChild(b);
-});
+  return b;
+}
+function initCatalog(){
+chipsEl.innerHTML='';   // スケルトン除去
+// 段階描画：1135枚を一度に生成せず、先頭を即時・残りを setTimeout で分割（初回描画のブロックを回避）
+let _i=0; const _N=ANIMALS.length, _FIRST=160, _CHUNK=160;
+function _flush(end){ const f=document.createDocumentFragment(); for(;_i<end;_i++) f.appendChild(makeChip(ANIMALS[_i],_i)); chipsEl.appendChild(f); }
+_flush(Math.min(_FIRST,_N));
+(function _next(){ if(_i>=_N){ if(typeof applyFilters==='function') applyFilters(); return; } _flush(Math.min(_i+_CHUNK,_N)); setTimeout(_next,0); })();
 Object.keys(BIOMES).forEach(bm=>{
   const b=document.createElement('button');
   b.className='bm'; b.setAttribute('aria-pressed','false'); b.dataset.bm=bm;
