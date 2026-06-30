@@ -48,12 +48,11 @@ map.on('load', async ()=>{
   $('#boot').classList.add('gone');   // 地図シェルを先に表示（種データは待たない＝初回ロード短縮）
   if(LOW_MOTION) spinning=false;   // 低モーション/通信節約時は自動回転しない
   spinLoop();
-  // 種データ到着後に図鑑由来の描画（分布オーバービュー・コンプ率・ディープリンク）を反映
+  // 種データ到着後：コンプ率を反映し、起動ビューを決定（地点/種リンク → なければ現在地ローカル）。
+  // この .then は map.on('load') 内で登録＝必ず mapReady 確定後に走るため setNearPin(flyTo) が安全。
   __speciesReady.then(()=>{
-    drawOverview(); updateDex();
-    const deeplink=location.hash.replace('#','');
-    if(deeplink && ANIMALS.some(a=>a.id===deeplink)){ selectAnimal(deeplink); }
-    else { toast('🌍','動物を選ぶと図鑑に登録（未発見はシルエット）。地図の土地を選ぶと住人が出ます。🎲で旅へ。',5200); }
+    updateDex();
+    bootInitialView();
   });
 });
 // GBIFタイルの読み込み完了/失敗を検知してスピナーを止める（失敗しても図鑑カードは常に表示される）

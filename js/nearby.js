@@ -95,6 +95,7 @@ function setNearPin(latRaw,lngRaw,label,radius){
   drawNearVisuals(lat,lng,nearState.radius);
   stopSpin(); map.flyTo({center:[lng,lat],zoom:ZOOM_BY_R[nearState.radius]||9,speed:.9,curve:1.4,essential:true});
   queryNear();
+  saveLastLoc(lat,lng,nearState.radius);   // 次回起動のフォールバック（前回の場所）に記録
 }
 function setNearRadius(r){ if(!nearState)return; nearState.radius=r; removeNearPoints();
   drawNearVisuals(nearState.lat,nearState.lng,r);
@@ -305,4 +306,51 @@ function removeNearbyVisuals(){
   ['nearc-line','nearc-fill'].forEach(l=>{ if(map.getLayer(l))map.removeLayer(l); });
   if(map.getSource('nearc'))map.removeSource('nearc');
 }
+
+/* ====================================================================
+   起動ビュー（ローカル起点）— Googleマップ式に「近所のリアル地図」で開く。
+   ・地点リンク #@lat,lng[,radius] → その場所のローカル（共有/検証に便利）
+   ・種リンク #id → 従来どおりその種を開く（SEO/シェア流入を壊さない）
+   ・それ以外 → 現在地ローカル。前回の場所があれば即表示（待ち時間ゼロ・再プロンプトしない）。
+     取得不可/拒否/無反応は「世界ヒートマップ＋場所選択」へ滑らかにフォールバック（クラッシュしない）。
+   地球儀（世界を見る）は ⌂ ボタンで1タップ復帰＝二番手モードとして温存。
+   ==================================================================== */
+const LS_LASTLOC='biosphere_lastloc', LS_LOCALHINT='biosphere_localhint';
+function saveLastLoc(lat,lng,radius){ try{ localStorage.setItem(LS_LASTLOC,JSON.stringify({lat,lng,radius})); }catch(e){} }
+function getLastLoc(){ try{ const o=JSON.parse(localStorage.getItem(LS_LASTLOC)||'null'); return (o&&typeof o.lat==='number'&&typeof o.lng==='number')?o:null; }catch(e){ return null; } }
+function bootInitialView(){
+  const h=location.hash.replace('#','');
+  // 地点ディープリンク：#@lat,lng[,radius]（例 #@35.68,139.76 や #@35.68,139.76,5）
+  const m=h.match(/^@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)(?:,(\d+))?$/);
+  if(m){ stopSpin(); setNearPin(+m[1],+m[2],'指定地点',+m[3]||NEAR_DEFAULT_R); return; }
+  // 種ディープリンク：#id（従来挙動）
+  if(h && ANIMALS.some(a=>a.id===h)){ selectAnimal(h); return; }
+  // 既定：現在地ローカルで開く
+  startLocalBoot();
+}
+function startLocalBoot(){
+  stopSpin();
+  const last=getLastLoc();
+  // 返ってきた人：前回の場所を即表示（GPS待ちゼロ・プライバシー配慮で再プロンプトしない）。
+  if(last){
+    setNearPin(last.lat,last.lng,'前回の場所',last.radius||NEAR_DEFAULT_R);
+    toast('📍','前回の場所を表示中。📍で現在地に更新／⌂で世界全体（地球儀）へ。',3800);
+    return;
+  }
+  // 初回：現在地を取得して近所で開く（Googleマップ式）。
+  if(!('geolocation' in navigator)){ bootFallback('お使いの環境では現在地を取得できません。'); return; }
+  renderNearShell('近くの生き物','<div class="nearsum">現在地を確認しています…<br><span style="color:#9fb0bd">ブラウザの確認ダイアログで「許可」を選ぶと、近所の生き物が見られます。</span></div>'); openPanel();
+  let settled=false;
+  const finish=fn=>{ if(settled)return; settled=true; fn(); };   // 二重発火を防止（成功/失敗/監視タイマーの競合）
+  navigator.geolocation.getCurrentPosition(
+    pos=>finish(()=>{ setNearPin(pos.coords.latitude,pos.coords.longitude,'現在地',NEAR_DEFAULT_R); localBootHint(); }),
+    err=>finish(()=>bootFallback(err&&err.code===1?'位置情報の利用が許可されませんでした。':'現在地を取得できませんでした。')),
+    {enableHighAccuracy:false,timeout:8000,maximumAge:300000});
+  // 監視タイマー：ダイアログ無反応や環境差でコールバックが来ない場合も必ずフォールバック（ヘッドレス検証も固まらない）
+  setTimeout(()=>finish(()=>bootFallback('現在地の確認に時間がかかっています。')),9000);
+}
+// 現在地が無い/拒否時：世界ぜんたいの分布ヒートマップを見せつつ、場所を選んでローカルへ入れる。
+function bootFallback(msg){ drawOverview(); nearbyFallback(msg); }
+// 初回ローカル成功時のヒント（地球儀へ戻れることの発見性。一度きり）。
+function localBootHint(){ if(localStorage.getItem(LS_LOCALHINT))return; try{localStorage.setItem(LS_LOCALHINT,'1');}catch(e){} toast('🌐','あなたの近くの生き物。⌂で世界全体（地球儀）へもどれます。',4000); }
 
