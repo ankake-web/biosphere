@@ -19,8 +19,9 @@ const ANIMALS = species.animals;
 ANIMALS.forEach((a, i) => a.no = i + 1);
 const PHOTO_CRED = species.photoCred;
 
-// --- 小辞書は index.html から抽出（実行時データと単一ソースを共有） ---
-const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+// --- 小辞書は js/data.js から抽出（実行時データと単一ソースを共有） ---
+// ※リファクタで RARITY/BIOMES/CC/POP/TREND/CLASS/clsOrder/THREAT_OVR は index.html から js/data.js へ移動。
+const html = fs.readFileSync(path.join(ROOT, 'js/data.js'), 'utf8');
 function grab(re, label) { const m = html.match(re); if (!m) { throw new Error('抽出失敗: ' + label); } return m[1]; }
 const RARITY = eval('(' + grab(/const RARITY = (\{[\s\S]*?\});/, 'RARITY') + ')');
 const BIOMES = eval('(' + grab(/const BIOMES = (\{[\s\S]*?\});/, 'BIOMES') + ')');
