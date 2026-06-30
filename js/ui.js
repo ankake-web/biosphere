@@ -178,7 +178,7 @@ function gbifCacheGet(a2){ try{ const o=JSON.parse(localStorage.getItem(LS_GBIF+
 function gbifCacheSet(a2,c){ try{ localStorage.setItem(LS_GBIF+a2,JSON.stringify({t:Date.now(),c})); }catch(e){} }
 function renderLocalSpecies(el,counts,a2){
   el.innerHTML=counts.map(c=>{const disp=c.name.split(' ').slice(0,2).join(' ');
-    return `<a class="locrow" target="_blank" rel="noopener" href="https://www.gbif.org/occurrence/search?country=${a2}&q=${encodeURIComponent(c.name)}"><span class="locav" data-sci="${encodeURIComponent(disp)}">🐾</span><span class="ln2">${disp}</span><span class="cnt2">${fmtN(c.count)}件 ↗</span></a>`;}).join('');
+    return `<a class="locrow" target="_blank" rel="noopener" href="https://www.gbif.org/occurrence/search?country=${a2}&q=${encodeURIComponent(c.name)}"><span class="locav" data-sci="${encodeURIComponent(disp)}">🐾</span><span class="ln2">${esc(disp)}</span><span class="cnt2">${fmtN(c.count)}件 ↗</span></a>`;}).join('');
   // iNaturalistから実写真サムネを後追いで挿入
   el.querySelectorAll('.locav').forEach(async av=>{
     try{ const sci=decodeURIComponent(av.dataset.sci);
@@ -334,8 +334,12 @@ function openRedlist(status, id){
   $('#redlist').removeAttribute('hidden');
 }
 function closeRedlist(){ $('#redlist').setAttribute('hidden',''); }
-function filterStatus(code){ const fs=$('#facetSel'); filterState.facet='status:'+code; if(fs)fs.value='status:'+code; applyFilters(); closeRedlist(); toast('🔎',(RL[code]?RL[code].jp.split('（')[0]:code)+'でしぼりました',1900); }
-function filterThreat(){ const fs=$('#facetSel'); filterState.facet='threat:1'; if(fs)fs.value='threat:1'; applyFilters(); closeRedlist(); toast('⚠','絶滅危惧（CR・EN・VU）でしぼりました',2000); }
+// モバイルで図鑑ドックが畳まれたまま絞り込むと「絞ったのに何も見えない」になるため、ドックを開きチップを構築してから適用する。
+function ensureCatalogVisible(){ if(!matchMedia('(max-width:640px)').matches) return;
+  const d=$('#dock'); if(d&&!d.classList.contains('open')){ d.classList.add('open'); const t=$('#dockToggle'); if(t)t.setAttribute('aria-expanded','true'); }
+  if(typeof buildChips==='function') buildChips(); }
+function filterStatus(code){ const fs=$('#facetSel'); filterState.facet='status:'+code; if(fs)fs.value='status:'+code; ensureCatalogVisible(); applyFilters(); closeRedlist(); toast('🔎',(RL[code]?RL[code].jp.split('（')[0]:code)+'でしぼりました',1900); }
+function filterThreat(){ const fs=$('#facetSel'); filterState.facet='threat:1'; if(fs)fs.value='threat:1'; ensureCatalogVisible(); applyFilters(); closeRedlist(); toast('⚠','絶滅危惧（CR・EN・VU）でしぼりました',2000); }
 window.closePanel=closePanel; window.showCountry=showCountry; window.selectAnimal=selectAnimal;
 window.flyCountry=flyCountry; window.shareAnimal=shareAnimal; window.closeAbout=closeAbout;
 window.openRedlist=openRedlist; window.closeRedlist=closeRedlist; window.filterStatus=filterStatus; window.filterThreat=filterThreat;

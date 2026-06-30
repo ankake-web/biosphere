@@ -33,7 +33,7 @@ $('#atlasBtn').addEventListener('click',()=>{ setAtlas(!atlasOn);
   toast(atlasOn?'🏔️':'🗺️', atlasOn?'アトラス表示：地形と地名で旅する':'ミニマル表示にもどしました',1900); });
 // 🏷️ 本物の地図トグル：OpenFreeMapのベクター基図（街路・鉄道・地名・地形／日本語優先）を手動ON/OFF。
 // 近く(ローカル)モードでは自動でONになる。setStyle不使用＝gbif/relief/near-me/countries は維持。
-$('#labelBtn').addEventListener('click',()=>{ const on=!localMapOn; setLocalBasemap(on);
+$('#labelBtn').addEventListener('click',()=>{ const on=!localMapOn; setLocalBasemap(on); localMapAutoOn=false;   // 手動操作＝以後、近く離脱の自動OFF対象から外す（ユーザー意思を尊重）
   toast('🗺️', on?'本物の地図：街路・鉄道・地名・地形（OpenFreeMap）':'ダーク基図にもどしました',2000); });
 // 分布3D（立体）トグル：fill-extrusionはglobeでは描画されないため、3D中は自動で平面(mercator)＋傾きにし、
 // OFFで地球儀に復帰。地球儀を主役に保ちつつ「立体で詳しく見る」没入オプションとして提供。
@@ -62,4 +62,7 @@ $('#dockToggle').addEventListener('click',()=>{ const d=$('#dock'), open=d.class
 function setMode(t){ $('#modetext').textContent=t; }
 let toastT; function toast(e,msg,ms=2600){const t=$('#toast');t.innerHTML=`<span class="e">${e}</span>${msg}`;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms);}
 function bootFail(msg){$('#boot').innerHTML=`<div class="bootwrap"><div style="font-size:40px">📡</div><div class="bt" style="margin-top:14px">読み込みエラー</div><div class="bs" style="max-width:280px;line-height:1.6">${msg}<br>ネット接続を確認して再読み込みしてください。</div></div>`;}
-document.addEventListener('keydown',(e)=>{ if(e.key==='Escape'){ closeRedlist(); closeAbout(); closePanel(); } });
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape'){ closeRedlist(); closeAbout(); closePanel();
+  const g=$('#moregroup'); if(g&&g.classList.contains('open')){ g.classList.remove('open'); const b=$('#moreBtn'); if(b){b.setAttribute('aria-expanded','false');b.focus();} } } });
+// モバイル幅で起動→デスクトップ幅へリサイズ/回転した際、図鑑チップが空のまま操作不能にならないよう建て直す安全網（chipsBuiltガードで多重構築なし）
+addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuilt && typeof buildChips==='function' && !matchMedia('(max-width:640px)').matches) buildChips(); },{passive:true});

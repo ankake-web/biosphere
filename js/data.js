@@ -164,6 +164,10 @@ function gbifTileURL(taxonKey, year){
 
 /* ===================================================================== */
 const $=(s)=>document.querySelector(s);
+// 外部API文字列(GBIF種名/iNat和名・帰属/写真URL等)を innerHTML に補間する前のエスケープ。
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// インラインonclick等に学名を埋める用：学名として妥当な文字だけ許可（引用符/不等号/バックスラッシュを排除＝注入不可）。
+function sciKey(s){ return String(s==null?'':s).replace(/[^A-Za-z0-9 .×·'\-]/g,'').replace(/'/g,''); }
 let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true, A3toA2={};
 let gbifOn=true, currentAnimal=null, currentMode={type:'overview'};
 let atlasOn=false;   // アトラス表示（地形relief）のON/OFF。スタイルは入れ替えず重畳トグル

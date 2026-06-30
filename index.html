@@ -462,8 +462,8 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   .moregroup{position:fixed;top:64px;right:12px;flex-direction:column;background:var(--glass-strong);
     border:1px solid var(--line);border-radius:16px;padding:9px;gap:9px;box-shadow:var(--shadow);
     backdrop-filter:blur(16px);z-index:25;opacity:0;transform:translateY(-8px) scale(.97);
-    pointer-events:none;transition:opacity .18s,transform .18s;}
-  .moregroup.open{opacity:1;transform:none;pointer-events:auto;}
+    visibility:hidden;pointer-events:none;transition:opacity .18s,transform .18s;}   /* 折りたたみ時はフォーカス/SR対象から除外 */
+  .moregroup.open{opacity:1;transform:none;visibility:visible;pointer-events:auto;}
   /* 図鑑ドックは既定で畳む＝初期画面は「地図＋生き物＋最小操作」。ハンドルで開閉 */
   .dock{padding:8px 12px calc(10px + env(safe-area-inset-bottom));gap:8px;}
   .dockhandle{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
@@ -508,7 +508,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
     <button class="tbtn near" id="nearBtn" title="近くにいる生き物を探す">📍</button>
     <button class="tbtn" id="exploreBtn" title="ランダムに1種へ旅する">🎲</button>
     <button class="tbtn" id="homeBtn" title="世界全体（地球儀）にもどる">⌂</button>
-    <button class="tbtn more" id="moreBtn" aria-label="そのほかの操作" aria-expanded="false" title="そのほかの操作">⋯</button>
+    <button class="tbtn more" id="moreBtn" aria-label="そのほかの操作" aria-expanded="false" aria-controls="moregroup" title="そのほかの操作">⋯</button>
     <div class="moregroup" id="moregroup">
       <button class="tbtn gbif" id="gbifBtn" aria-pressed="true" title="GBIF実観測データの表示切替">🛰️</button>
       <button class="tbtn" id="globeBtn" aria-pressed="true" title="地球儀 / 平面 切替">🌐</button>

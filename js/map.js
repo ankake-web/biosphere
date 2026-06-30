@@ -60,6 +60,7 @@ map.on('sourcedata',(e)=>{ if(e.sourceId==='gbif' && map.getSource('gbif') && ma
    visibility で切替える。近く(ローカル)モードで自動ON＝本物の地図を主役の生き物の下に敷く。 */
 const OFM_STYLE='https://tiles.openfreemap.org/styles/liberty';
 let ofmLoaded=false, ofmLoading=null, ofmLayerIds=[], localMapOn=false;
+let localMapAutoOn=false;   // 近くモードが自動ONした基図か（手動🏷️ONはfalse）。離脱時の自動OFFを「自動分だけ」に限定する。
 function loadOFM(){
   if(ofmLoaded) return Promise.resolve(true);
   if(ofmLoading) return ofmLoading;
@@ -72,8 +73,10 @@ function loadOFM(){
     for(const layer of (st.layers||[])){
       if(map.getLayer(layer.id) || layer.source==='ne2_shaded') continue;
       const L=Object.assign({},layer);
+      // 追加時点で目的の可視状態に固定（ロード完了が遅れて localMapOn=false の時に一瞬可視になるちらつき/競合を排除）
+      L.layout=Object.assign({}, L.layout, {visibility: localMapOn?'visible':'none'});
       // 日本語ラベル優先（name:ja→現地→latin）。道路番号(ref)系はそのまま。
-      if(L.type==='symbol' && L.layout && L.layout['text-field'] && JSON.stringify(L.layout['text-field']).includes('name:latin')){
+      if(L.type==='symbol' && L.layout['text-field'] && JSON.stringify(L.layout['text-field']).includes('name:latin')){
         L.layout=Object.assign({},L.layout,{'text-field':['coalesce',['get','name:ja'],['get','name:nonlatin'],['get','name:latin'],['get','name']]});
       }
       try{ map.addLayer(L,anchor); ofmLayerIds.push(L.id); }catch(e){}

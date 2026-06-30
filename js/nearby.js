@@ -53,8 +53,11 @@ async function resolveSpeciesKey(sci){
   try{ const c=localStorage.getItem(LS_SKEY+sci); if(c)return c==='0'?null:+c; }catch(e){}
   return dedupe('skey:'+sci, async()=>{
     try{ const c=localStorage.getItem(LS_SKEY+sci); if(c)return c==='0'?null:+c; }catch(e){}
-    try{ const j=await (await fetch(`https://api.gbif.org/v1/species/match?name=${encodeURIComponent(sci)}`)).json();
-      const k=j.usageKey||j.speciesKey||0; try{localStorage.setItem(LS_SKEY+sci,String(k||0));}catch(e){} return k||null;
+    try{ const r=await fetch(`https://api.gbif.org/v1/species/match?name=${encodeURIComponent(sci)}`);
+      if(!r.ok) return null;                       // 429/5xx等の一過性失敗はキャッシュせず再訪で再試行（毒化防止）
+      const j=await r.json(); const k=j.usageKey||j.speciesKey||0;
+      try{localStorage.setItem(LS_SKEY+sci,String(k||0));}catch(e){}   // HTTP200のみ恒久キャッシュ（真の未マッチ matchType:NONE は k=0='0'＝正しい）
+      return k||null;
     }catch(e){ return null; }
   });
 }
@@ -66,10 +69,11 @@ async function resolveIucn(sci){
   const c=iucnGet(sci); if(c!==undefined) return c;
   return dedupe('iucn:'+sci, async()=>{
     const c0=iucnGet(sci); if(c0!==undefined) return c0;
-    const key=await resolveSpeciesKey(sci); if(!key){ iucnSet(sci,''); return ''; }
+    const key=await resolveSpeciesKey(sci); if(!key) return '';   // キー無し（真の未マッチ/一過性失敗）はIUCNをキャッシュしない（種キャッシュ側で再試行制御）
     try{ const r=await fetch(`https://api.gbif.org/v1/species/${key}/iucnRedListCategory`);
-      if(r.ok){ const j=await r.json(); const code=STMAP_I[j.category]||''; iucnSet(sci,code); return code; } }catch(e){}
-    iucnSet(sci,''); return '';
+      if(r.ok){ const j=await r.json(); const code=STMAP_I[j.category]||''; iucnSet(sci,code); return code; }   // 取得成功のみ恒久キャッシュ
+      if(r.status===404){ iucnSet(sci,''); return ''; } }catch(e){}   // 評価対象外＝確定的に無し（キャッシュ）
+    return '';   // 429/5xx/例外＝一過性なのでキャッシュせず一時値で返す（再訪で再試行＝毒化防止）
   });
 }
 // GBIF scientificName facet を二名に正規化＆統合（種に限定）
@@ -83,7 +87,7 @@ function mergeBinomials(counts){
 function renderNearShell(title,inner){
   panelSheet(true);   // 近くの一覧/詳細はモバイルで中間高さ＝上に地図＋生き物を見せる
   panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
-    <div class="cc-head"><div class="lbl">📍 あなたの近く</div><div class="cname">${title}</div></div>
+    <div class="cc-head"><div class="lbl">📍 あなたの近く</div><div class="cname">${esc(title)}</div></div>
     <div class="nearbody">${inner}</div>`;
 }
 function openNearby(){
@@ -111,7 +115,7 @@ function setNearPin(latRaw,lngRaw,label,radius){
   currentMode={type:'near',lat,lng};
   setMode('📍 '+nearState.label+'の近くの生き物'); showYearbar(false);
   removeNearPoints(); nearClass=''; nearThreatOnly=false;
-  setLocalBasemap(true);   // 近く＝本物の地図（OpenFreeMap：街路/鉄道/地名/地形）を自動ON
+  setLocalBasemap(true); localMapAutoOn=true;   // 近く＝本物の地図（OpenFreeMap）を自動ON（離脱時に自動分だけ戻す）
   drawNearVisuals(lat,lng,nearState.radius);
   stopSpin(); map.flyTo({center:[lng,lat],zoom:ZOOM_BY_R[nearState.radius]||9,speed:.9,curve:1.4,essential:true});
   queryNear();
@@ -168,9 +172,9 @@ function renderNearList(overrideInner){
   if(overrideInner){ renderNearShell(nearState.label+'の近く', controls+overrideInner); openPanel(); return; }
   const rows=nearRows.map((c,i)=>{const sci=c.name, e=encodeURIComponent(sci);
     const cat=ANIMALS.find(a=>(a.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===sci.toLowerCase());
-    return `<button class="locrow nearrow" data-sci="${sci}" data-cnt="${c.count}" data-i="${i}" onclick="openNearDetail(this)">
+    return `<button class="locrow nearrow" data-sci="${esc(sci)}" data-cnt="${c.count}" data-i="${i}" onclick="openNearDetail(this)">
       <span class="locav" data-sci="${e}">🐾</span>
-      <span class="ln2"><b class="nja">${c.ja||'…'}</b><span class="nsci">${sci}</span></span>
+      <span class="ln2"><b class="nja">${esc(c.ja||'…')}</b><span class="nsci">${esc(sci)}</span></span>
       ${cat?'<span class="catbadge" title="図鑑に収録">📖</span>':''}
       <span class="cnt2">${fmtN(c.count)}件</span></button>`;}).join('');
   renderNearShell(nearState.label+'の近く',
@@ -229,14 +233,14 @@ function openNearDetail(btn){
     panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
       <button class="nbback" onclick="backToNear()">← 近くの一覧へ</button>
       <div class="nd">
-        ${v.ph?`<img class="ndimg" src="${v.ph.replace('/square.','/medium.')}" alt="" onerror="this.src='${v.ph}'">`:'<div class="ndimg ndnoimg">🐾</div>'}
-        ${v.at?`<div class="ndcred">📷 ${v.at}（iNaturalist）</div>`:''}
-        <div class="ndja">${v.ja||'（和名なし）'}</div>
-        <div class="ndsci">${sci}</div>
+        ${v.ph?`<img class="ndimg" src="${esc(v.ph.replace('/square.','/medium.'))}" alt="" onerror="this.src='${esc(v.ph)}'">`:'<div class="ndimg ndnoimg">🐾</div>'}
+        ${v.at?`<div class="ndcred">📷 ${esc(v.at)}（iNaturalist）</div>`:''}
+        <div class="ndja">${esc(v.ja||'（和名なし）')}</div>
+        <div class="ndsci">${esc(sci)}</div>
         <div class="ndtags">${cls?`<span class="ndtag">${cls}</span>`:''}<span class="ndtag">この範囲で ${fmtN(cnt)}件</span><span id="ndstatus"></span></div>
         <div class="ndsec"><div class="ndsech">📅 観察が多い月（出会いやすさの目安）</div><div id="seasonwrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
-        <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sci.replace(/'/g,'')}',this)">📍 観測スポットを地図に表示</button>
-        <button class="nbtn wide" onclick="shareSpeciesCard('${sci.replace(/'/g,'')}',this)">📤 この種をシェア</button>
+        <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sciKey(sci)}',this)">📍 観測スポットを地図に表示</button>
+        <button class="nbtn wide" onclick="shareSpeciesCard('${sciKey(sci)}',this)">📤 この種をシェア</button>
         <p class="ndnote">あなたの範囲（半径${nearState?nearState.radius:''}km）でGBIFに記録された生き物です。出会えるかは季節・時間帯によります。写真は iNaturalist（CC）。</p>
         <a class="cta" target="_blank" rel="noopener" href="https://www.inaturalist.org/taxa/search?q=${encodeURIComponent(sci)}">iNaturalistで詳しく見る ↗</a><br>
         <a class="ndlink" target="_blank" rel="noopener" href="https://www.gbif.org/species/search?q=${encodeURIComponent(sci)}">GBIFで記録を見る ↗</a>
@@ -350,6 +354,7 @@ function loadNearCreatures(lat,lng,radius){
 }
 function spawnCreatures(list){
   if(!mapReady) return; removeCreatures();
+  const myKey=creaturesKey;   // この生成バッチの世代。地点/半径を切替えたら古いバッチの後処理はスキップ。
   list.forEach((it,idx)=>{
     const el=document.createElement('div'); el.className='cmk-wrap';
     const bub=document.createElement('div'); bub.className='cmk'; bub.style.setProperty('--d',(idx*55)+'ms'); bub.textContent=classEmoji(it.cls);
@@ -357,11 +362,12 @@ function spawnCreatures(list){
     el.addEventListener('click',(e)=>{ e.stopPropagation(); openCreature(it.sci,it.n); });
     let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(it.c).addTo(map); }catch(e){ return; }
     creatureMarkers.push(mk);
-    // 写真サムネに差し替え（iNat・キャッシュ/throttle 共有）
-    inatEnqueue(async()=>{ const v=await inatResolve(it.sci);
+    // 写真サムネに差し替え（iNat・キャッシュ/throttle 共有）。鮮度ガード＝古い世代/撤去済みマーカーは何もしない。
+    inatEnqueue(async()=>{ if(creaturesKey!==myKey||!bub.isConnected) return; const v=await inatResolve(it.sci);
+      if(creaturesKey!==myKey||!bub.isConnected) return;
       if(v&&v.ph&&!bub.querySelector('img')){ const img=document.createElement('img'); img.src=v.ph; img.alt=''; img.onload=()=>img.classList.add('on'); bub.appendChild(img); } });
     // 近くの絶滅危惧種を強調（「近所にコレ!?」）
-    resolveIucn(it.sci).then(code=>{ if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); } });
+    resolveIucn(it.sci).then(code=>{ if(creaturesKey!==myKey||!bub.isConnected) return; if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); } });
   });
 }
 function openCreature(sci,cnt){
@@ -371,7 +377,7 @@ function openCreature(sci,cnt){
 function removeNearbyVisuals(){
   nearPick=false; nearClass='';
   clearTimeout(nearTimer); clearTimeout(creatureTimer);   // 近くを離れる際は保留中の周辺/生き物クエリも取消（無駄なAPI呼出・リーク防止）
-  setLocalBasemap(false);   // 近くを離れる＝暗いダーク基図にもどす（分布メッシュが映える）
+  if(localMapAutoOn){ setLocalBasemap(false); localMapAutoOn=false; }   // 自動ONした基図だけ戻す（手動🏷️ONは温存）
   removeCreatures();        // 生き物マーカーも撤去
   if(nearMarker){ try{nearMarker.remove();}catch(e){} nearMarker=null; }
   if(!mapReady)return;
@@ -395,7 +401,8 @@ function bootInitialView(){
   const h=location.hash.replace('#','');
   // 地点ディープリンク：#@lat,lng[,radius]（例 #@35.68,139.76 や #@35.68,139.76,5）
   const m=h.match(/^@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)(?:,(\d+))?$/);
-  if(m){ stopSpin(); setNearPin(+m[1],+m[2],'指定地点',+m[3]||NEAR_DEFAULT_R); return; }
+  if(m){ const la=+m[1], lo=+m[2];   // 共有/改ざんリンクの不正座標はローカル起動へフォールバック（flyToへ流さない）
+    if(la>=-90&&la<=90&&lo>=-180&&lo<=180){ stopSpin(); setNearPin(la,lo,'指定地点', NEAR_RADII.includes(+m[3])?+m[3]:NEAR_DEFAULT_R); return; } }
   // 種ディープリンク：#id（ANIMALSが必要なので種データ到着を待つ。無い種ならローカルへフォールバック）
   if(h){ __speciesReady.then(()=>{ if(ANIMALS.some(a=>a.id===h)) selectAnimal(h); else startLocalBoot(); }); return; }
   // 既定：現在地ローカルで開く（種データを待たず即）
