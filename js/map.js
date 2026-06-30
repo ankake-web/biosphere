@@ -45,12 +45,10 @@ map.on('load', async ()=>{
   $('#boot').classList.add('gone');   // 地図シェルを先に表示（種データは待たない＝初回ロード短縮）
   if(LOW_MOTION) spinning=false;   // 低モーション/通信節約時は自動回転しない
   spinLoop();
-  // 種データ到着後：コンプ率を反映し、起動ビューを決定（地点/種リンク → なければ現在地ローカル）。
-  // この .then は map.on('load') 内で登録＝必ず mapReady 確定後に走るため setNearPin(flyTo) が安全。
-  __speciesReady.then(()=>{
-    updateDex();
-    bootInitialView();
-  });
+  // ★起動ビューは地図準備でき次第すぐ実行（種データ1.9MBの到着を待たない＝近所の地図と生き物が速く出る）。
+  //   近所/地点リンクは ANIMALS 不要で即開始。種ディープリンク(#id)だけ bootInitialView 内で __speciesReady を待つ。
+  bootInitialView();
+  __speciesReady.then(updateDex);   // 種データ到着で図鑑コンプ率（n/総数）を反映
 });
 // GBIFタイルの読み込み完了/失敗を検知してスピナーを止める（失敗しても図鑑カードは常に表示される）
 map.on('error',(e)=>{ if(e && e.sourceId==='gbif') gbifLoading(false); });
@@ -68,10 +66,11 @@ function loadOFM(){
   ofmLoading = fetch(OFM_STYLE).then(r=>{ if(!r.ok) throw new Error('OFM '+r.status); return r.json(); }).then(st=>{
     try{ if(map.setGlyphs && st.glyphs) map.setGlyphs(st.glyphs); }catch(e){}   // 配信側ハッシュ変更にも追従（任意）
     try{ if(map.setSprite && st.sprite) map.setSprite(st.sprite); }catch(e){}
-    for(const [id,src] of Object.entries(st.sources||{})){ if(!map.getSource(id)){ try{ map.addSource(id,src); }catch(e){} } }
+    // ne2_shaded（地形ラスタ）は重い（巨大PNG）＆🏔️relief と重複するので読み込まない＝軽量化。
+    for(const [id,src] of Object.entries(st.sources||{})){ if(id==='ne2_shaded') continue; if(!map.getSource(id)){ try{ map.addSource(id,src); }catch(e){} } }
     const anchor=['relief','c-fill','c-glow','c-active'].find(id=>map.getLayer(id));   // 既存カスタム層の直下へ
     for(const layer of (st.layers||[])){
-      if(map.getLayer(layer.id)) continue;
+      if(map.getLayer(layer.id) || layer.source==='ne2_shaded') continue;
       const L=Object.assign({},layer);
       // 日本語ラベル優先（name:ja→現地→latin）。道路番号(ref)系はそのまま。
       if(L.type==='symbol' && L.layout && L.layout['text-field'] && JSON.stringify(L.layout['text-field']).includes('name:latin')){
@@ -208,7 +207,8 @@ function drawOverview(){
   const count={}; ANIMALS.forEach(a=>a.range.forEach(c=>count[c]=(count[c]||0)+1));
   const max=Math.max(1,...Object.values(count)); const pairs=[];
   Object.entries(count).forEach(([c,n])=>pairs.push(c,heatColor(n/max)));
-  setFill(['match',['get',CODE_PROP],...pairs,'rgba(0,0,0,0)']); clearActive();
+  // pairs が空（種データ未到着）なら 'match' はペア無しで無効式になるため透明塗りにフォールバック
+  setFill(pairs.length ? ['match',['get',CODE_PROP],...pairs,'rgba(0,0,0,0)'] : 'rgba(0,0,0,0)'); clearActive();
   setMode('世界ぜんたいの分布ヒートマップ');
 }
 function heatColor(t){

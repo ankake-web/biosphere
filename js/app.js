@@ -55,8 +55,9 @@ $('#moreBtn').addEventListener('click',(e)=>{ e.stopPropagation();
   const g=$('#moregroup'), open=g.classList.toggle('open'); $('#moreBtn').setAttribute('aria-expanded',String(open)); });
 $('#moregroup').addEventListener('click',()=>{ $('#moregroup').classList.remove('open'); $('#moreBtn').setAttribute('aria-expanded','false'); });
 document.addEventListener('click',()=>{ const g=$('#moregroup'); if(g&&g.classList.contains('open')){ g.classList.remove('open'); $('#moreBtn').setAttribute('aria-expanded','false'); } });
-// モバイル：いきもの図鑑ドックの開閉（初期は畳む＝地図＋生き物を主役に）
-$('#dockToggle').addEventListener('click',()=>{ const d=$('#dock'), open=d.classList.toggle('open'); $('#dockToggle').setAttribute('aria-expanded',String(open)); });
+// モバイル：いきもの図鑑ドックの開閉（初期は畳む＝地図＋生き物を主役に）。初回オープン時に図鑑チップを遅延構築。
+$('#dockToggle').addEventListener('click',()=>{ const d=$('#dock'), open=d.classList.toggle('open'); $('#dockToggle').setAttribute('aria-expanded',String(open));
+  if(open && typeof buildChips==='function') buildChips(); });
 
 function setMode(t){ $('#modetext').textContent=t; }
 let toastT; function toast(e,msg,ms=2600){const t=$('#toast');t.innerHTML=`<span class="e">${e}</span>${msg}`;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms);}

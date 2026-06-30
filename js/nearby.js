@@ -27,26 +27,36 @@ function nearCacheSet(k,c){ try{localStorage.setItem(LS_NEAR+k,JSON.stringify({t
 let inatQueue=[], inatBusy=0;
 function inatEnqueue(fn){ inatQueue.push(fn); pumpInat(); }
 function pumpInat(){ while(inatBusy<3 && inatQueue.length){ const fn=inatQueue.shift(); inatBusy++; Promise.resolve(fn()).catch(()=>{}).finally(()=>{ inatBusy--; setTimeout(pumpInat,120); }); } }
+// 同一種の同時解決を1本にまとめる（一覧と生き物マーカーで同じ種を二重取得しない＝リクエスト数を削減）。
+const _inflight={};
+function dedupe(key,fn){ if(_inflight[key]) return _inflight[key];
+  const p=Promise.resolve().then(fn).finally(()=>{ delete _inflight[key]; }); _inflight[key]=p; return p; }
 async function inatResolve(sci){
   const c=inatGet(sci); if(c) return c;
-  for(let i=0;i<3;i++){
-    try{
-      const r=await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(sci)}&rank=species&per_page=1&locale=ja`);
-      if(r.status===429){ await new Promise(s=>setTimeout(s,1500*(i+1))); continue; }
-      const d=await r.json(), x=d.results&&d.results[0], dp=x&&x.default_photo;
-      const at=(dp&&dp.attribution||'').replace(/<[^>]*>/g,'').replace(/\(c\)/gi,'©');
-      const v=x?{ja:x.preferred_common_name||'',ph:(dp&&dp.square_url)||'',ic:x.iconic_taxon_name||'',st:(x.conservation_status&&x.conservation_status.status_name)||'',at}:{ja:'',ph:'',ic:'',st:'',at:''};
-      inatSet(sci,v); return v;
-    }catch(e){ await new Promise(s=>setTimeout(s,600)); }
-  }
-  return {ja:'',ph:'',ic:'',st:'',at:''};
+  return dedupe('inat:'+sci, async()=>{
+    const c0=inatGet(sci); if(c0) return c0;
+    for(let i=0;i<3;i++){
+      try{
+        const r=await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(sci)}&rank=species&per_page=1&locale=ja`);
+        if(r.status===429){ await new Promise(s=>setTimeout(s,1500*(i+1))); continue; }
+        const d=await r.json(), x=d.results&&d.results[0], dp=x&&x.default_photo;
+        const at=(dp&&dp.attribution||'').replace(/<[^>]*>/g,'').replace(/\(c\)/gi,'©');
+        const v=x?{ja:x.preferred_common_name||'',ph:(dp&&dp.square_url)||'',ic:x.iconic_taxon_name||'',st:(x.conservation_status&&x.conservation_status.status_name)||'',at}:{ja:'',ph:'',ic:'',st:'',at:''};
+        inatSet(sci,v); return v;
+      }catch(e){ await new Promise(s=>setTimeout(s,600)); }
+    }
+    return {ja:'',ph:'',ic:'',st:'',at:''};
+  });
 }
 // GBIF種キー解決（species/match、localStorageキャッシュ）＝月別/観測点に使用
 async function resolveSpeciesKey(sci){
   try{ const c=localStorage.getItem(LS_SKEY+sci); if(c)return c==='0'?null:+c; }catch(e){}
-  try{ const j=await (await fetch(`https://api.gbif.org/v1/species/match?name=${encodeURIComponent(sci)}`)).json();
-    const k=j.usageKey||j.speciesKey||0; try{localStorage.setItem(LS_SKEY+sci,String(k||0));}catch(e){} return k||null;
-  }catch(e){ return null; }
+  return dedupe('skey:'+sci, async()=>{
+    try{ const c=localStorage.getItem(LS_SKEY+sci); if(c)return c==='0'?null:+c; }catch(e){}
+    try{ const j=await (await fetch(`https://api.gbif.org/v1/species/match?name=${encodeURIComponent(sci)}`)).json();
+      const k=j.usageKey||j.speciesKey||0; try{localStorage.setItem(LS_SKEY+sci,String(k||0));}catch(e){} return k||null;
+    }catch(e){ return null; }
+  });
 }
 // 保全状況（IUCNカテゴリ）を GBIF から直接取得（IUCN APIの商用制約を回避）。RARITYコードへ写像しキャッシュ。
 const STMAP_I={LEAST_CONCERN:'LC',NEAR_THREATENED:'NT',VULNERABLE:'VU',ENDANGERED:'EN',CRITICALLY_ENDANGERED:'CR',DATA_DEFICIENT:'DD',NOT_EVALUATED:'NE',EXTINCT_IN_THE_WILD:'EW',EXTINCT:'EX'};
@@ -54,10 +64,13 @@ function iucnGet(s){ try{const v=localStorage.getItem(LS_IUCN+s); return v===nul
 function iucnSet(s,v){ try{localStorage.setItem(LS_IUCN+s,v);}catch(e){} }
 async function resolveIucn(sci){
   const c=iucnGet(sci); if(c!==undefined) return c;
-  const key=await resolveSpeciesKey(sci); if(!key){ iucnSet(sci,''); return ''; }
-  try{ const r=await fetch(`https://api.gbif.org/v1/species/${key}/iucnRedListCategory`);
-    if(r.ok){ const j=await r.json(); const code=STMAP_I[j.category]||''; iucnSet(sci,code); return code; } }catch(e){}
-  iucnSet(sci,''); return '';
+  return dedupe('iucn:'+sci, async()=>{
+    const c0=iucnGet(sci); if(c0!==undefined) return c0;
+    const key=await resolveSpeciesKey(sci); if(!key){ iucnSet(sci,''); return ''; }
+    try{ const r=await fetch(`https://api.gbif.org/v1/species/${key}/iucnRedListCategory`);
+      if(r.ok){ const j=await r.json(); const code=STMAP_I[j.category]||''; iucnSet(sci,code); return code; } }catch(e){}
+    iucnSet(sci,''); return '';
+  });
 }
 // GBIF scientificName facet を二名に正規化＆統合（種に限定）
 function mergeBinomials(counts){
@@ -319,7 +332,8 @@ function loadNearCreatures(lat,lng,radius){
   creatureTimer=setTimeout(async()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
     try{
-      const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=44&hasCoordinate=true&year=${y1},${y2}&limit=300`;
+      // limitは80に抑制（1レコード≈7KB。300だと約2MBを毎回取得して重い）。密な都市部なら80件で十分18種そろう。
+      const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=44&hasCoordinate=true&year=${y1},${y2}&limit=80`;
       const d=await (await fetch(url)).json();
       if(creaturesKey!==k || !currentMode || currentMode.type!=='near') return;   // 古い/別地点の応答は破棄
       const freq={}, coord={}, cls={};
@@ -356,6 +370,7 @@ function openCreature(sci,cnt){
 }
 function removeNearbyVisuals(){
   nearPick=false; nearClass='';
+  clearTimeout(nearTimer); clearTimeout(creatureTimer);   // 近くを離れる際は保留中の周辺/生き物クエリも取消（無駄なAPI呼出・リーク防止）
   setLocalBasemap(false);   // 近くを離れる＝暗いダーク基図にもどす（分布メッシュが映える）
   removeCreatures();        // 生き物マーカーも撤去
   if(nearMarker){ try{nearMarker.remove();}catch(e){} nearMarker=null; }
@@ -381,9 +396,9 @@ function bootInitialView(){
   // 地点ディープリンク：#@lat,lng[,radius]（例 #@35.68,139.76 や #@35.68,139.76,5）
   const m=h.match(/^@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)(?:,(\d+))?$/);
   if(m){ stopSpin(); setNearPin(+m[1],+m[2],'指定地点',+m[3]||NEAR_DEFAULT_R); return; }
-  // 種ディープリンク：#id（従来挙動）
-  if(h && ANIMALS.some(a=>a.id===h)){ selectAnimal(h); return; }
-  // 既定：現在地ローカルで開く
+  // 種ディープリンク：#id（ANIMALSが必要なので種データ到着を待つ。無い種ならローカルへフォールバック）
+  if(h){ __speciesReady.then(()=>{ if(ANIMALS.some(a=>a.id===h)) selectAnimal(h); else startLocalBoot(); }); return; }
+  // 既定：現在地ローカルで開く（種データを待たず即）
   startLocalBoot();
 }
 function startLocalBoot(){
@@ -407,8 +422,9 @@ function startLocalBoot(){
   // 監視タイマー：ダイアログ無反応や環境差でコールバックが来ない場合も必ずフォールバック（ヘッドレス検証も固まらない）
   setTimeout(()=>finish(()=>bootFallback('現在地の確認に時間がかかっています。')),9000);
 }
-// 現在地が無い/拒否時：世界ぜんたいの分布ヒートマップを見せつつ、場所を選んでローカルへ入れる。
-function bootFallback(msg){ drawOverview(); nearbyFallback(msg); }
+// 現在地が無い/拒否時：場所選択チップは即時、世界ヒートマップは種データ必須なので到着を待って描画
+// （★デカップリングで startLocalBoot が種データ前に走り得るため。空ANIMALSでの drawOverview を防ぐ）。
+function bootFallback(msg){ nearbyFallback(msg); __speciesReady.then(drawOverview); }
 // 初回ローカル成功時のヒント（地球儀へ戻れることの発見性。一度きり）。
 function localBootHint(){ if(localStorage.getItem(LS_LOCALHINT))return; try{localStorage.setItem(LS_LOCALHINT,'1');}catch(e){} toast('🌐','あなたの近くの生き物。⌂で世界全体（地球儀）へもどれます。',4000); }
 

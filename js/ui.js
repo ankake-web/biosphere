@@ -18,13 +18,21 @@ function makeChip(a,i){
   b.onclick=()=>selectAnimal(a.id);
   return b;
 }
+// 図鑑チップ（最大2506枚＝DOM約4万ノード）は重い。段階描画でもDOM/メモリ/スタイル再計算の負荷が大きいので、
+// モバイルでは「いきもの図鑑」ドックを開くまで構築を遅延する（buildChips）。デスクトップ（ドック常時表示）は即時。
+let chipsBuilt=false;
+function buildChips(){
+  if(chipsBuilt) return; chipsBuilt=true;
+  chipsEl.innerHTML='';   // スケルトン除去
+  let _i=0; const _N=ANIMALS.length, _FIRST=160, _CHUNK=160;
+  function _flush(end){ const f=document.createDocumentFragment(); for(;_i<end;_i++) f.appendChild(makeChip(ANIMALS[_i],_i)); chipsEl.appendChild(f); }
+  _flush(Math.min(_FIRST,_N));
+  (function _next(){ if(_i>=_N){ if(typeof applyFilters==='function') applyFilters();
+    // 段階構築の途中で並び替えを変えていた場合（または遅延構築時）に、現在の並び順を全チップへ反映
+    if(typeof sortChips==='function'){ const ss=document.querySelector('#sortSel'); sortChips(ss&&ss.value||'no'); }
+    return; } _flush(Math.min(_i+_CHUNK,_N)); setTimeout(_next,0); })();
+}
 function initCatalog(){
-chipsEl.innerHTML='';   // スケルトン除去
-// 段階描画：1135枚を一度に生成せず、先頭を即時・残りを setTimeout で分割（初回描画のブロックを回避）
-let _i=0; const _N=ANIMALS.length, _FIRST=160, _CHUNK=160;
-function _flush(end){ const f=document.createDocumentFragment(); for(;_i<end;_i++) f.appendChild(makeChip(ANIMALS[_i],_i)); chipsEl.appendChild(f); }
-_flush(Math.min(_FIRST,_N));
-(function _next(){ if(_i>=_N){ if(typeof applyFilters==='function') applyFilters(); return; } _flush(Math.min(_i+_CHUNK,_N)); setTimeout(_next,0); })();
 Object.keys(BIOMES).forEach(bm=>{
   const b=document.createElement('button');
   b.className='bm'; b.setAttribute('aria-pressed','false'); b.dataset.bm=bm;
@@ -40,6 +48,9 @@ const allBtn=document.createElement('button'); allBtn.className='bm'; allBtn.inn
   const h=document.createElement('button');h.type='button';h.className='lhelp';h.textContent='🛟 保全状況（IUCN）とは？';h.onclick=()=>openRedlist();legendEl.appendChild(h);
 })();
 buildSortFilter();
+// チップ本体：モバイルはドックを開くまで作らない（初期DOMを軽量化）。デスクトップは即時構築。
+if(matchMedia('(max-width:640px)').matches){ chipsEl.innerHTML=''; }
+else buildChips();
 } // initCatalog
 // 種データ到着後：採番 → 図鑑UI構築 → 「準備完了」を通知（地図側はこれを await して描画）
 __spData.then(d=>{ ANIMALS=d.animals; PHOTO_CRED=d.photoCred; ANIMALS.forEach((a,i)=>a.no=i+1); initCatalog(); __speciesDone(); })
