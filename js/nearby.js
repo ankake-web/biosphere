@@ -9,8 +9,13 @@ const NEAR_ICONIC={Aves:'鳥類',Mammalia:'哺乳類',Reptilia:'爬虫類',Amphi
 const NEAR_CLASSES=[['','すべて'],['Aves','🐦鳥'],['Mammalia','🦫哺乳'],['Reptilia','🦎爬虫'],['Amphibia','🐸両生'],['Fish','🐟魚']];
 const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_', LS_IUCN='biosphere_iucn_';
 const THREAT_CATS=new Set(['VU','EN','CR']);   // 絶滅危惧（Threatened）
+// 地図に「ふわっと」出す生き物マーカー（ポケGO風）。GBIF実観測点に種マーカー＝1種1個・上限で間引き。
+const CREATURE_MAX=18;
+const CLASS_EMOJI={Aves:'🐦',Mammalia:'🐾',Reptilia:'🦎',Amphibia:'🐸',Actinopterygii:'🐟',Chondrichthyes:'🦈',Insecta:'🐛',Arachnida:'🕷️',Mollusca:'🐚'};
+function classEmoji(cls){ return CLASS_EMOJI[cls]||'🐾'; }
 let nearState=null;                 // {lat,lng,radius,label}
 let nearMarker=null, nearPick=false, nearTimer=null, nearClass='', nearThreatOnly=false, nearRows=[], nearPtsOn=false;
+let creatureMarkers=[], creatureTimer=null, creaturesKey=null;
 function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
 function classMatch(ic){ if(!nearClass)return true; if(nearClass==='Fish')return ic==='Actinopterygii'||ic==='Chondrichthyes'; return ic===nearClass; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
@@ -96,12 +101,14 @@ function setNearPin(latRaw,lngRaw,label,radius){
   drawNearVisuals(lat,lng,nearState.radius);
   stopSpin(); map.flyTo({center:[lng,lat],zoom:ZOOM_BY_R[nearState.radius]||9,speed:.9,curve:1.4,essential:true});
   queryNear();
+  loadNearCreatures(lat,lng,nearState.radius);   // 地図に生き物がふわっと出現
   saveLastLoc(lat,lng,nearState.radius);   // 次回起動のフォールバック（前回の場所）に記録
 }
 function setNearRadius(r){ if(!nearState)return; nearState.radius=r; removeNearPoints();
   drawNearVisuals(nearState.lat,nearState.lng,r);
   map.flyTo({center:[nearState.lng,nearState.lat],zoom:ZOOM_BY_R[r]||9,speed:.8,curve:1.3,essential:true});
-  queryNear(); }
+  queryNear(); loadNearCreatures(nearState.lat,nearState.lng,r);
+  saveLastLoc(nearState.lat,nearState.lng,r); }
 function setNearClass(c){ nearClass=c; if(nearState) renderNearList(); }
 function armNearPick(){ nearPick=true; toast('📌','地図をタップすると、その地点に移動します',2400); }
 function recenterCurrent(){
@@ -299,9 +306,57 @@ async function toggleNearPoints(sci,btn){
     toast('📍',feats.length+'件の観測スポットを地図に表示しました',2400);
   }catch(e){ btn.textContent='📍 観測スポットを地図に表示'; toast('📍','観測点の取得に失敗しました',2000); }
 }
+/* ---------- 近くの生き物マーカー（ポケGO風・地図にふわっと出現）----------
+   GBIFの実観測点を1回取得→種ごとに代表座標へ集計→頻度順に上限18種だけ配置（多い時の間引き＝1種1マーカー）。
+   絵文字で即出現（有限CSSアニメ）→iNat写真サムネに差し替え／絶滅危惧はレア度カラーで発光。タップで詳細。
+   永続rAFは使わない（アニメはCSS有限）。 */
+function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); creatureMarkers=[]; }
+function loadNearCreatures(lat,lng,radius){
+  removeCreatures();
+  const k=nearKey(lat,lng,radius); creaturesKey=k;
+  clearTimeout(creatureTimer);
+  creatureTimer=setTimeout(async()=>{
+    const y2=new Date().getFullYear(), y1=y2-10;
+    try{
+      const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=44&hasCoordinate=true&year=${y1},${y2}&limit=300`;
+      const d=await (await fetch(url)).json();
+      if(creaturesKey!==k || !currentMode || currentMode.type!=='near') return;   // 古い/別地点の応答は破棄
+      const freq={}, coord={}, cls={};
+      (d.results||[]).forEach(o=>{
+        const sp=(o.species||'').trim(); if(!sp || o.decimalLatitude==null || o.decimalLongitude==null) return;
+        freq[sp]=(freq[sp]||0)+1;
+        if(!coord[sp]) coord[sp]=[o.decimalLongitude,o.decimalLatitude];   // その種の代表観測点
+        if(!cls[sp]) cls[sp]=o.class||'';
+      });
+      const top=Object.keys(freq).sort((a,b)=>freq[b]-freq[a]).slice(0,CREATURE_MAX);
+      spawnCreatures(top.map(sp=>({sci:sp,c:coord[sp],cls:cls[sp],n:freq[sp]})));
+    }catch(e){ /* 失敗は静かに（一覧・地図は維持） */ }
+  },260);
+}
+function spawnCreatures(list){
+  if(!mapReady) return; removeCreatures();
+  list.forEach((it,idx)=>{
+    const el=document.createElement('div'); el.className='cmk-wrap';
+    const bub=document.createElement('div'); bub.className='cmk'; bub.style.setProperty('--d',(idx*55)+'ms'); bub.textContent=classEmoji(it.cls);
+    el.appendChild(bub);
+    el.addEventListener('click',(e)=>{ e.stopPropagation(); openCreature(it.sci,it.n); });
+    let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(it.c).addTo(map); }catch(e){ return; }
+    creatureMarkers.push(mk);
+    // 写真サムネに差し替え（iNat・キャッシュ/throttle 共有）
+    inatEnqueue(async()=>{ const v=await inatResolve(it.sci);
+      if(v&&v.ph&&!bub.querySelector('img')){ const img=document.createElement('img'); img.src=v.ph; img.alt=''; img.onload=()=>img.classList.add('on'); bub.appendChild(img); } });
+    // 近くの絶滅危惧種を強調（「近所にコレ!?」）
+    resolveIucn(it.sci).then(code=>{ if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); } });
+  });
+}
+function openCreature(sci,cnt){
+  const i=nearRows.findIndex(r=>(r.name||'').toLowerCase()===String(sci).toLowerCase());
+  openNearDetail({dataset:{sci:sci,cnt:String(cnt||0),i:String(i)}});   // 既存の近く詳細を流用（図鑑収録種なら種カードへ）
+}
 function removeNearbyVisuals(){
   nearPick=false; nearClass='';
   setLocalBasemap(false);   // 近くを離れる＝暗いダーク基図にもどす（分布メッシュが映える）
+  removeCreatures();        // 生き物マーカーも撤去
   if(nearMarker){ try{nearMarker.remove();}catch(e){} nearMarker=null; }
   if(!mapReady)return;
   removeNearPoints();
