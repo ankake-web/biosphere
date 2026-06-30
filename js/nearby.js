@@ -92,6 +92,7 @@ function setNearPin(latRaw,lngRaw,label,radius){
   currentMode={type:'near',lat,lng};
   setMode('📍 '+nearState.label+'の近くの生き物'); showYearbar(false);
   removeNearPoints(); nearClass=''; nearThreatOnly=false;
+  setLocalBasemap(true);   // 近く＝本物の地図（OpenFreeMap：街路/鉄道/地名/地形）を自動ON
   drawNearVisuals(lat,lng,nearState.radius);
   stopSpin(); map.flyTo({center:[lng,lat],zoom:ZOOM_BY_R[nearState.radius]||9,speed:.9,curve:1.4,essential:true});
   queryNear();
@@ -300,6 +301,7 @@ async function toggleNearPoints(sci,btn){
 }
 function removeNearbyVisuals(){
   nearPick=false; nearClass='';
+  setLocalBasemap(false);   // 近くを離れる＝暗いダーク基図にもどす（分布メッシュが映える）
   if(nearMarker){ try{nearMarker.remove();}catch(e){} nearMarker=null; }
   if(!mapReady)return;
   removeNearPoints();

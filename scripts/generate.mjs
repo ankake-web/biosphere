@@ -158,7 +158,7 @@ function aboutPage() {
 <li><b>分布データ</b>：<a href="https://www.gbif.org/">GBIF</a>（Global Biodiversity Information Facility）の実観測データ。</li>
 <li><b>保全状況・生息数のめやす</b>：<a href="https://www.iucnredlist.org/">IUCN レッドリスト</a> 等を参考に編集（数値は推定・出典年により幅があります）。</li>
 <li><b>写真</b>：<a href="https://commons.wikimedia.org/">Wikimedia Commons</a>。各写真の撮影者・ライセンスは各種ページに明記。</li>
-<li><b>ベースマップ</b>：<a href="https://carto.com/attributions">CARTO</a> Dark（© OpenStreetMap contributors © CARTO）。</li>
+<li><b>ベースマップ</b>：<a href="https://carto.com/attributions">CARTO</a> Dark（© OpenStreetMap contributors © CARTO）。<b>本物の地図（近くモード）</b>：<a href="https://openfreemap.org/">OpenFreeMap</a> Liberty（街路・鉄道・地名・地形のベクター地図／© OpenStreetMap contributors）。</li>
 <li><b>地形（アトラス表示）</b>：<a href="https://www.esri.com/">Esri</a> World Hillshade。</li>
 <li><b>国境</b>：<a href="https://www.naturalearthdata.com/">Natural Earth</a>（パブリックドメイン）。</li>
 <li><b>逆引きの実写真</b>：<a href="https://www.inaturalist.org/">iNaturalist</a>。<b>地図ライブラリ</b>：<a href="https://maplibre.org/">MapLibre GL JS</a>。</li>

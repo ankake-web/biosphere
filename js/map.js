@@ -1,6 +1,8 @@
 const map = window.map = new maplibregl.Map({
   container:'map',
   style:{version:8,
+    // フォント/アイコン（glyphs/sprite）は OFM 初回ロード時に setGlyphs/setSprite で注入＝
+    // 地球儀既定では一切読まない（OFMフリー）。MapLibre 5 は両APIを備える。
     sources:{carto:{type:'raster',
       tiles:['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png','https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png','https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png','https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'],
       tileSize:256, attribution:'© OpenStreetMap © CARTO'}},
@@ -35,13 +37,8 @@ map.on('load', async ()=>{
     map.addLayer({id:'relief',type:'raster',source:'relief',layout:{visibility:'none'},paint:{'raster-opacity':.22,'raster-saturation':-.4,'raster-brightness-max':.62,'raster-contrast':.12,'raster-fade-duration':300}},'c-fill');
   }catch(e){}
 
-  // 地名ラベル（アトラス）基図：CARTO Voyager（明色・地名ラベル付き＝サーバ側で各地の地名を描画）を🏷️でトグル。
-  // setStyle不使用＝既存の carto/relief/countries/gbif/near-me 層をすべて維持し、dark基図と visibility 切替するだけ。
-  try{
-    map.addSource('carto-atlas',{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png','https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png','https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png','https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap © CARTO'});
-    const baseBefore=map.getLayer('relief')?'relief':'c-fill';
-    map.addLayer({id:'carto-atlas',type:'raster',source:'carto-atlas',layout:{visibility:'none'},paint:{'raster-opacity':.95}},baseBefore);
-  }catch(e){}
+  // 「本物の地図」基図は OpenFreeMap（ベクター：街路/鉄道/地名/地形）に統一。🏷️ボタン＝手動トグル、
+  // 近く(ローカル)モードでは自動ON（loadOFM/setLocalBasemap）。setStyle不使用＝既存層を全維持。
 
   mapReady=true; bindMap();
   if(atlasOn) setAtlas(true);
@@ -58,6 +55,47 @@ map.on('load', async ()=>{
 // GBIFタイルの読み込み完了/失敗を検知してスピナーを止める（失敗しても図鑑カードは常に表示される）
 map.on('error',(e)=>{ if(e && e.sourceId==='gbif') gbifLoading(false); });
 map.on('sourcedata',(e)=>{ if(e.sourceId==='gbif' && map.getSource('gbif') && map.isSourceLoaded('gbif')) gbifLoading(false); });
+
+/* ---------- OpenFreeMap ベクター基図（街路/鉄道/地名/地形）----------
+   setStyle総入替は禁止（gbif/relief/near-me/countries 等のカスタム層が消える）。
+   実行中スタイルへ OFM の source/layer を「既存カスタム層の下」に注入し、暗いcarto基図と
+   visibility で切替える。近く(ローカル)モードで自動ON＝本物の地図を主役の生き物の下に敷く。 */
+const OFM_STYLE='https://tiles.openfreemap.org/styles/liberty';
+let ofmLoaded=false, ofmLoading=null, ofmLayerIds=[], localMapOn=false;
+function loadOFM(){
+  if(ofmLoaded) return Promise.resolve(true);
+  if(ofmLoading) return ofmLoading;
+  ofmLoading = fetch(OFM_STYLE).then(r=>{ if(!r.ok) throw new Error('OFM '+r.status); return r.json(); }).then(st=>{
+    try{ if(map.setGlyphs && st.glyphs) map.setGlyphs(st.glyphs); }catch(e){}   // 配信側ハッシュ変更にも追従（任意）
+    try{ if(map.setSprite && st.sprite) map.setSprite(st.sprite); }catch(e){}
+    for(const [id,src] of Object.entries(st.sources||{})){ if(!map.getSource(id)){ try{ map.addSource(id,src); }catch(e){} } }
+    const anchor=['relief','c-fill','c-glow','c-active'].find(id=>map.getLayer(id));   // 既存カスタム層の直下へ
+    for(const layer of (st.layers||[])){
+      if(map.getLayer(layer.id)) continue;
+      const L=Object.assign({},layer);
+      // 日本語ラベル優先（name:ja→現地→latin）。道路番号(ref)系はそのまま。
+      if(L.type==='symbol' && L.layout && L.layout['text-field'] && JSON.stringify(L.layout['text-field']).includes('name:latin')){
+        L.layout=Object.assign({},L.layout,{'text-field':['coalesce',['get','name:ja'],['get','name:nonlatin'],['get','name:latin'],['get','name']]});
+      }
+      try{ map.addLayer(L,anchor); ofmLayerIds.push(L.id); }catch(e){}
+    }
+    ofmLoaded=true; return true;
+  }).catch(e=>{ ofmLoading=null; console.warn('OFM load failed',e&&e.message); return false; });
+  return ofmLoading;
+}
+// OFMレイヤーと暗いcarto基図の表示を localMapOn に合わせて切替（OFM未ロード/失敗時は carto のまま＝安全）。
+function applyLocalBasemap(){
+  if(ofmLoaded){ const v=localMapOn?'visible':'none';
+    ofmLayerIds.forEach(id=>{ if(map.getLayer(id)) try{ map.setLayoutProperty(id,'visibility',v); }catch(e){} }); }
+  if(map.getLayer('carto')) map.setLayoutProperty('carto','visibility',(localMapOn&&ofmLoaded)?'none':'visible');
+  const b=$('#labelBtn'); if(b) b.setAttribute('aria-pressed',String(localMapOn));
+}
+function setLocalBasemap(on){
+  localMapOn=!!on;
+  if(!mapReady){ const b=$('#labelBtn'); if(b)b.setAttribute('aria-pressed',String(localMapOn)); return; }
+  if(localMapOn) loadOFM().then(applyLocalBasemap);   // 初回ON時のみ遅延ロード（地球儀既定では一切読まない）
+  else applyLocalBasemap();
+}
 
 /* ---------- 描画 ---------- */
 function setFill(expr){ if(mapReady) map.setPaintProperty('c-fill','fill-color',expr); }

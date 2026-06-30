@@ -31,16 +31,10 @@ function setAtlas(on){ atlasOn=on; if(mapReady && map.getLayer('relief')) map.se
   const b=$('#atlasBtn'); if(b)b.setAttribute('aria-pressed',String(on)); }
 $('#atlasBtn').addEventListener('click',()=>{ setAtlas(!atlasOn);
   toast(atlasOn?'🏔️':'🗺️', atlasOn?'アトラス表示：地形と地名で旅する':'ミニマル表示にもどしました',1900); });
-// 地名ラベル（アトラス）トグル：OpenFreeMapのベクター地名を日本語優先で表示。基図はラベルなしへ切替え重複回避。
-let atlasLabelsOn=false;
-function setAtlasLabels(on){
-  if(!mapReady)return; atlasLabelsOn=on;
-  if(map.getLayer('carto')) map.setLayoutProperty('carto','visibility',on?'none':'visible');
-  if(map.getLayer('carto-atlas')) map.setLayoutProperty('carto-atlas','visibility',on?'visible':'none');
-  const b=$('#labelBtn'); if(b) b.setAttribute('aria-pressed',String(on));
-}
-$('#labelBtn').addEventListener('click',()=>{ setAtlasLabels(!atlasLabelsOn);
-  toast('🏷️', atlasLabelsOn?'地名（アトラス）基図：明色・地名ラベル付き':'ダーク基図にもどしました',1800); });
+// 🏷️ 本物の地図トグル：OpenFreeMapのベクター基図（街路・鉄道・地名・地形／日本語優先）を手動ON/OFF。
+// 近く(ローカル)モードでは自動でONになる。setStyle不使用＝gbif/relief/near-me/countries は維持。
+$('#labelBtn').addEventListener('click',()=>{ const on=!localMapOn; setLocalBasemap(on);
+  toast('🗺️', on?'本物の地図：街路・鉄道・地名・地形（OpenFreeMap）':'ダーク基図にもどしました',2000); });
 // 分布3D（立体）トグル：fill-extrusionはglobeでは描画されないため、3D中は自動で平面(mercator)＋傾きにし、
 // OFFで地球儀に復帰。地球儀を主役に保ちつつ「立体で詳しく見る」没入オプションとして提供。
 function setDist3D(on){ dist3D=on; const b=$('#d3dBtn'); if(b)b.setAttribute('aria-pressed',String(on));
