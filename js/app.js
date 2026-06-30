@@ -50,6 +50,13 @@ $('#d3dBtn').addEventListener('click',()=>{
 $('#dex').addEventListener('click',()=>{ const t=ANIMALS.length,n=SEEN.size; toast(n>=t?'🏆':'🧭', n>=t?'図鑑コンプリート！全種を旅しました':`図鑑 ${n}/${t} 種を発見。🎲で続きを旅しよう`,2600); });
 $('#dex').addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#dex').click(); } });
 $('#aboutBtn').addEventListener('click',openAbout);
+// モバイル：⋯「そのほかの操作」メニュー（二次操作はここの奥へ）。項目選択/外側タップで閉じる。
+$('#moreBtn').addEventListener('click',(e)=>{ e.stopPropagation();
+  const g=$('#moregroup'), open=g.classList.toggle('open'); $('#moreBtn').setAttribute('aria-expanded',String(open)); });
+$('#moregroup').addEventListener('click',()=>{ $('#moregroup').classList.remove('open'); $('#moreBtn').setAttribute('aria-expanded','false'); });
+document.addEventListener('click',()=>{ const g=$('#moregroup'); if(g&&g.classList.contains('open')){ g.classList.remove('open'); $('#moreBtn').setAttribute('aria-expanded','false'); } });
+// モバイル：いきもの図鑑ドックの開閉（初期は畳む＝地図＋生き物を主役に）
+$('#dockToggle').addEventListener('click',()=>{ const d=$('#dock'), open=d.classList.toggle('open'); $('#dockToggle').setAttribute('aria-expanded',String(open)); });
 
 function setMode(t){ $('#modetext').textContent=t; }
 let toastT; function toast(e,msg,ms=2600){const t=$('#toast');t.innerHTML=`<span class="e">${e}</span>${msg}`;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms);}

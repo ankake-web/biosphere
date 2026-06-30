@@ -99,6 +99,11 @@ button{font-family:inherit;cursor:pointer;}
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:16;padding:34px 14px 14px;
   background:linear-gradient(0deg, rgba(7,11,17,.94) 0%, rgba(7,11,17,.6) 55%, transparent 100%);
   display:flex;flex-direction:column;gap:10px;}
+.dockbody{display:flex;flex-direction:column;gap:10px;}
+.dockhandle{display:none;}   /* モバイルのみ表示（図鑑ドックの開閉ハンドル） */
+/* ⋯「そのほかの操作」：デスクトップは横並びインライン、モバイルはポップオーバー */
+.moregroup{display:flex;gap:8px;}
+#moreBtn{display:none;}
 .dock .lab{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted-2);font-weight:600;margin:0 4px 1px;}
 .biomes{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
 .biomes::-webkit-scrollbar{display:none;}
@@ -172,6 +177,7 @@ button{font-family:inherit;cursor:pointer;}
 @media(max-width:860px){
   .panel{left:0;right:0;bottom:0;border-radius:20px 20px 0 0;max-height:80dvh;overflow-y:auto;transform:translateY(110%);opacity:1;}
   .panel.open{transform:translateY(0);}
+  .panel.sheet-mid{max-height:56dvh;}   /* 近くの一覧/詳細は中間高さ＝上に地図＋生き物を見せる */
   .grab{width:42px;height:4px;border-radius:99px;background:var(--line-2);margin:9px auto 2px;}
 }
 .panel::-webkit-scrollbar{width:6px;}
@@ -445,7 +451,28 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .bootwrap .bs{font-size:11px;color:var(--muted-2);margin-top:8px;}
 
 @media (prefers-reduced-motion: reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important;}}
-@media(max-width:640px){.search{display:none;} .brand .t span{display:none;} .dex .lab span{display:none;}}
+@media(max-width:640px){
+  .search{display:none;} .brand .t{display:none;} .dex .lab span{display:none;}
+  .topbar{gap:8px;padding:11px 12px;}
+  .tools{gap:7px;}
+  .tbtn{width:44px;height:44px;font-size:17px;}                /* タップ領域を大きく */
+  /* ⋯メニュー：二次操作をポップオーバー奥へ（初期は 📍🎲⌂⋯ だけ） */
+  #moreBtn{display:grid;}
+  .moregroup{position:fixed;top:64px;right:12px;flex-direction:column;background:var(--glass-strong);
+    border:1px solid var(--line);border-radius:16px;padding:9px;gap:9px;box-shadow:var(--shadow);
+    backdrop-filter:blur(16px);z-index:25;opacity:0;transform:translateY(-8px) scale(.97);
+    pointer-events:none;transition:opacity .18s,transform .18s;}
+  .moregroup.open{opacity:1;transform:none;pointer-events:auto;}
+  /* 図鑑ドックは既定で畳む＝初期画面は「地図＋生き物＋最小操作」。ハンドルで開閉 */
+  .dock{padding:8px 12px calc(10px + env(safe-area-inset-bottom));gap:8px;}
+  .dockhandle{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    background:var(--glass-strong);border:1px solid var(--line);border-radius:13px;color:var(--ink);
+    font-weight:700;font-size:14px;padding:14px;backdrop-filter:blur(14px);box-shadow:var(--shadow);}
+  .dockhandle .ar{font-size:11px;color:var(--muted);transition:transform .25s;}
+  .dock.open .dockhandle .ar{transform:rotate(180deg);}
+  .dockbody{display:none;}
+  .dock.open .dockbody{display:flex;}
+}
 </style>
 </head>
 <body>
@@ -479,13 +506,16 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   <div class="tools">
     <button class="tbtn near" id="nearBtn" title="近くにいる生き物を探す">📍</button>
     <button class="tbtn" id="exploreBtn" title="ランダムに1種へ旅する">🎲</button>
-    <button class="tbtn gbif" id="gbifBtn" aria-pressed="true" title="GBIF実観測データの表示切替">🛰️</button>
-    <button class="tbtn" id="globeBtn" aria-pressed="true" title="地球儀 / 平面 切替">🌐</button>
-    <button class="tbtn" id="atlasBtn" aria-pressed="false" title="地形（アトラス）表示の切替">🏔️</button>
-    <button class="tbtn" id="labelBtn" aria-pressed="false" title="本物の地図に切替（街路・鉄道・地名・地形／OpenFreeMap）">🏷️</button>
-    <button class="tbtn" id="d3dBtn" aria-pressed="false" title="分布を3D（立体）で表示（試験）">🧊</button>
-    <button class="tbtn" id="homeBtn" title="全体表示にもどる">⌂</button>
-    <button class="tbtn" id="aboutBtn" title="このサイトについて・出典">ℹ️</button>
+    <button class="tbtn" id="homeBtn" title="世界全体（地球儀）にもどる">⌂</button>
+    <button class="tbtn more" id="moreBtn" aria-label="そのほかの操作" aria-expanded="false" title="そのほかの操作">⋯</button>
+    <div class="moregroup" id="moregroup">
+      <button class="tbtn gbif" id="gbifBtn" aria-pressed="true" title="GBIF実観測データの表示切替">🛰️</button>
+      <button class="tbtn" id="globeBtn" aria-pressed="true" title="地球儀 / 平面 切替">🌐</button>
+      <button class="tbtn" id="atlasBtn" aria-pressed="false" title="地形（アトラス）表示の切替">🏔️</button>
+      <button class="tbtn" id="labelBtn" aria-pressed="false" title="本物の地図に切替（街路・鉄道・地名・地形／OpenFreeMap）">🏷️</button>
+      <button class="tbtn" id="d3dBtn" aria-pressed="false" title="分布を3D（立体）で表示（試験）">🧊</button>
+      <button class="tbtn" id="aboutBtn" title="このサイトについて・出典">ℹ️</button>
+    </div>
   </div>
 </header>
 
@@ -501,20 +531,23 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   <span class="ycount" id="yearCount" title="この年代にGBIFへ記録された観測の数"></span>
 </div>
 
-<div class="dock">
-  <div>
-    <div class="lab">環境でしぼる</div>
-    <div class="biomes" id="biomes" role="group" aria-label="生息環境でしぼる"></div>
-  </div>
-  <div>
-    <div class="dexhead">
-      <div class="lab">いきものを選ぶ → 棲む土地へ飛ぶ</div>
-      <div class="sortfilter">
-        <select id="sortSel" class="sf" aria-label="並び替え"></select>
-        <select id="facetSel" class="sf" aria-label="絞り込み"></select>
-      </div>
+<div class="dock" id="dock">
+  <button class="dockhandle" id="dockToggle" aria-expanded="false" aria-controls="dockbody">🐾 いきもの図鑑 <span class="ar">▲</span></button>
+  <div class="dockbody" id="dockbody">
+    <div>
+      <div class="lab">環境でしぼる</div>
+      <div class="biomes" id="biomes" role="group" aria-label="生息環境でしぼる"></div>
     </div>
-    <div class="chips" id="chips" role="group" aria-label="動物を選ぶ"><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div></div>
+    <div>
+      <div class="dexhead">
+        <div class="lab">いきものを選ぶ → 棲む土地へ飛ぶ</div>
+        <div class="sortfilter">
+          <select id="sortSel" class="sf" aria-label="並び替え"></select>
+          <select id="facetSel" class="sf" aria-label="絞り込み"></select>
+        </div>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="動物を選ぶ"><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div></div>
+    </div>
   </div>
 </div>
 

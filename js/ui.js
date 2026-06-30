@@ -219,6 +219,8 @@ function explore(){
 const panelEl=$('#panel');
 function openPanel(){ panelEl.classList.add('open'); }
 function closePanel(){ panelEl.classList.remove('open'); }
+// モバイルのシート高さ：近くの一覧/詳細は中間（地図＋生き物を上に見せる）、種/国カードは通常（full）。
+function panelSheet(mid){ panelEl.classList.toggle('sheet-mid', !!mid); }
 function renderAnimalCard(a){
   const r=RARITY[a.status], g=BIOMES[a.biome]?BIOMES[a.biome].g:['#1b3a43','#0d1b22'], tm=TREND_META[trendOf(a)];
   const cred=PHOTO_CRED[a.id]||{by:'Wikimedia Commons',lic:''};
@@ -258,7 +260,7 @@ function renderAnimalCard(a){
       <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝GBIFの実観測地点（${a.nameSci}）。<b>ズームするほど分布が細かく</b>見えます。だれかが実際にこの生きものを見た場所です。</div>
       ${MIGRATION[a.id]?`<div class="gbifnote mignote">🧭 <b>季節移動</b>：${MIGRATION[a.id].note}。地図に<span style="color:#ffd45e;font-weight:700">繁殖↔越冬の経路</span>（模式）を表示中。</div>`:''}
     </div>`;
-  openPanel();
+  panelSheet(false); openPanel();
 }
 function renderCountryCard(code,animals){
   const rows=animals.length? animals.map(a=>{const r=RARITY[a.status];
@@ -274,7 +276,7 @@ function renderCountryCard(code,animals){
     <div class="cc-list">${rows}</div>
     <div class="seclab" style="margin:8px 16px 9px">🛰️ GBIF実データ：この国で多く記録される生きもの <span class="ln"></span></div>
     <div id="localspecies" class="locsp">実データを取得中…</div>`;
-  openPanel();
+  panelSheet(false); openPanel();
 }
 function shareAnimal(id){
   const url = location.origin + location.pathname + '#' + id;

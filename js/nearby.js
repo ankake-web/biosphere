@@ -68,6 +68,7 @@ function mergeBinomials(counts){
   return [...m.entries()].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
 }
 function renderNearShell(title,inner){
+  panelSheet(true);   // 近くの一覧/詳細はモバイルで中間高さ＝上に地図＋生き物を見せる
   panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
     <div class="cc-head"><div class="lbl">📍 あなたの近く</div><div class="cname">${title}</div></div>
     <div class="nearbody">${inner}</div>`;
