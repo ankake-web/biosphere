@@ -11,13 +11,42 @@ const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_s
 const THREAT_CATS=new Set(['VU','EN','CR']);   // 絶滅危惧（Threatened）
 // 地図に「ふわっと」出す生き物マーカー（ポケGO風）。GBIF実観測点に種マーカー＝1種1個・上限で間引き。
 const CREATURE_MAX=18;
-const CLASS_EMOJI={Aves:'🐦',Mammalia:'🐾',Reptilia:'🦎',Amphibia:'🐸',Actinopterygii:'🐟',Chondrichthyes:'🦈',Insecta:'🐛',Arachnida:'🕷️',Mollusca:'🐚'};
+const CLASS_EMOJI={Aves:'🐦',Mammalia:'🐾',Reptilia:'🦎',Amphibia:'🐸',Actinopterygii:'🐟',Chondrichthyes:'🦈',Fish:'🐟',Insecta:'🐛',Arachnida:'🕷️',Mollusca:'🐚'};
 function classEmoji(cls){ return CLASS_EMOJI[cls]||'🐾'; }
+// ★GBIF occurrence は eBird 由来で鳥に極端に偏る（同一地点で鳥が哺乳の約300倍）。単一 taxonKey=44 の
+// 観測数順だと上位がほぼ全部鳥になる（＝報告バグ）。クラス別に facet 取得してマージし各クラスのご当地上位を必ず出す。
+// キーは実occurrenceで動作確認済（新backbone）：鳥212・哺乳359・両生131・爬虫=Squamata11592253+Testudines11418114・
+// 魚=Actinopterygii204+Elasmobranchii121。※条鰭魚(204)はGBIFがclassKey未付与の地点が多く実質軟骨魚中心になる場合あり。
+const GBIF_VERT_GROUPS=[
+  {c:'Aves',     keys:[212],               cap:12},
+  {c:'Mammalia', keys:[359],               cap:12},
+  {c:'Reptilia', keys:[11592253,11418114], cap:12},
+  {c:'Amphibia', keys:[131],               cap:12},
+  {c:'Fish',     keys:[204,121],           cap:12},
+];
+const NEAR_CLASS_KEYS={Aves:[212],Mammalia:[359],Reptilia:[11592253,11418114],Amphibia:[131],Fish:[204,121]};
+// クラス別 facet 取得（429リトライ）。scientificName を二名へ正規化して返す。
+async function gbifFacetNear(lat,lng,radius,keys,facetLimit,y1,y2){
+  const kp=keys.map(x=>'&taxonKey='+x).join('');
+  const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km${kp}&hasCoordinate=true&year=${y1},${y2}&limit=0&facet=scientificName&facetLimit=${facetLimit}`;
+  for(let i=0;i<3;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1200*(i+1))); continue; }
+    if(!r.ok) return []; const d=await r.json(); return mergeBinomials((d.facets&&d.facets[0]&&d.facets[0].counts)||[]);
+  }catch(e){ await new Promise(s=>setTimeout(s,600)); } }
+  return [];
+}
+// クラス別 occurrence 取得（座標付き＝マーカー用）
+async function gbifOccByGroup(lat,lng,radius,keys,limit,y1,y2){
+  const kp=keys.map(x=>'&taxonKey='+x).join('');
+  const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km${kp}&hasCoordinate=true&year=${y1},${y2}&limit=${limit}`;
+  for(let i=0;i<2;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1200*(i+1))); continue; }
+    if(!r.ok) return []; const d=await r.json(); return d.results||[];
+  }catch(e){ await new Promise(s=>setTimeout(s,500)); } }
+  return [];
+}
 let nearState=null;                 // {lat,lng,radius,label}
 let nearMarker=null, nearPick=false, nearTimer=null, nearClass='', nearThreatOnly=false, nearRows=[], nearPtsOn=false;
 let creatureMarkers=[], creatureTimer=null, creaturesKey=null;
 function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
-function classMatch(ic){ if(!nearClass)return true; if(nearClass==='Fish')return ic==='Actinopterygii'||ic==='Chondrichthyes'; return ic===nearClass; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
 function inatGet(s){ try{const o=JSON.parse(localStorage.getItem(LS_INAT+s)||'null'); if(o&&(Date.now()-o.t)<2592e6)return o.v;}catch(e){} return null; }
 function inatSet(s,v){ try{localStorage.setItem(LS_INAT+s,JSON.stringify({t:Date.now(),v}));}catch(e){} }
@@ -127,7 +156,7 @@ function setNearRadius(r){ if(!nearState)return; nearState.radius=r; removeNearP
   map.flyTo({center:[nearState.lng,nearState.lat],zoom:ZOOM_BY_R[r]||9,speed:.8,curve:1.3,essential:true});
   queryNear(); loadNearCreatures(nearState.lat,nearState.lng,r);
   saveLastLoc(nearState.lat,nearState.lng,r); }
-function setNearClass(c){ nearClass=c; if(nearState) renderNearList(); }
+function setNearClass(c){ nearClass=c; if(nearState) queryNear(); }   // クラス選択はクエリ側で絞る（再取得）
 function armNearPick(){ nearPick=true; toast('📌','地図をタップすると、その地点に移動します',2400); }
 function recenterCurrent(){
   if(!('geolocation' in navigator)){ toast('📍','現在地を取得できません',2000); return; }
@@ -136,21 +165,31 @@ function recenterCurrent(){
     pos=>setNearPin(pos.coords.latitude,pos.coords.longitude,'現在地',nearState?nearState.radius:NEAR_DEFAULT_R),
     ()=>toast('📍','現在地を取得できませんでした',2200),{enableHighAccuracy:false,timeout:8000,maximumAge:300000});
 }
-// GBIFファセットで近傍の種一覧を取得→nearRowsへ
+// GBIFファセットで近傍の種一覧を取得→nearRowsへ（クラス別バランス取得＝鳥偏重を打破）
 function queryNear(){
-  const {lat,lng,radius}=nearState, k=nearKey(lat,lng,radius), cached=nearCacheGet(k);
-  if(cached&&cached.length){ nearRows=cached.map(c=>({name:c.name,count:c.count})); renderNearList(); }
+  const {lat,lng,radius}=nearState, k=nearKey(lat,lng,radius)+'|'+(nearClass||'all'), cached=nearCacheGet(k);
+  if(cached&&cached.length){ nearRows=cached.map(c=>({name:c.name,count:c.count,gcls:c.gcls})); renderNearList(); }
   else { nearRows=[]; renderNearList('<div class="nearsum">🛰️ 周辺の記録を集めています…</div>'); }
   clearTimeout(nearTimer);
   nearTimer=setTimeout(async()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
+    const stale=()=> !currentMode||currentMode.type!=='near'||(nearKey(currentMode.lat,currentMode.lng,nearState.radius)+'|'+(nearClass||'all'))!==k;
     try{
-      const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=44&hasCoordinate=true&year=${y1},${y2}&limit=0&facet=scientificName&facetLimit=80`;
-      const d=await (await fetch(url)).json();
-      let counts=mergeBinomials((d.facets&&d.facets[0]&&d.facets[0].counts)||[]).slice(0,40);
-      if(!currentMode||currentMode.type!=='near'||nearKey(currentMode.lat,currentMode.lng,nearState.radius)!==k) return;
+      let counts;
+      if(nearClass && NEAR_CLASS_KEYS[nearClass]){
+        // クラス選択：そのクラスの taxonKey で直接取得（クライアント側 classMatch は廃止＝空にならない）
+        counts=(await gbifFacetNear(lat,lng,radius,NEAR_CLASS_KEYS[nearClass],45,y1,y2)).slice(0,40).map(c=>({name:c.name,count:c.count,gcls:nearClass}));
+      } else {
+        // 既定：クラス別に並行取得→クラスをラウンドロビンでインターリーブ（先頭からクラスが交互＝鳥ばかりに見えない）
+        const groupRows=await Promise.all(GBIF_VERT_GROUPS.map(g=>
+          gbifFacetNear(lat,lng,radius,g.keys,18,y1,y2).then(rows=>rows.slice(0,g.cap).map(c=>({name:c.name,count:c.count,gcls:g.c})))));
+        const merged=[], seen=new Set(), maxLen=Math.max(0,...groupRows.map(r=>r.length));
+        for(let i=0;i<maxLen;i++) for(const rows of groupRows){ const c=rows[i]; if(c){ const key=c.name.toLowerCase(); if(!seen.has(key)){ seen.add(key); merged.push(c); } } }
+        counts=merged.slice(0,45);
+      }
+      if(stale()) return;
       if(!counts.length){ nearRows=[]; renderNearList('<div class="nearsum">この範囲の脊椎動物の記録は見つかりませんでした。半径を広げるか場所を変えてみてください。</div>'); return; }
-      nearCacheSet(k,counts); nearRows=counts.map(c=>({name:c.name,count:c.count})); renderNearList();
+      nearCacheSet(k,counts); nearRows=counts; renderNearList();
     }catch(e){
       if(!currentMode||currentMode.type!=='near') return;
       if(!nearRows.length) renderNearList('<div class="nearsum">実データの取得に失敗しました（オフライン？）。少し時間をおいて再度お試しください。</div>');
@@ -210,7 +249,7 @@ function applyNearFilter(){
   let vis=0, thCount=0;
   document.querySelectorAll('#nearlist .nearrow').forEach(row=>{
     const c=nearRows[+row.dataset.i]; const th=THREAT_CATS.has(c.st2); if(th)thCount++;
-    const show=(!nearClass||(c.done?classMatch(c.ic):false)) && (!nearThreatOnly||th);
+    const show=(!nearThreatOnly||th);   // クラス絞りはクエリ側で実施済（classMatch廃止）。ここは絶滅危惧トグルのみ
     row.style.display=show?'':'none'; if(show)vis++;
   });
   const sum=document.getElementById('nearsum'); if(!sum)return;
@@ -360,19 +399,19 @@ function loadNearCreatures(lat,lng,radius){
   creatureTimer=setTimeout(async()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
     try{
-      // limitは80に抑制（1レコード≈7KB。300だと約2MBを毎回取得して重い）。密な都市部なら80件で十分18種そろう。
-      const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=44&hasCoordinate=true&year=${y1},${y2}&limit=80`;
-      const d=await (await fetch(url)).json();
+      // クラス別に occurrence を並行取得（鳥は少なめlimit）→各クラス上位数種をマーカー化＝マーカーも鳥だらけを回避。
+      const per=await Promise.all(GBIF_VERT_GROUPS.map(g=>
+        gbifOccByGroup(lat,lng,radius,g.keys,g.c==='Aves'?24:36,y1,y2).then(res=>({g,res}))));
       if(creaturesKey!==k || !currentMode || currentMode.type!=='near') return;   // 古い/別地点の応答は破棄
-      const freq={}, coord={}, cls={};
-      (d.results||[]).forEach(o=>{
-        const sp=(o.species||'').trim(); if(!sp || o.decimalLatitude==null || o.decimalLongitude==null) return;
-        freq[sp]=(freq[sp]||0)+1;
-        if(!coord[sp]) coord[sp]=[o.decimalLongitude,o.decimalLatitude];   // その種の代表観測点
-        if(!cls[sp]) cls[sp]=o.class||'';
+      const picks=[], perGroup=4;   // 各クラス最大4種
+      per.forEach(({g,res})=>{
+        const freq={}, coord={}, cls={};
+        res.forEach(o=>{ const sp=(o.species||'').trim(); if(!sp || o.decimalLatitude==null || o.decimalLongitude==null) return;
+          freq[sp]=(freq[sp]||0)+1; if(!coord[sp]) coord[sp]=[o.decimalLongitude,o.decimalLatitude]; if(!cls[sp]) cls[sp]=o.class||''; });
+        Object.keys(freq).sort((a,b)=>freq[b]-freq[a]).slice(0,perGroup).forEach(sp=>picks.push({sci:sp,c:coord[sp],cls:CLASS_EMOJI[cls[sp]]?cls[sp]:g.c,n:freq[sp]}));
       });
-      const top=Object.keys(freq).sort((a,b)=>freq[b]-freq[a]).slice(0,CREATURE_MAX);
-      spawnCreatures(top.map(sp=>({sci:sp,c:coord[sp],cls:cls[sp],n:freq[sp]})));
+      picks.sort((a,b)=>b.n-a.n);   // 件数順に整えつつ上限で間引き
+      spawnCreatures(picks.slice(0,CREATURE_MAX));
     }catch(e){ /* 失敗は静かに（一覧・地図は維持） */ }
   },260);
 }

@@ -378,9 +378,12 @@ function localHover(lngLat, point){
 }
 async function fetchLocalHover(lat,lng,gk,place){
   const tip=$('#maptip'), y2=new Date().getFullYear(), y1=y2-10;
-  const gbifU=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat.toFixed(3)},${lng.toFixed(3)},8km&taxonKey=44&hasCoordinate=true&year=${y1},${y2}&limit=0&facet=scientificName&facetLimit=25`;
   let sp=[];
-  try{ const gd=await fetch(gbifU).then(r=>r.ok?r.json():{}); sp=mergeBinomials((gd.facets&&gd.facets[0]&&gd.facets[0].counts)||[]).slice(0,5); }catch(e){}
+  try{ // クラス別に取得→各クラス上位をマージ（ホバーでも鳥だらけにしない）
+    const per=await Promise.all(GBIF_VERT_GROUPS.map(g=> gbifFacetNear(lat,lng,8,g.keys,6,y1,y2).then(rows=>rows.slice(0,g.c==='Aves'?1:2))));
+    const seen=new Map(); per.flat().forEach(c=>{ const key=c.name.toLowerCase(),cur=seen.get(key); if(!cur||cur.count<c.count) seen.set(key,c); });
+    sp=[...seen.values()].sort((a,b)=>b.count-a.count).slice(0,5);
+  }catch(e){}
   const thumbs = sp.length
     ? `<div class="mt-thumbs">${sp.map(c=>{const cat=ANIMALS.find(a=>(a.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===c.name.toLowerCase());
         return `<span class="mt-th" data-sci="${esc(c.name)}"><span class="mt-im">${cat?`<img src="${esc(cat.photo)}" alt="">`:''}</span><b>${esc(cat?cat.nameJa:c.name)}</b></span>`;}).join('')}</div>`
