@@ -3,7 +3,7 @@ const chipsEl=$('#chips'), biomesEl=$('#biomes'), legendEl=$('#legend');
 function avatar(a,cls=''){
   const g=BIOMES[a.biome]?BIOMES[a.biome].g:['#1b3a43','#0d1b22'];
   return `<span class="av ${cls}" style="background:linear-gradient(140deg,${g[0]},${g[1]})"><span>${a.emoji}</span>`
-    +`<img class="ph" loading="lazy" src="${a.photo}" alt="" onload="this.classList.add('loaded')" onerror="this.remove()"></span>`;
+    +`<img class="ph" loading="lazy" src="${a.photo}" alt="${esc(a.nameJa||a.nameSci||'')}" onload="this.classList.add('loaded')" onerror="this.remove()"></span>`;
 }
 function makeChip(a,i){
   const b=document.createElement('button');
@@ -184,7 +184,7 @@ function renderLocalSpecies(el,counts,a2){
     try{ const sci=decodeURIComponent(av.dataset.sci);
       const d=await (await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(sci)}&rank=species&per_page=1`)).json();
       const ph=d.results&&d.results[0]&&d.results[0].default_photo&&d.results[0].default_photo.square_url;
-      if(ph){ av.innerHTML=`<img src="${ph}" alt="" onload="this.style.opacity=1">`; }
+      if(ph){ av.innerHTML=`<img src="${esc(ph)}" alt="${esc(sci)}" onload="this.style.opacity=1">`; }
     }catch(e){}
   });
 }

@@ -233,7 +233,7 @@ function resolveAllRows(){
 function applyRowDom(i){
   const row=document.querySelector(`#nearlist .nearrow[data-i="${i}"]`); if(!row)return;
   const c=nearRows[i], av=row.querySelector('.locav'), ja=row.querySelector('.nja');
-  if(c.ph&&av&&!av.querySelector('img')) av.innerHTML=`<img src="${c.ph}" alt="" onload="this.style.opacity=1">`;
+  if(c.ph&&av&&!av.querySelector('img')) av.innerHTML=`<img src="${esc(c.ph)}" alt="${esc(c.ja||c.name||'')}" onload="this.style.opacity=1">`;
   if(ja) ja.textContent=c.ja||'（和名なし）';
   row.dataset.ic=c.ic||''; row.dataset.th=THREAT_CATS.has(c.st2)?'1':'';
   // 保全状況ピル（絶滅危惧VU/EN/CRのみ強調＝レア度カラー）
@@ -272,7 +272,7 @@ function openNearDetail(btn){
     panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
       <button class="nbback" onclick="backToNear()">← 近くの一覧へ</button>
       <div class="nd">
-        ${v.ph?`<img class="ndimg" src="${esc(v.ph.replace('/square.','/medium.'))}" alt="" onerror="this.src='${esc(v.ph)}'">`:'<div class="ndimg ndnoimg">🐾</div>'}
+        ${v.ph?`<img class="ndimg" src="${esc(v.ph.replace('/square.','/medium.'))}" alt="${esc(v.ja||sci)}" onerror="this.src='${esc(v.ph)}'">`:'<div class="ndimg ndnoimg">🐾</div>'}
         ${v.at?`<div class="ndcred">📷 ${esc(v.at)}（iNaturalist）</div>`:''}
         <div class="ndja">${esc(v.ja||'（和名なし）')}</div>
         <div class="ndsci">${esc(sci)}</div>

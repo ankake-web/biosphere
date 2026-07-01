@@ -522,17 +522,17 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
     <input id="search" type="search" placeholder="動物・学名・環境で検索…" autocomplete="off" aria-label="動物を検索" />
   </div>
   <div class="tools">
-    <button class="tbtn near" id="nearBtn" title="近くにいる生き物を探す">📍</button>
-    <button class="tbtn" id="exploreBtn" title="ランダムに1種へ旅する">🎲</button>
-    <button class="tbtn" id="homeBtn" title="世界全体（地球儀）にもどる">⌂</button>
+    <button class="tbtn near" id="nearBtn" aria-label="近くの生き物を探す" title="近くにいる生き物を探す">📍</button>
+    <button class="tbtn" id="exploreBtn" aria-label="ランダムに1種へ旅する" title="ランダムに1種へ旅する">🎲</button>
+    <button class="tbtn" id="homeBtn" aria-label="世界全体（地球儀）にもどる" title="世界全体（地球儀）にもどる">⌂</button>
     <button class="tbtn more" id="moreBtn" aria-label="そのほかの操作" aria-expanded="false" aria-controls="moregroup" title="そのほかの操作">⋯</button>
     <div class="moregroup" id="moregroup">
-      <button class="tbtn gbif" id="gbifBtn" aria-pressed="true" title="GBIF実観測データの表示切替">🛰️</button>
-      <button class="tbtn" id="globeBtn" aria-pressed="true" title="地球儀 / 平面 切替">🌐</button>
-      <button class="tbtn" id="atlasBtn" aria-pressed="false" title="地形（アトラス）表示の切替">🏔️</button>
-      <button class="tbtn" id="labelBtn" aria-pressed="false" title="本物の地図に切替（街路・鉄道・地名・地形／OpenFreeMap）">🏷️</button>
-      <button class="tbtn" id="d3dBtn" aria-pressed="false" title="分布を3D（立体）で表示（試験）">🧊</button>
-      <button class="tbtn" id="aboutBtn" title="このサイトについて・出典">ℹ️</button>
+      <button class="tbtn gbif" id="gbifBtn" aria-pressed="true" aria-label="GBIF実観測データの表示切替" title="GBIF実観測データの表示切替">🛰️</button>
+      <button class="tbtn" id="globeBtn" aria-pressed="true" aria-label="地球儀と平面の切替" title="地球儀 / 平面 切替">🌐</button>
+      <button class="tbtn" id="atlasBtn" aria-pressed="false" aria-label="地形（アトラス）表示の切替" title="地形（アトラス）表示の切替">🏔️</button>
+      <button class="tbtn" id="labelBtn" aria-pressed="false" aria-label="本物の地図（街路・地名）に切替" title="本物の地図に切替（街路・鉄道・地名・地形／OpenFreeMap）">🏷️</button>
+      <button class="tbtn" id="d3dBtn" aria-pressed="false" aria-label="分布を3D（立体）で表示" title="分布を3D（立体）で表示（試験）">🧊</button>
+      <button class="tbtn" id="aboutBtn" aria-label="このサイトについて・出典" title="このサイトについて・出典">ℹ️</button>
     </div>
   </div>
 </header>
