@@ -263,7 +263,7 @@ function renderAnimalCard(a){
       <a class="phcred" href="${commonsPageURL(a.photo)}" target="_blank" rel="noopener" title="写真の出典（Wikimedia Commons）">📷 ${cred.by}${cred.lic?(' · '+cred.lic):''}</a>
     </div>
     <div class="pbody">
-      <div class="row1"><span class="tax">🧬 ${a.taxon}</span><span class="tax">${BIOMES[a.biome].e} ${a.biome}</span><button class="tax pshare" onclick="shareAnimal('${a.id}')">🔗 共有</button></div>
+      <div class="row1"><span class="tax">🧬 ${a.taxon}</span><span class="tax">${BIOMES[a.biome].e} ${a.biome}</span><button class="tax pshare" onclick="shareFigureCard('${a.id}',this)">🔗 共有</button></div>
       <div class="rare" style="background:${hexA(r.color,.1)}">
         <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
         <span class="gem" style="color:${r.color}">${r.gem}</span>

@@ -20,8 +20,20 @@ async function buildShareCanvas(o){
   x.fillStyle='#34d8c6';x.fillRect(0,0,W,12);
   x.fillStyle='#eaf2f6';x.font='bold 50px sans-serif';x.fillText('🌍 BIOSPHERE',58,100);
   x.fillStyle='#9fb0bd';x.font='27px sans-serif';x.fillText('世界いきもの分布アトラス',60,142);
-  x.fillStyle='#34d8c6';x.font='bold 58px sans-serif';x.fillText('📍 '+clip2(o.place||'この場所',14),56,232);
-  if(o.single){
+  x.fillStyle='#34d8c6';x.font='bold 58px sans-serif';
+  x.fillText(o.figure ? ('📖 '+clip2(o.figure.biome||'いきもの図鑑',12)) : ('📍 '+clip2(o.place||'この場所',14)),56,232);
+  if(o.figure){
+    // 図鑑カード：写真/№/保全バッジ/和名/学名/推定生息数/生息環境。写真CORS失敗時はim=null→ソリッド背景＋絵文字。
+    const f=o.figure, im=await loadImg(f.ph);
+    drawCover(x,im,58,270,964,470,26);
+    if(!im && f.emoji){ x.textAlign='center';x.font='200px sans-serif';x.fillStyle='rgba(255,255,255,.92)';x.fillText(f.emoji,540,575);x.textAlign='left'; }
+    if(f.no){ x.fillStyle='rgba(0,0,0,.5)'; rrect(x,78,290,168,48,12); x.fill(); x.fillStyle='#eaf2f6';x.font='bold 27px sans-serif';x.fillText('№ '+String(f.no).padStart(3,'0'),96,323); }
+    if(f.statusCode){ const bw=304,bx=1002-bw; x.fillStyle=f.color||'#34d8c6'; rrect(x,bx,290,bw,50,13); x.fill(); x.fillStyle='#06231f';x.font='bold 27px sans-serif';x.textAlign='center';x.fillText(clip2(f.statusJp,8)+'（'+f.statusCode+'）',bx+bw/2,324);x.textAlign='left'; }
+    x.fillStyle='#eaf2f6';x.font='bold 64px sans-serif';x.fillText(clip2(f.ja||f.sci,15),60,806);
+    x.fillStyle='#9fb0bd';x.font='italic 33px sans-serif';x.fillText(clip2(f.sci,32),62,854);
+    x.fillStyle='#cdd9df';x.font='29px sans-serif';x.fillText('推定生息数（野生）：'+clip2(f.pop,20),62,908);
+    x.fillStyle='#9fb0bd';x.font='27px sans-serif';x.fillText(clip2(f.biome,10)+(f.taxon?(' ・ '+clip2(f.taxon,16)):''),62,950);
+  } else if(o.single){
     const sp=o.species[0], im=await loadImg(sp.ph);
     drawCover(x,im,58,282,964,480,26);
     x.fillStyle='#eaf2f6';x.font='bold 62px sans-serif';x.fillText(clip2(sp.ja||sp.sci,16),60,852);
@@ -41,7 +53,7 @@ async function buildShareCanvas(o){
   }
   x.fillStyle='#132935';x.fillRect(0,H-94,W,94);
   x.fillStyle='#34d8c6';x.font='bold 33px sans-serif';x.fillText('ankake-web.github.io/biosphere',58,H-38);
-  x.textAlign='right';x.fillStyle='#7f97a3';x.font='23px sans-serif';x.fillText('データ: GBIF ・ 写真: iNaturalist (CC)',1022,H-38);x.textAlign='left';
+  x.textAlign='right';x.fillStyle='#7f97a3';x.font='23px sans-serif';x.fillText(o.figure?'データ: GBIF ・ 写真: Wikimedia Commons':'データ: GBIF ・ 写真: iNaturalist (CC)',1022,H-38);x.textAlign='left';
   return cv;
 }
 function doShare(cv,fname,text,url){
@@ -72,7 +84,8 @@ async function shareNearCard(btn){
     const threatened=nearRows.filter(c=>THREAT_CATS.has(c.st2)).length;
     const cv=await buildShareCanvas({place,species:pick,radius:nearState.radius,total:nearRows.length,threatened});
     const text=`📍${place}の近くにいる脊椎動物 ${nearRows.length}種`+(threatened?`（うち絶滅危惧${threatened}種）`:'')+' #BIOSPHERE';
-    doShare(cv,'biosphere-near.png',text,'https://ankake-web.github.io/biosphere/');
+    const nurl=location.origin+location.pathname+'#@'+nearState.lat+','+nearState.lng+(nearState.radius?(','+nearState.radius):'');   // 受け手がその場所に着地できる地点ディープリンク
+    doShare(cv,'biosphere-near.png',text,nurl);
   }catch(e){ toast('📤','シェアカードを作成できませんでした',2200); }
   if(btn){btn.textContent=t0||'📤 シェア';btn.disabled=false;}
 }
@@ -85,8 +98,28 @@ async function shareSpeciesCard(sci,btn){
     const sp={ja:v.ja,sci,ph:(v.ph||'').replace('/square.','/medium.'),count:fmtN(c.count||0),th:THREAT_CATS.has(code),band:code,bandColor:RARITY[code]?RARITY[code].color:'#ffb02e'};
     const cv=await buildShareCanvas({place,single:true,species:[sp]});
     const text=`📍${place}の近くで見つけた ${v.ja||sci} #BIOSPHERE`;
-    doShare(cv,'biosphere-species.png',text,'https://ankake-web.github.io/biosphere/');
+    // 図鑑収録種は種ページ(#id)へ、未収録は地点(#@)へ着地させる
+    const hit=ANIMALS.find(x=>(x.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===String(sci).toLowerCase());
+    const surl = hit ? (location.origin+location.pathname+'#'+hit.id)
+                     : (location.origin+location.pathname+'#@'+nearState.lat+','+nearState.lng+(nearState.radius?(','+nearState.radius):''));
+    doShare(cv,'biosphere-species.png',text,surl);
   }catch(e){ toast('📤','シェアカードを作成できませんでした',2200); }
   if(btn){btn.textContent=t0||'📤 この種をシェア';btn.disabled=false;}
+}
+// 図鑑の種カードを 1080² 画像でシェア（near-me の buildShareCanvas を figure モードで流用）。
+async function shareFigureCard(id, btn){
+  const a=(typeof ANIMALS!=='undefined'&&ANIMALS.find)?ANIMALS.find(x=>x.id===id):null; if(!a) return;
+  const t0=btn?btn.textContent:''; if(btn){btn.textContent='作成中…';btn.disabled=true;}
+  try{
+    const r=RARITY[a.status]||{};
+    const fig={ ja:a.nameJa, sci:a.nameSci, ph:a.photo, emoji:a.emoji, no:a.no,
+      pop:popOf(a), statusJp:r.jp||'', statusCode:a.status, color:r.color||'#34d8c6',
+      biome:a.biome, taxon:a.taxon };
+    const cv=await buildShareCanvas({figure:fig});
+    const url=location.origin+location.pathname+'#'+a.id;
+    const text=`${a.nameJa}（${a.nameSci}）の分布・生態 — BIOSPHERE #いきもの図鑑`;
+    doShare(cv,'biosphere-'+a.id+'.png',text,url);
+  }catch(e){ toast('📤','シェアカードを作成できませんでした',2200); }
+  if(btn){btn.textContent=t0||'🔗 共有';btn.disabled=false;}
 }
 
