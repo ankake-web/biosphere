@@ -140,7 +140,12 @@ function celebrate(id){
     toast(BIOMES[a.biome].e, `${a.biome} の生きものをすべて発見！🎖️`, 3400); return; }
   const slist=ANIMALS.filter(x=>x.status===a.status);
   if(slist.every(x=>SEEN.has(x.id)) && !BADGES.has('status:'+a.status)){ BADGES.add('status:'+a.status); saveBadges();
-    toast(RARITY[a.status].gem, `「${RARITY[a.status].band}（${a.status}）」をすべて発見！🎖️`, 3400); }
+    toast(RARITY[a.status].gem, `「${RARITY[a.status].band}（${a.status}）」をすべて発見！🎖️`, 3400); return; }
+  // 到達可能なマイルストーン（5,348種でコンプは非現実的なので早期の達成感を用意）。一度きり・BADGESで管理。
+  const MILE=[1,10,25,50,100,250,500,1000,2000,3000];
+  const n=SEEN.size, hit=MILE.filter(m=>m<=n).pop();
+  if(hit && !BADGES.has('n:'+hit)){ BADGES.add('n:'+hit); saveBadges(); const next=MILE.find(m=>m>n);
+    confetti(); toast('🎉', (hit===1?'はじめての発見！':`${hit}種を発見！`)+(next?` 次の節目まであと${next-n}種`:' 図鑑マスター級！'), 3800); }
 }
 function confetti(){
   const cols=['#34d8c6','#f2c14e','#b072ff','#ff9a8a','#5fd39a'];
