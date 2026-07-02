@@ -225,4 +225,8 @@ fs.writeFileSync(path.join(ROOT, 'sitemap.xml'), sitemap);
 // robots.txt
 fs.writeFileSync(path.join(ROOT, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
 
-console.log(`生成完了：species/ ${ANIMALS.length}ページ + zukan.html + about.html + static.css + sitemap.xml + robots.txt（単一ソース：data/species.json）`);
+// .nojekyll：GitHub PagesにJekyll処理をスキップさせ、生成済み静的HTMLをそのまま配信させる。
+// （5,000超のページをJekyllが処理するとビルドがタイムアウト/失敗するため必須。全て静的なのでJekyll不要）
+fs.writeFileSync(path.join(ROOT, '.nojekyll'), '');
+
+console.log(`生成完了：species/ ${ANIMALS.length}ページ + zukan.html + about.html + static.css + sitemap.xml + robots.txt + .nojekyll（単一ソース：data/species.json）`);
