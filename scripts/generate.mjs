@@ -34,7 +34,7 @@ const clsOrder = eval(grab(/const clsOrder=(\[[^\]]*\]);/, 'clsOrder'));
 const THREAT_OVR = eval('(' + grab(/const THREAT_OVR=(\{[\s\S]*?\});/, 'THREAT_OVR') + ')');
 
 const popOf = a => a.pop || POP[a.id] || 'データ不足';
-function trendOf(a) { if (TREND_UP.includes(a.id)) return 'up'; if (TREND_DOWN.includes(a.id)) return 'down'; if (a.status === 'LC') return 'stable'; if (a.status === 'DD' || a.status === 'NE') return 'unknown'; return 'down'; }
+function trendOf(a) { if (TREND_UP.includes(a.id)) return 'up'; if (TREND_DOWN.includes(a.id)) return 'down'; if (a.status === 'LC') return 'stable'; return 'unknown'; }
 const TREND_LABEL = { up: '↑ 増加', down: '↓ 減少', stable: '→ 横ばい', unknown: '– 不明' };
 function classOf(a) { for (const k in CLASS) { if (CLASS[k].includes(a.id)) return k; } return '哺乳類'; }
 const ccName = c => CC[c] ? CC[c][0] : c;
