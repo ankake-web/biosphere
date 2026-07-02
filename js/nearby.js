@@ -495,7 +495,7 @@ function removeNearbyVisuals(){
      取得不可/拒否/無反応は「世界ヒートマップ＋場所選択」へ滑らかにフォールバック（クラッシュしない）。
    地球儀（世界を見る）は ⌂ ボタンで1タップ復帰＝二番手モードとして温存。
    ==================================================================== */
-const LS_LASTLOC='biosphere_lastloc', LS_LOCALHINT='biosphere_localhint';
+const LS_LASTLOC='biosphere_lastloc', LS_LOCALHINT='biosphere_localhint', LS_WELCOMED='biosphere_welcomed';
 function saveLastLoc(lat,lng,radius){ try{ localStorage.setItem(LS_LASTLOC,JSON.stringify({lat,lng,radius})); }catch(e){} }
 function getLastLoc(){ try{ const o=JSON.parse(localStorage.getItem(LS_LASTLOC)||'null'); return (o&&typeof o.lat==='number'&&typeof o.lng==='number')?o:null; }catch(e){ return null; } }
 function bootInitialView(){
@@ -518,7 +518,14 @@ function startLocalBoot(){
     toast('📍','前回の場所を表示中。📍で現在地に更新／⌂で世界全体（地球儀）へ。',3800);
     return;
   }
-  // 初回：現在地を取得して近所で開く（Googleマップ式）。
+  // ★初回だけ：文脈なしで位置情報を要求せず、価値提示＋2択（近所/世界）を挟む＝許可率と理解を上げる。
+  //   2回目以降は従来どおり即・現在地取得（「起動=現在地auto」の決定は弱めない）。ディープリンクは bootInitialView で分岐済み＝不変。
+  let welcomed; try{ welcomed=localStorage.getItem(LS_WELCOMED); }catch(e){}
+  if(!welcomed){ showWelcome(); return; }
+  requestLocalGeo();
+}
+// 現在地を取得して近所で開く（Googleマップ式）。監視タイマーで無反応でも必ずフォールバック（ヘッドレス検証も固まらない）。
+function requestLocalGeo(){
   if(!('geolocation' in navigator)){ bootFallback('お使いの環境では現在地を取得できません。'); return; }
   renderNearShell('近くの生き物','<div class="nearsum">現在地を確認しています…<br><span style="color:#9fb0bd">ブラウザの確認ダイアログで「許可」を選ぶと、近所の生き物が見られます。</span></div>'); openPanel();
   let settled=false;
@@ -527,8 +534,21 @@ function startLocalBoot(){
     pos=>finish(()=>{ setNearPin(pos.coords.latitude,pos.coords.longitude,'現在地',NEAR_DEFAULT_R); localBootHint(); }),
     err=>finish(()=>bootFallback(err&&err.code===1?'位置情報の利用が許可されませんでした。':'現在地を取得できませんでした。')),
     {enableHighAccuracy:false,timeout:8000,maximumAge:300000});
-  // 監視タイマー：ダイアログ無反応や環境差でコールバックが来ない場合も必ずフォールバック（ヘッドレス検証も固まらない）
   setTimeout(()=>finish(()=>bootFallback('現在地の確認に時間がかかっています。')),9000);
+}
+// 初回ウェルカム（一度きり）。価値を一言＋2択。背景に世界ヒートマップを敷き、閉じても迷子にならない。
+function showWelcome(){
+  try{ localStorage.setItem(LS_WELCOMED,'1'); }catch(e){}   // 表示は一度きり＝次回からは自動（従来挙動）
+  __speciesReady.then(()=>{ if(currentMode && currentMode.type!=='near' && currentMode.type!=='animal') drawOverview(); });
+  renderNearShell('ようこそ',
+    `<div class="wcm">
+      <p class="wcm-lead">世界の生きもの <b>5,348種</b> の分布を、地図で旅する図鑑。</p>
+      <p class="wcm-sub">まずは<b>あなたの近所</b>にどんな生き物がいるか見てみませんか？（GBIFの実観測記録）</p>
+      <button class="wcm-cta" onclick="requestLocalGeo()">📍 近所の生き物を見る</button>
+      <button class="wcm-alt" onclick="resetAll()">🌐 世界地図（地球儀）で旅する</button>
+      <p class="wcm-note">位置情報は周辺の生き物を探すためだけに使い、保存・第三者送信はしません（約1kmに丸めて使用）。</p>
+    </div>`);
+  openPanel();
 }
 // 現在地が無い/拒否時：場所選択チップは即時、世界ヒートマップは種データ必須なので到着を待って描画
 // （★デカップリングで startLocalBoot が種データ前に走り得るため。空ANIMALSでの drawOverview を防ぐ）。
