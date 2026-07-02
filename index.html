@@ -49,7 +49,8 @@ button{font-family:inherit;cursor:pointer;}
 
 /* ===== 上部バー ===== */
 .topbar{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:12px;
-  padding:13px 16px;background:linear-gradient(180deg, rgba(7,11,17,.92) 0%, rgba(7,11,17,.5) 60%, transparent 100%);}
+  padding:max(13px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 13px max(16px,env(safe-area-inset-left));
+  background:linear-gradient(180deg, rgba(7,11,17,.92) 0%, rgba(7,11,17,.5) 60%, transparent 100%);}
 .brand{display:flex;align-items:center;gap:11px;min-width:0;}
 .logo{width:38px;height:38px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
   background:conic-gradient(from 210deg,#1b3a43,#0f5e57,#34d8c6,#1b3a43);
@@ -105,6 +106,11 @@ button{font-family:inherit;cursor:pointer;}
 /* ⋯「そのほかの操作」：デスクトップは横並びインライン、モバイルはポップオーバー */
 .moregroup{display:flex;gap:8px;}
 #moreBtn{display:none;}
+/* 図鑑ドック内の検索（モバイルで上部バー検索窓が消えるため。既存 filterState.q/applyFilters に配線） */
+.docksearch{display:none;width:100%;background:var(--glass);border:1px solid var(--line);color:var(--ink);
+  border-radius:11px;padding:10px 14px;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s;}
+.docksearch::placeholder{color:var(--muted-2);}
+.docksearch:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(52,216,198,.16);}
 .dock .lab{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted-2);font-weight:600;margin:0 4px 1px;}
 .biomes{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
 .biomes::-webkit-scrollbar{display:none;}
@@ -475,13 +481,13 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 
 @media (prefers-reduced-motion: reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important;}}
 @media(max-width:640px){
-  .search{display:none;} .brand .t{display:none;} .dex .lab span{display:none;}
-  .topbar{gap:8px;padding:11px 12px;}
+  .search{display:none;} .brand .t{display:none;} .dex .lab span{display:none;} .docksearch{display:block;}
+  .topbar{gap:8px;padding:max(11px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 11px max(12px,env(safe-area-inset-left));}
   .tools{gap:7px;}
   .tbtn{width:44px;height:44px;font-size:17px;}                /* タップ領域を大きく */
   /* ⋯メニュー：二次操作をポップオーバー奥へ（初期は 📍🎲⌂⋯ だけ） */
   #moreBtn{display:grid;}
-  .moregroup{position:fixed;top:64px;right:12px;flex-direction:column;background:var(--glass-strong);
+  .moregroup{position:fixed;top:calc(64px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));flex-direction:column;background:var(--glass-strong);
     border:1px solid var(--line);border-radius:16px;padding:9px;gap:9px;box-shadow:var(--shadow);
     backdrop-filter:blur(16px);z-index:25;opacity:0;transform:translateY(-8px) scale(.97);
     visibility:hidden;pointer-events:none;transition:opacity .18s,transform .18s;}   /* 折りたたみ時はフォーカス/SR対象から除外 */
@@ -542,7 +548,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   </div>
 </header>
 
-<div class="modepill" id="modepill"><span class="dot"></span><span id="modetext">世界ぜんたいの分布ヒートマップ</span></div>
+<div class="modepill" id="modepill" aria-live="polite"><span class="dot"></span><span id="modetext">世界ぜんたいの分布ヒートマップ</span></div>
 
 <aside class="legend" id="legend"><div class="lt">生息数のめやす（IUCN保全状況）</div></aside>
 
@@ -557,6 +563,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 <div class="dock" id="dock">
   <button class="dockhandle" id="dockToggle" aria-expanded="false" aria-controls="dockbody">🐾 いきもの図鑑 <span class="ar">▲</span></button>
   <div class="dockbody" id="dockbody">
+    <input id="dockSearch" class="docksearch" type="search" placeholder="🔍 名前・学名・環境で検索…" autocomplete="off" aria-label="いきものを検索">
     <div>
       <div class="lab">環境でしぼる</div>
       <div class="biomes" id="biomes" role="group" aria-label="生息環境でしぼる"></div>
@@ -608,7 +615,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 </div>
 
 <div class="maptip" id="maptip"></div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <div id="boot"><div class="bootwrap">
   <div class="orb"></div>
