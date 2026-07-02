@@ -213,6 +213,7 @@ function drawOverview(){
   // pairs が空（種データ未到着）なら 'match' はペア無しで無効式になるため透明塗りにフォールバック
   setFill(pairs.length ? ['match',['get',CODE_PROP],...pairs,'rgba(0,0,0,0)'] : 'rgba(0,0,0,0)'); clearActive();
   setMode('世界ぜんたいの分布ヒートマップ');
+  if(typeof renderLegend==='function') renderLegend('overview');   // 概観＝国塗りは「種の多さ」→凡例もそれに合わせる
 }
 function heatColor(t){
   const stops=[[0,[26,74,60]],[.5,[33,170,140]],[1,[242,193,78]]];
@@ -228,6 +229,7 @@ function paintAnimal(a){
   setActive(a.range,col);
   if(gbifOn && a.gbif) addGbif(a.gbif); else removeGbif();
   showMigration(a);
+  if(typeof renderLegend==='function') renderLegend('status');
 }
 /* ---------- 季節移動の経路（キュレーション） ---------- */
 let migMarkers=[];
@@ -256,12 +258,27 @@ function paintBiome(b){
   const set=new Set(); ANIMALS.filter(a=>a.biome===b).forEach(a=>a.range.forEach(c=>set.add(c)));
   const codes=[...set]; const col=BIOMES[b]?BIOMES[b].g[0]:'#34d8c6';
   setFill(['case',['in',['get',CODE_PROP],['literal',codes]],hexA(col,.6),'rgba(0,0,0,0)']); setActive(codes,col);
+  if(typeof renderLegend==='function') renderLegend('status');
 }
 function paintCountry(code){
   removeGbif(); removeMigration();
   setFill(['case',['==',['get',CODE_PROP],code],'rgba(52,216,198,.45)','rgba(0,0,0,0)']); setActive([code],'#34d8c6');
+  if(typeof renderLegend==='function') renderLegend('status');
 }
-function flyTo(c,z){ stopSpin(); map.flyTo({center:c,zoom:z,speed:.85,curve:1.5,essential:true}); }
+function flyTo(c,z){ stopSpin(); map.flyTo({center:c,zoom:z,speed:.85,curve:1.5,essential:true}); pulseArrival(); }
+// 到着の一瞬、国アウトライン(c-glow)を一度だけ脈打たせる＝「そこへ降り立った」旅の手応え（有限・setStyle/rAF不使用）。
+function pulseArrival(){
+  if(!mapReady||LOW_MOTION||!map.getLayer('c-glow')) return;
+  const mode=currentMode;
+  map.once('moveend',()=>{
+    if(currentMode!==mode||!map.getLayer('c-glow')) return;   // 到着前に別モードへ移ったら無効化
+    try{
+      map.setPaintProperty('c-glow','line-opacity',.95); map.setPaintProperty('c-glow','line-width',13);
+      setTimeout(()=>{ if(currentMode!==mode||!map.getLayer('c-glow')) return;
+        map.setPaintProperty('c-glow','line-opacity',.55); map.setPaintProperty('c-glow','line-width',7); },380);
+    }catch(e){}
+  });
+}
 function hexA(hex,a){const n=hex.replace('#','');return `rgba(${parseInt(n.slice(0,2),16)},${parseInt(n.slice(2,4),16)},${parseInt(n.slice(4,6),16)},${a})`;}
 function spinLoop(){ if(!spinning)return; const c=map.getCenter(); c.lng-=0.12; map.setCenter(c); requestAnimationFrame(spinLoop); }
 function stopSpin(){ spinning=false; }

@@ -32,6 +32,28 @@ function buildChips(){
     if(typeof sortChips==='function'){ const ss=document.querySelector('#sortSel'); sortChips(ss&&ss.value||'no'); }
     return; } _flush(Math.min(_i+_CHUNK,_N)); setTimeout(_next,0); })();
 }
+// 凡例をモード連動に：概観＝国塗り「種の多さ」(緑→ゴールド)、種/環境/国選択＝IUCN保全色。
+// 地図の色語彙と凡例を一致させる（概観のゴールドを「IUCN色」と誤説明していた矛盾を解消）。
+let _legendMode=null;
+function renderLegend(mode){
+  if(!legendEl || _legendMode===mode) return;
+  _legendMode=mode;
+  let title, body;
+  if(mode==='overview'){
+    title='地図の色 — 種の多さ';
+    body=`<div class="lr"><span class="sw" style="width:64px;height:9px;border-radius:3px;box-shadow:none;background:linear-gradient(90deg,#1a4a3c,#21aa8c,#f2c14e)"></span></div>
+      <div class="lr" style="justify-content:space-between;color:var(--muted-2);font-size:10.5px;margin-top:-3px"><span>少ない</span><span>多い</span></div>
+      <div class="lr" style="color:var(--muted-2);font-size:11px">国ごとの図鑑掲載種の数</div>`;
+  } else {
+    title='生息数のめやす（IUCN保全状況）';
+    const used=[...new Set(ANIMALS.map(a=>a.status))].sort((a,b)=>'LC NT VU EN CR DD NE'.indexOf(a)-'LC NT VU EN CR DD NE'.indexOf(b));
+    body=used.map(s=>{const r=RARITY[s]; return `<div class="lr" style="color:${r.color}"><span class="sw" style="background:${r.color}"></span><b>${r.band}</b><span style="margin-left:auto;color:var(--muted-2)">${s}</span></div>`;}).join('');
+  }
+  legendEl.innerHTML=`<div class="lt">${title}</div>${body}`
+    +`<div class="lf">地図の<b>黄〜赤のメッシュ</b>は GBIF の実観測地点。<b>ズームで細かく</b>なります。🛰️で表示切替。</div>`
+    +`<button type="button" class="lhelp">🛟 保全状況（IUCN）とは？</button>`;
+  const h=legendEl.querySelector('.lhelp'); if(h) h.onclick=()=>openRedlist();
+}
 function initCatalog(){
 Object.keys(BIOMES).forEach(bm=>{
   const b=document.createElement('button');
@@ -40,13 +62,7 @@ Object.keys(BIOMES).forEach(bm=>{
   biomesEl.appendChild(b);
 });
 const allBtn=document.createElement('button'); allBtn.className='bm'; allBtn.innerHTML='✺ ぜんぶ'; allBtn.onclick=resetAll; biomesEl.appendChild(allBtn);
-(function(){
-  const used=[...new Set(ANIMALS.map(a=>a.status))].sort((a,b)=>'LC NT VU EN CR DD'.indexOf(a)-'LC NT VU EN CR DD'.indexOf(b));
-  used.forEach(s=>{const r=RARITY[s];const d=document.createElement('div');d.className='lr';d.style.color=r.color;
-    d.innerHTML=`<span class="sw" style="background:${r.color}"></span><b>${r.band}</b><span style="margin-left:auto;color:var(--muted-2)">${s}</span>`;legendEl.appendChild(d);});
-  const f=document.createElement('div');f.className='lf';f.innerHTML='地図の<b>黄〜赤のメッシュ</b>は GBIF の実観測地点。<b>ズームで細かく</b>なります。🛰️で表示切替。';legendEl.appendChild(f);
-  const h=document.createElement('button');h.type='button';h.className='lhelp';h.textContent='🛟 保全状況（IUCN）とは？';h.onclick=()=>openRedlist();legendEl.appendChild(h);
-})();
+renderLegend(currentMode&&currentMode.type==='overview'?'overview':'status');   // 起動時のモードに合わせて凡例を描く（以後は各paint関数が切替）
 buildSortFilter();
 // チップ本体：モバイルはドックを開くまで作らない（初期DOMを軽量化）。デスクトップは即時構築。
 if(matchMedia('(max-width:640px)').matches){ chipsEl.innerHTML=''; }
@@ -157,7 +173,7 @@ async function showCountry(code, lngLat){
   const animals=await DATA.getAnimalsByCountry(code); paintCountry(code); renderCountryCard(code,animals);
   setMode(`${ccFlag(code)} ${ccName(code)} に棲むいきもの`);
   const center = lngLat ? [lngLat.lng,lngLat.lat] : countryCentroid(code);
-  if(center){ stopSpin(); map.flyTo({center,zoom:3.4,speed:.8,curve:1.5,essential:true}); }
+  if(center){ stopSpin(); map.flyTo({center,zoom:3.4,speed:.8,curve:1.5,essential:true}); pulseArrival(); }
   fetchLocalSpecies(code);
 }
 // 国の重心（bbox中心）を求める
