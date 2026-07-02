@@ -347,11 +347,14 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .nearpin{font-size:26px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));cursor:grab;transform:translateY(2px);}
 /* ---- 近くの生き物マーカー（ポケGO風・有限CSSアニメ。外側wrap=MapLibreが位置制御、内側.cmk=アニメ） ---- */
 .cmk-wrap{cursor:pointer;}
-/* ホバーで和名・分類・保全をふきだし表示 */
+/* 出現時に名前を数秒ピーク表示（cmkPeek＝有限CSS・fill無し→終了後はopacity:0へ戻りホバー表示は温存）。
+   タッチ端末（近くモードの主戦場）でも名前が読める。ホバーは従来どおり上書き表示。 */
 .cmk-lab{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);white-space:nowrap;max-width:210px;overflow:hidden;text-overflow:ellipsis;
   background:rgba(8,14,20,.95);border:1px solid var(--line-2);border-radius:9px;padding:4px 10px;font-size:11.5px;color:#eaf2f6;
-  pointer-events:none;opacity:0;transition:opacity .14s,transform .14s;transform:translateX(-50%) translateY(3px);box-shadow:0 5px 14px rgba(0,0,0,.55);z-index:3;}
+  pointer-events:none;opacity:0;transition:opacity .14s,transform .14s;transform:translateX(-50%) translateY(3px);box-shadow:0 5px 14px rgba(0,0,0,.55);z-index:3;
+  animation:cmkPeek 3.2s ease var(--d,0ms);}
 .cmk-wrap:hover .cmk-lab{opacity:1;transform:translateX(-50%) translateY(0);}
+@keyframes cmkPeek{0%{opacity:0;transform:translateX(-50%) translateY(3px);}14%{opacity:1;transform:translateX(-50%) translateY(0);}55%{opacity:1;transform:translateX(-50%) translateY(0);}100%{opacity:0;transform:translateX(-50%) translateY(3px);}}
 .cmk-lab b{font-weight:800;}.cmk-lab i{font-style:italic;color:#cdd9df;}
 .cmk-lab .cl{font-size:10px;color:#9fb0bd;margin-left:4px;}.cmk-lab .w{color:#ffb02e;font-weight:800;margin-right:3px;}
 .cmk-lab.th{border-color:rgba(255,176,46,.55);}
@@ -391,6 +394,8 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .sbv{width:100%;max-width:14px;background:rgba(52,216,198,.45);border-radius:3px 3px 0 0;transition:height .3s;}
 .hbars .sbv{max-width:none;border-radius:2px 2px 0 0;}
 .sbv.pk{background:#34d8c6;}
+.sbv.cur{background:#ffd45e;box-shadow:0 0 8px rgba(255,212,94,.55);}   /* 現在月/現在時＝「今が旬」 */
+.sbar.now .sbl{color:#ffd45e;font-weight:800;}
 .sbl{font-size:9px;color:#8497a7;}
 .snote{font-size:10.5px;color:var(--muted);margin-top:7px;line-height:1.5;}
 /* ---- 近くの絶滅危惧種ハイライト（タスクC） ---- */

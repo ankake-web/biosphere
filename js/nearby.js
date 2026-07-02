@@ -45,7 +45,7 @@ async function gbifOccByGroup(lat,lng,radius,keys,limit,y1,y2){
 }
 let nearState=null;                 // {lat,lng,radius,label}
 let nearMarker=null, nearPick=false, nearTimer=null, nearClass='', nearThreatOnly=false, nearRows=[], nearPtsOn=false;
-let creatureMarkers=[], creatureTimer=null, creaturesKey=null;
+let creatureMarkers=[], creatureTimer=null, creaturesKey=null, threatToastShown=false;
 function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
 function inatGet(s){ try{const o=JSON.parse(localStorage.getItem(LS_INAT+s)||'null'); if(o&&(Date.now()-o.t)<2592e6)return o.v;}catch(e){} return null; }
@@ -133,7 +133,8 @@ function nearbyFallback(msg){
   renderNearShell('近くの生き物',
     `<div class="nearsum">${msg}</div>
      <div class="nbhint">場所を選ぶ、または<b>地図をタップ</b>して指定してください。</div>
-     <div class="nbchips">${chips}</div>`);
+     <div class="nbchips">${chips}</div>
+     <div class="nbhint" style="margin-top:11px">世界全体を旅したいときは：<button class="nbchip" onclick="resetAll()">🌐 世界地図（地球儀）を見る</button></div>`);
   openPanel(); nearPick=true; toast('📍','地図をタップして場所を指定できます',2600);
 }
 // 任意地点に「ピン」を置く（現在地/都市/タップ/ドラッグ 共通の入口）
@@ -325,10 +326,10 @@ async function loadTimeOfDay(inatId){
   }catch(e){ wrap.innerHTML='<span class="muted">時間帯データの取得に失敗しました。</span>'; }
 }
 function renderHourBars(hours){
-  const max=Math.max(1,...hours), peak=hours.indexOf(max);
+  const max=Math.max(1,...hours), peak=hours.indexOf(max), nowH=new Date().getHours();   // 現在時も強調
   const period = peak<5?'未明':peak<9?'早朝':peak<11?'朝':peak<14?'昼':peak<17?'午後':peak<20?'夕方':'夜';
-  const bars='<div class="sbars hbars">'+hours.map((c,i)=>{const h=Math.round(c/max*100),pk=c>=max*0.8;
-    return `<div class="sbar" title="${i}時台: ${c}件"><div class="sbv${pk?' pk':''}" style="height:${Math.max(4,h)}%"></div><div class="sbl">${i%6===0?i:''}</div></div>`;}).join('');
+  const bars='<div class="sbars hbars">'+hours.map((c,i)=>{const h=Math.round(c/max*100),pk=c>=max*0.8,now=i===nowH;
+    return `<div class="sbar${now?' now':''}" title="${i}時台: ${c}件${now?'（今ごろ）':''}"><div class="sbv${pk?' pk':''}${now?' cur':''}" style="height:${Math.max(4,h)}%"></div><div class="sbl">${i%6===0?i:''}</div></div>`;}).join('');
   return bars+`</div><div class="snote">観察が多いのは <b>${peak}時ごろ（${period}）</b>。iNaturalistの観察時刻分布（人が見た時間の傾向を含む）。</div>`;
 }
 // 半径円（近似ポリゴン）
@@ -342,9 +343,13 @@ function circlePolygon(lat,lng,km,pts=64){
 }
 function renderSeasonBars(months){
   const max=Math.max(1,...months), L=['1','2','3','4','5','6','7','8','9','10','11','12'];
-  return '<div class="sbars">'+months.map((c,i)=>{const h=Math.round(c/max*100),pk=c>=max*0.75;
-    return `<div class="sbar" title="${L[i]}月: ${c}件"><div class="sbv${pk?' pk':''}" style="height:${Math.max(5,h)}%"></div><div class="sbl">${L[i]}</div></div>`;}).join('')
-    +'</div><div class="snote">棒が高い月ほど観察記録が多い＝出会いやすい目安（GBIF）。</div>';
+  const cur=new Date().getMonth();   // 現在月(0-11)＝「今が旬か」の文脈を与える（新規fetch不要）
+  const peak=months.indexOf(max)+1, hot=months[cur]>=max*0.75;
+  const bars='<div class="sbars">'+months.map((c,i)=>{const h=Math.round(c/max*100),pk=c>=max*0.75,now=i===cur;
+    return `<div class="sbar${now?' now':''}" title="${L[i]}月: ${c}件${now?'（今月）':''}"><div class="sbv${pk?' pk':''}${now?' cur':''}" style="height:${Math.max(5,h)}%"></div><div class="sbl">${L[i]}</div></div>`;}).join('')+'</div>';
+  const note = hot ? `🎯 <b>今月（${cur+1}月）は観察の旬！</b>この範囲で記録が多い時期です（GBIF）。`
+                   : `ピークは <b>${peak}月ごろ</b>。棒が高い月ほど観察記録が多い＝出会いやすい目安（GBIF）。`;
+  return bars+`<div class="snote">${note}</div>`;
 }
 // 半径円＋📍ピン（ドラッグで移動可）
 function addNearCircle(lat,lng,km){
@@ -393,7 +398,7 @@ async function toggleNearPoints(sci,btn){
    永続rAFは使わない（アニメはCSS有限）。 */
 function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); creatureMarkers=[]; }
 function loadNearCreatures(lat,lng,radius){
-  removeCreatures();
+  removeCreatures(); threatToastShown=false;   // 地点/半径ごとに「近所に絶滅危惧種！」トーストを一度だけ
   const k=nearKey(lat,lng,radius); creaturesKey=k;
   clearTimeout(creatureTimer);
   creatureTimer=setTimeout(async()=>{
@@ -419,9 +424,9 @@ function spawnCreatures(list){
   if(!mapReady) return; removeCreatures();
   const myKey=creaturesKey;   // この生成バッチの世代。地点/半径を切替えたら古いバッチの後処理はスキップ。
   list.forEach((it,idx)=>{
-    const el=document.createElement('div'); el.className='cmk-wrap';
-    const bub=document.createElement('div'); bub.className='cmk'; bub.style.setProperty('--d',(idx*55)+'ms'); bub.textContent=classEmoji(it.cls);
-    const lab=document.createElement('div'); lab.className='cmk-lab'; lab.innerHTML=`<i>${esc(it.sci)}</i>`;   // ホバーで和名/分類/保全を表示
+    const el=document.createElement('div'); el.className='cmk-wrap'; el.style.setProperty('--d',(idx*60)+'ms');   // 出現stagger＝wrapに置き .cmk pop と .cmk-lab peek の両方に継承させる
+    const bub=document.createElement('div'); bub.className='cmk'; bub.textContent=classEmoji(it.cls);
+    const lab=document.createElement('div'); lab.className='cmk-lab'; lab.innerHTML=`<i>${esc(it.sci)}</i>`;   // 出現時に数秒ピーク表示＋ホバーで和名/分類/保全
     el.appendChild(bub); el.appendChild(lab);
     el.addEventListener('click',(e)=>{ e.stopPropagation(); openCreature(it.sci,it.n); });
     let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(it.c).addTo(map); }catch(e){ return; }
@@ -433,7 +438,8 @@ function spawnCreatures(list){
       if(v.ja||clsLab) lab.innerHTML=(v.ja?`<b>${esc(v.ja)}</b>`:`<i>${esc(it.sci)}</i>`)+(clsLab?` <span class="cl">${clsLab}</span>`:'');
       if(v&&v.ph&&!bub.querySelector('img')){ const img=document.createElement('img'); img.src=v.ph; img.alt=''; img.onload=()=>img.classList.add('on'); bub.appendChild(img); } });
     // 近くの絶滅危惧種を強調（「近所にコレ!?」）＋ラベルにも保全状況
-    resolveIucn(it.sci).then(code=>{ if(creaturesKey!==myKey||!bub.isConnected) return; if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); lab.classList.add('th'); lab.insertAdjacentHTML('afterbegin',`<span class="w">⚠${code}</span> `); } });
+    resolveIucn(it.sci).then(code=>{ if(creaturesKey!==myKey||!bub.isConnected) return; if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); lab.classList.add('th'); lab.insertAdjacentHTML('afterbegin',`<span class="w">⚠${code}</span> `);
+      if(!threatToastShown){ threatToastShown=true; const nm=inatGet(it.sci); toast('⚠','近所に絶滅危惧種！ '+((nm&&nm.ja)||it.sci)+'（'+code+'）',3800); } } });   // 「近所にコレ!?」の感情ピークを1地点1回だけ拾う
   });
 }
 function openCreature(sci,cnt){
