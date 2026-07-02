@@ -282,6 +282,7 @@ function renderAnimalCard(a){
         <div class="stat"><div class="k">⏳ 寿命</div><div class="v">${a.stats.life}</div></div>
       </div>
       <div class="flavor">${a.desc}</div>
+      <div class="ndsec" id="figsound" hidden style="margin:2px 0 12px"></div>
       ${['CR','EN','VU','NT','DD'].includes(a.status)?`<div class="conserv">
         <div class="cvhead">🛡 おもな脅威と保全 <span class="cvst" style="color:${r.color}">${r.jp}（${a.status}）</span></div>
         <div class="cvtags">${threatsOf(a).map(t=>`<span class="cvtag">${t}</span>`).join('')}</div>
@@ -293,6 +294,7 @@ function renderAnimalCard(a){
       ${MIGRATION[a.id]?`<div class="gbifnote mignote">🧭 <b>季節移動</b>：${MIGRATION[a.id].note}。地図に<span style="color:#ffd45e;font-weight:700">繁殖↔越冬の経路</span>（模式）を表示中。</div>`:''}
     </div>`;
   panelSheet(false); openPanel();
+  if(typeof loadFigureSound==='function') loadFigureSound(a);   // 鳴き声（iNat CC録音があれば種カードに再生プレーヤーを差し込む）
 }
 function renderCountryCard(code,animals){
   const rows=animals.length? animals.map(a=>{const r=RARITY[a.status];

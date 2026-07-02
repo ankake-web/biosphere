@@ -280,6 +280,7 @@ function openNearDetail(btn){
         <div class="ndtags">${cls?`<span class="ndtag">${cls}</span>`:''}<span class="ndtag">この範囲で ${fmtN(cnt)}件</span><span id="ndstatus"></span></div>
         <div class="ndsec"><div class="ndsech">📅 観察が多い月（出会いやすさの目安）</div><div id="seasonwrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
         <div class="ndsec"><div class="ndsech">🕐 観察が多い時間帯（朝・昼・夕の目安）</div><div id="timewrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
+        <div class="ndsec" id="ndsound" hidden></div>
         <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sciKey(sci)}',this)">📍 観測スポットを地図に表示</button>
         ${hit?`<button class="nbtn wide" onclick="selectAnimal('${hit.id}')">🌍 世界地図で分布を見る（図鑑）</button>`:''}
         <button class="nbtn wide" onclick="shareSpeciesCard('${sciKey(sci)}',this)">📤 この種をシェア</button>
@@ -288,6 +289,7 @@ function openNearDetail(btn){
         <a class="ndlink" target="_blank" rel="noopener" href="https://www.gbif.org/species/search?q=${encodeURIComponent(sci)}">GBIFで記録を見る ↗</a>
       </div>`;
     openPanel(); loadSeason(sci); loadTimeOfDay(v.id);
+    fetchInatSound(v.id).then(snd=>{ if(snd && currentMode && currentMode.type==='near'){ const m=document.getElementById('ndsound'); if(m) mountSound(m,snd); } });   // 鳴き声（あれば）
     resolveIucn(sci).then(code=>{ const el=document.getElementById('ndstatus'); if(!el||!code||!RARITY[code])return;
       const th=THREAT_CATS.has(code), r=RARITY[code];
       el.outerHTML=`<span class="ndtag" style="background:${r.color};color:#06231f;border-color:${r.color}">${th?'⚠ ':''}保全：${r.jp}（${code}）</span>`;
@@ -331,6 +333,33 @@ function renderHourBars(hours){
   const bars='<div class="sbars hbars">'+hours.map((c,i)=>{const h=Math.round(c/max*100),pk=c>=max*0.8,now=i===nowH;
     return `<div class="sbar${now?' now':''}" title="${i}時台: ${c}件${now?'（今ごろ）':''}"><div class="sbv${pk?' pk':''}${now?' cur':''}" style="height:${Math.max(4,h)}%"></div><div class="sbl">${i%6===0?i:''}</div></div>`;}).join('');
   return bars+`</div><div class="snote">観察が多いのは <b>${peak}時ごろ（${period}）</b>。iNaturalistの観察時刻分布（人が見た時間の傾向を含む）。</div>`;
+}
+/* ---------- 鳴き声・音（iNaturalistのCC録音を再生＝五感を追加）----------
+   observations?sounds=true でCC録音を1件取り、<audio> で再生。無ければ何も出さない（graceful）。
+   near詳細（inat id 既知）と種カード（学名→inatResolve）で共用。永続rAFなし・ユーザー操作起点で再生。 */
+async function fetchInatSound(taxonId){
+  if(!taxonId) return null;
+  try{
+    const u=`https://api.inaturalist.org/v1/observations?taxon_id=${taxonId}&sounds=true&license=cc-by,cc-by-nc,cc-by-sa,cc-by-nc-sa,cc0&per_page=1&order_by=votes&order=desc`;
+    const d=await (await fetch(u)).json();
+    const o=d.results&&d.results[0], s=o&&o.sounds&&o.sounds[0];
+    if(!s||!s.file_url) return null;
+    return { url:s.file_url, at:(s.attribution||'').replace(/<[^>]*>/g,'').replace(/\(c\)/gi,'©') };
+  }catch(e){ return null; }
+}
+function mountSound(mount, snd){
+  if(!mount||!snd) return;
+  mount.innerHTML=`<div class="ndsech">🔊 鳴き声・環境音（iNaturalist・CC）</div>
+    <audio class="ndaudio" controls preload="none" src="${esc(snd.url)}"></audio>
+    ${snd.at?`<div class="ndcred">🎙 ${esc(snd.at)}</div>`:''}`;
+  mount.hidden=false;
+}
+// 種カード：学名→iNat種ID→録音。同一種を選び続けている間だけ反映（鮮度ガード）。
+async function loadFigureSound(a){
+  try{ const v=await inatResolve(a.nameSci); if(currentAnimal!==a||!v||!v.id) return;
+    const snd=await fetchInatSound(v.id); if(currentAnimal!==a) return;
+    if(snd){ const m=document.getElementById('figsound'); if(m) mountSound(m,snd); }
+  }catch(e){}
 }
 // 半径円（近似ポリゴン）
 function circlePolygon(lat,lng,km,pts=64){
