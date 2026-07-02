@@ -31,7 +31,7 @@
 色＝推定生息数のめやす（IUCN保全状況）：多い（LC）→ やや減少（NT）→ 少ない（VU）→ ごくわずか（EN）→ 絶滅寸前（CR）。各種に推定野生個体数＋**増減トレンド（↑増加／↓減少／→横ばい）**を表示（約／推定表記、出典で幅あり）。
 
 ## データ
-- **4,300種**（哺乳・鳥・爬虫・両生・魚・昆虫・無脊椎・植物まで世界各地から）。学名→GBIFの`taxonKey`、保全状況（IUCNカテゴリ）・分布国・写真・撮影者/ライセンスはGBIF種照合API・Wikimedia Commons APIで実検証。分布はGBIF実観測から。推定生息数は出典が確認できる種で**出典年を併記**（IUCN・Partners in Flight・NOAA/IWC・BirdLife 等。捏造せず、確証のない年は付さない）。
+- **5,348種**（哺乳・鳥・爬虫・両生・魚・昆虫・無脊椎・植物まで世界各地から）。学名→GBIFの`taxonKey`、保全状況（IUCNカテゴリ）・分布国・写真・撮影者/ライセンスはGBIF種照合API・Wikimedia Commons APIで実検証。分布はGBIF実観測から。推定生息数は出典が確認できる種で**出典年を併記**（IUCN・Partners in Flight・NOAA/IWC・BirdLife 等。捏造せず、確証のない年は付さない）。
 - 動物写真：**Wikimedia Commons**（撮影者・ライセンスを各種カードに明記。読み込み失敗時は絵文字へ自動フォールバック）。
 - 実観測分布：**GBIF**（学名→taxonKey を解決し、occurrence density タイルを表示。年代フィルタ対応）。
 - 地形（アトラス）：**Esri World Hillshade**／国境：**Natural Earth 110m**（`ADM0_A3` で識別）。
