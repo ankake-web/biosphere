@@ -20,17 +20,23 @@ function makeChip(a,i){
 }
 // 図鑑チップ（最大2506枚＝DOM約4万ノード）は重い。段階描画でもDOM/メモリ/スタイル再計算の負荷が大きいので、
 // モバイルでは「いきもの図鑑」ドックを開くまで構築を遅延する（buildChips）。デスクトップ（ドック常時表示）は即時。
-let chipsBuilt=false;
-function buildChips(){
-  if(chipsBuilt) return; chipsBuilt=true;
-  chipsEl.innerHTML='';   // スケルトン除去
-  let _i=0; const _N=ANIMALS.length, _FIRST=160, _CHUNK=160;
-  function _flush(end){ const f=document.createDocumentFragment(); for(;_i<end;_i++) f.appendChild(makeChip(ANIMALS[_i],_i)); chipsEl.appendChild(f); }
-  _flush(Math.min(_FIRST,_N));
-  (function _next(){ if(_i>=_N){ if(typeof applyFilters==='function') applyFilters();
-    // 段階構築の途中で並び替えを変えていた場合（または遅延構築時）に、現在の並び順を全チップへ反映
-    if(typeof sortChips==='function'){ const ss=document.querySelector('#sortSel'); sortChips(ss&&ss.value||'no'); }
-    return; } _flush(Math.min(_i+_CHUNK,_N)); setTimeout(_next,0); })();
+// デスクトップは「近くの生き物ツール」を主役にするため、初期は先頭160枚だけ構築（DOM約8万→数千に）。
+// 検索/環境/並び替え等、全種が要る操作で buildChips(true) を呼び全構築する。モバイルはドックを開いたら全構築。
+let chipsBuilt=false;   // 初期分の構築を開始した（スケルトン除去済み）
+let chipsAll=false;     // 全5,348を構築済み
+let _ci=0;
+function _flushChips(end){ const f=document.createDocumentFragment(); for(;_ci<end;_ci++) f.appendChild(makeChip(ANIMALS[_ci],_ci)); chipsEl.appendChild(f); }
+function _finishChips(){ if(typeof applyFilters==='function') applyFilters();
+  if(typeof sortChips==='function'){ const ss=document.querySelector('#sortSel'); sortChips(ss&&ss.value||'no'); } }
+function buildChips(all){
+  if(chipsAll) return;
+  const N=ANIMALS.length;
+  const cap = (all || matchMedia('(max-width:640px)').matches) ? N : Math.min(160,N);
+  if(!chipsBuilt){ chipsBuilt=true; chipsEl.innerHTML=''; _ci=0; }   // スケルトン除去
+  if(_ci>=cap){ if(cap>=N){ chipsAll=true; _finishChips(); } return; }
+  _flushChips(Math.min(_ci+160, cap));
+  if(_ci<cap){ setTimeout(()=>buildChips(all), 0); return; }
+  if(cap>=N){ chipsAll=true; _finishChips(); }
 }
 // 凡例をモード連動に：概観＝国塗り「種の多さ」(緑→ゴールド)、種/環境/国選択＝IUCN保全色。
 // 地図の色語彙と凡例を一致させる（概観のゴールドを「IUCN色」と誤説明していた矛盾を解消）。
@@ -127,8 +133,8 @@ function buildSortFilter(){
     +`<optgroup label="保全状況で">`
       +(stP.some(s=>THREAT.includes(s))?`<option value="threat:1">⚠ 絶滅危惧（CR・EN・VU）</option>`:'')
       +stP.map(s=>`<option value="status:${s}">${stL[s]}</option>`).join('')+`</optgroup>`;
-  sortSel.onchange=()=>{ if(typeof buildChips==='function') buildChips(); sortChips(sortSel.value); };
-  facetSel.onchange=()=>{ if(typeof buildChips==='function') buildChips(); filterState.facet=facetSel.value; applyFilters(); };
+  sortSel.onchange=()=>{ if(typeof buildChips==='function') buildChips(true); sortChips(sortSel.value); };
+  facetSel.onchange=()=>{ if(typeof buildChips==='function') buildChips(true); filterState.facet=facetSel.value; applyFilters(); };
 }
 function markSeen(id){ if(!SEEN.has(id)){ SEEN.add(id); localStorage.setItem('biosphere_seen',JSON.stringify([...SEEN])); const ch=chipsEl.querySelector(`.chip[data-id="${id}"]`); if(ch)ch.classList.add('is-seen'); updateDex(); celebrate(id); } }
 function saveBadges(){ try{ localStorage.setItem('biosphere_badges',JSON.stringify([...BADGES])); }catch(e){} }
@@ -167,7 +173,7 @@ async function selectAnimal(id){
   setMode(animalModeText(a)); showYearbar(gbifOn);
 }
 async function selectBiome(bm){
-  if(typeof buildChips==='function') buildChips();   // アイドル遅延構築より先に操作されたら即構築（デスクトップ）
+  if(typeof buildChips==='function') buildChips(true);   // 環境で絞る＝全種必要。アイドル/キャップより先に全構築
   removeNearbyVisuals();
   currentMode={type:'biome',bm}; currentAnimal=null;
   pressBiome(bm); pressChip(null); filterChips(bm); paintBiome(bm); closePanel(); showYearbar(false);
@@ -359,9 +365,10 @@ function openRedlist(status, id){
 }
 function closeRedlist(){ $('#redlist').setAttribute('hidden',''); }
 // モバイルで図鑑ドックが畳まれたまま絞り込むと「絞ったのに何も見えない」になるため、ドックを開きチップを構築してから適用する。
-function ensureCatalogVisible(){ if(!matchMedia('(max-width:640px)').matches) return;
-  const d=$('#dock'); if(d&&!d.classList.contains('open')){ d.classList.add('open'); const t=$('#dockToggle'); if(t)t.setAttribute('aria-expanded','true'); }
-  if(typeof buildChips==='function') buildChips(); }
+function ensureCatalogVisible(){
+  if(typeof buildChips==='function') buildChips(true);   // 保全状況で絞る＝全種必要（デスクトップも全構築）
+  if(!matchMedia('(max-width:640px)').matches) return;
+  const d=$('#dock'); if(d&&!d.classList.contains('open')){ d.classList.add('open'); const t=$('#dockToggle'); if(t)t.setAttribute('aria-expanded','true'); } }
 function filterStatus(code){ const fs=$('#facetSel'); filterState.facet='status:'+code; if(fs)fs.value='status:'+code; ensureCatalogVisible(); applyFilters(); closeRedlist(); toast('🔎',(RL[code]?RL[code].jp.split('（')[0]:code)+'でしぼりました',1900); }
 function filterThreat(){ const fs=$('#facetSel'); filterState.facet='threat:1'; if(fs)fs.value='threat:1'; ensureCatalogVisible(); applyFilters(); closeRedlist(); toast('⚠','絶滅危惧（CR・EN・VU）でしぼりました',2000); }
 window.closePanel=closePanel; window.showCountry=showCountry; window.selectAnimal=selectAnimal;
@@ -427,19 +434,31 @@ function refillHoverPhotos(tip,gk){
 
 /* ---------- 地図インタラクション ---------- */
 function bindMap(){
-  map.on('click','c-fill',(e)=>{ if(nearPick)return; showCountry(e.features[0].properties[CODE_PROP], e.lngLat); });
-  map.on('click',(e)=>{ if(nearPick){ setNearPin(e.lngLat.lat,e.lngLat.lng,'指定地点',nearState?nearState.radius:NEAR_DEFAULT_R); return; } if(!map.queryRenderedFeatures(e.point,{layers:['c-fill']}).length) closePanel(); });
   const tip=$('#maptip');
-  map.on('mousemove','c-fill',(e)=>{
-    const f=e.features[0], code=f.properties[CODE_PROP];
-    map.setFilter('c-hover',['==',['get',CODE_PROP],code]); map.getCanvas().style.cursor='pointer';
-    if(map.getZoom()>=ZOOM_LOCAL_HOVER){ localHover(e.lngLat, e.point); return; }   // ⑤ ズーム時＝この辺りの実観測＋地名
-    cancelLocalHover();
-    const name=f.properties.NAME_JA||(CC[code]?CC[code][0]:null)||f.properties.NAME||f.properties.ADMIN||code;
-    tip.innerHTML=countryHoverHTML(code,name);   // ④ 国名＋代表5種（実写真）
-    tip.classList.add('show');
+  // 地図クリック＝その地点のローカルへ（近くの生き物ツール）。遠いほど広い半径で着地＝いい感じのスケールに寄る。
+  //   世界(z<3.5)→100km / 国(z<5.5)→50km / 近い→現在の半径 or 30km。近くの生き物＋実地図(OFM)を表示。
+  map.on('click',(e)=>{
+    if(nearPick){ setNearPin(e.lngLat.lat,e.lngLat.lng,'指定地点',nearState?nearState.radius:NEAR_DEFAULT_R); return; }
+    const z=map.getZoom();
+    const r = z<3.5 ? 100 : z<5.5 ? 50 : (nearState&&nearState.radius) ? nearState.radius : 30;
+    tip.classList.remove('show');
+    setNearPin(e.lngLat.lat, e.lngLat.lng, 'この地点', r);
   });
-  map.on('mousemove',(e)=>{const t=$('#maptip');t.style.left=(e.originalEvent.clientX+14)+'px';t.style.top=(e.originalEvent.clientY+14)+'px';});
-  map.on('mouseleave','c-fill',()=>{ map.setFilter('c-hover',['==',['get',CODE_PROP],'__none__']); map.getCanvas().style.cursor=''; $('#maptip').classList.remove('show'); cancelLocalHover(); });
+  // ホバー：★負荷対策＝「国が変わった時だけ」処理する（毎ピクセルの再描画/HTML再生成を排除＝重さの主因を除去）。
+  //   表示は世界地図レベル（ズームが遠い）だけ＝国名＋代表種。ズームイン時はホバー表示しない（GBIF fetch等の重い経路も廃止）。
+  let hoverCode=null;
+  map.on('mousemove','c-fill',(e)=>{
+    map.getCanvas().style.cursor='pointer';
+    const code=e.features[0].properties[CODE_PROP];
+    if(code===hoverCode) return;
+    hoverCode=code;
+    map.setFilter('c-hover',['==',['get',CODE_PROP],code]);
+    if(map.getZoom() < ZOOM_LOCAL_HOVER){
+      const f=e.features[0], name=f.properties.NAME_JA||(CC[code]?CC[code][0]:null)||f.properties.NAME||f.properties.ADMIN||code;
+      tip.innerHTML=countryHoverHTML(code,name); tip.classList.add('show');
+    } else tip.classList.remove('show');
+  });
+  map.on('mousemove',(e)=>{ if(!tip.classList.contains('show'))return; tip.style.left=(e.originalEvent.clientX+14)+'px'; tip.style.top=(e.originalEvent.clientY+14)+'px'; });
+  map.on('mouseleave','c-fill',()=>{ hoverCode=null; map.setFilter('c-hover',['==',['get',CODE_PROP],'__none__']); map.getCanvas().style.cursor=''; tip.classList.remove('show'); });
 }
 

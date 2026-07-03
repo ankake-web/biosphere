@@ -10,7 +10,7 @@ const NEAR_CLASSES=[['','すべて'],['Aves','🐦鳥'],['Mammalia','🦫哺乳'
 const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_', LS_IUCN='biosphere_iucn_';
 const THREAT_CATS=new Set(['VU','EN','CR']);   // 絶滅危惧（Threatened）
 // 地図に「ふわっと」出す生き物マーカー（ポケGO風）。GBIF実観測点に種マーカー＝1種1個・上限で間引き。
-const CREATURE_MAX=18;
+const CREATURE_MAX=12;   // 地図に出す生き物マーカー上限（パン時の再配置負荷を抑えるため18→12）
 const CLASS_EMOJI={Aves:'🐦',Mammalia:'🐾',Reptilia:'🦎',Amphibia:'🐸',Actinopterygii:'🐟',Chondrichthyes:'🦈',Fish:'🐟',Insecta:'🐛',Arachnida:'🕷️',Mollusca:'🐚'};
 function classEmoji(cls){ return CLASS_EMOJI[cls]||'🐾'; }
 // ★GBIF occurrence は eBird 由来で鳥に極端に偏る（同一地点で鳥が哺乳の約300倍）。単一 taxonKey=44 の
