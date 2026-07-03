@@ -1,6 +1,6 @@
 /* ---------- ツール ---------- */
 $('#nearBtn').addEventListener('click',openNearby);
-$('#search').addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); applyFilters(); });
+$('#search').addEventListener('input',(e)=>{ if(typeof buildChips==='function') buildChips(); filterState.q=e.target.value.trim().toLowerCase(); applyFilters(); });
 // モバイル：図鑑ドック内の検索窓（上部バーの検索は≤640pxで非表示）。既存 filterState.q/applyFilters に配線。
 { const ds=$('#dockSearch'); if(ds) ds.addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); if(typeof buildChips==='function') buildChips(); applyFilters(); }); }
 let isGlobe=true;

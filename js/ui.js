@@ -64,9 +64,10 @@ Object.keys(BIOMES).forEach(bm=>{
 const allBtn=document.createElement('button'); allBtn.className='bm'; allBtn.innerHTML='✺ ぜんぶ'; allBtn.onclick=resetAll; biomesEl.appendChild(allBtn);
 renderLegend(currentMode&&currentMode.type==='overview'?'overview':'status');   // 起動時のモードに合わせて凡例を描く（以後は各paint関数が切替）
 buildSortFilter();
-// チップ本体：モバイルはドックを開くまで作らない（初期DOMを軽量化）。デスクトップは即時構築。
+// チップ本体：モバイルはドックを開くまで作らない。デスクトップも初期描画をブロックしないよう
+// アイドルで構築（近所/地図を先に軽く出す）。図鑑操作(検索/環境/並び替え)は各入口で buildChips を保証。
 if(matchMedia('(max-width:640px)').matches){ chipsEl.innerHTML=''; }
-else buildChips();
+else { (window.requestIdleCallback||(f=>setTimeout(()=>f(),300)))(()=>buildChips(),{timeout:2200}); }
 } // initCatalog
 // 種データ到着後：採番 → 図鑑UI構築 → 「準備完了」を通知（地図側はこれを await して描画）
 __spData.then(d=>{ ANIMALS=d.animals; PHOTO_CRED=d.photoCred; ANIMALS.forEach((a,i)=>a.no=i+1); initCatalog(); __speciesDone(); })
@@ -126,8 +127,8 @@ function buildSortFilter(){
     +`<optgroup label="保全状況で">`
       +(stP.some(s=>THREAT.includes(s))?`<option value="threat:1">⚠ 絶滅危惧（CR・EN・VU）</option>`:'')
       +stP.map(s=>`<option value="status:${s}">${stL[s]}</option>`).join('')+`</optgroup>`;
-  sortSel.onchange=()=>sortChips(sortSel.value);
-  facetSel.onchange=()=>{ filterState.facet=facetSel.value; applyFilters(); };
+  sortSel.onchange=()=>{ if(typeof buildChips==='function') buildChips(); sortChips(sortSel.value); };
+  facetSel.onchange=()=>{ if(typeof buildChips==='function') buildChips(); filterState.facet=facetSel.value; applyFilters(); };
 }
 function markSeen(id){ if(!SEEN.has(id)){ SEEN.add(id); localStorage.setItem('biosphere_seen',JSON.stringify([...SEEN])); const ch=chipsEl.querySelector(`.chip[data-id="${id}"]`); if(ch)ch.classList.add('is-seen'); updateDex(); celebrate(id); } }
 function saveBadges(){ try{ localStorage.setItem('biosphere_badges',JSON.stringify([...BADGES])); }catch(e){} }
@@ -166,6 +167,7 @@ async function selectAnimal(id){
   setMode(animalModeText(a)); showYearbar(gbifOn);
 }
 async function selectBiome(bm){
+  if(typeof buildChips==='function') buildChips();   // アイドル遅延構築より先に操作されたら即構築（デスクトップ）
   removeNearbyVisuals();
   currentMode={type:'biome',bm}; currentAnimal=null;
   pressBiome(bm); pressChip(null); filterChips(bm); paintBiome(bm); closePanel(); showYearbar(false);
@@ -282,7 +284,7 @@ function renderAnimalCard(a){
         <div class="stat"><div class="k">⏳ 寿命</div><div class="v">${a.stats.life}</div></div>
       </div>
       <div class="flavor">${a.desc}</div>
-      <div class="ndsec" id="figsound" hidden style="margin:2px 0 12px"></div>
+      <div class="ndsec" id="figsound" style="margin:2px 0 10px"><button class="nbtn wide" onclick="playFigureSound('${a.id}',this)">🔊 鳴き声を聞く</button></div>
       ${['CR','EN','VU','NT','DD'].includes(a.status)?`<div class="conserv">
         <div class="cvhead">🛡 おもな脅威と保全 <span class="cvst" style="color:${r.color}">${r.jp}（${a.status}）</span></div>
         <div class="cvtags">${threatsOf(a).map(t=>`<span class="cvtag">${t}</span>`).join('')}</div>
@@ -294,7 +296,6 @@ function renderAnimalCard(a){
       ${MIGRATION[a.id]?`<div class="gbifnote mignote">🧭 <b>季節移動</b>：${MIGRATION[a.id].note}。地図に<span style="color:#ffd45e;font-weight:700">繁殖↔越冬の経路</span>（模式）を表示中。</div>`:''}
     </div>`;
   panelSheet(false); openPanel();
-  if(typeof loadFigureSound==='function') loadFigureSound(a);   // 鳴き声（iNat CC録音があれば種カードに再生プレーヤーを差し込む）
 }
 function renderCountryCard(code,animals){
   const rows=animals.length? animals.map(a=>{const r=RARITY[a.status];
