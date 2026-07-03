@@ -38,8 +38,8 @@ async function gbifFacetNear(lat,lng,radius,keys,facetLimit,y1,y2){
 async function gbifOccByGroup(lat,lng,radius,keys,limit,y1,y2){
   const kp=keys.map(x=>'&taxonKey='+x).join('');
   const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km${kp}&hasCoordinate=true&year=${y1},${y2}&limit=${limit}`;
-  for(let i=0;i<2;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1200*(i+1))); continue; }
-    if(!r.ok) return []; const d=await r.json(); return d.results||[];
+  for(let i=0;i<3;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1000*(i+1))); continue; }
+    if(!r.ok){ await new Promise(s=>setTimeout(s,400)); continue; } const d=await r.json(); return d.results||[];
   }catch(e){ await new Promise(s=>setTimeout(s,500)); } }
   return [];
 }
@@ -436,6 +436,20 @@ async function toggleNearPoints(sci,btn){
    絵文字で即出現（有限CSSアニメ）→iNat写真サムネに差し替え／絶滅危惧はレア度カラーで発光。タップで詳細。
    永続rAFは使わない（アニメはCSS有限）。 */
 function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); creatureMarkers=[]; }
+// occurrence群→マーカー候補（各クラス上位4種・座標付き）。o.species が無い記録も scientificName を二名化して拾う＝取りこぼし減。
+function collectPicks(per){
+  const picks=[], perGroup=4;
+  per.forEach(({g,res})=>{
+    const freq={}, coord={}, cls={};
+    (res||[]).forEach(o=>{ let sp=(o.species||'').trim();
+      if(!sp){ const p=(o.scientificName||o.acceptedScientificName||'').trim().split(/\s+/); if(p.length>=2&&/^[A-Z][a-zé-]+$/.test(p[0])&&/^[a-zé-]+$/.test(p[1])) sp=p[0]+' '+p[1]; }
+      if(!sp || o.decimalLatitude==null || o.decimalLongitude==null) return;
+      freq[sp]=(freq[sp]||0)+1; if(!coord[sp]) coord[sp]=[o.decimalLongitude,o.decimalLatitude]; if(!cls[sp]) cls[sp]=o.class||''; });
+    Object.keys(freq).sort((a,b)=>freq[b]-freq[a]).slice(0,perGroup).forEach(sp=>picks.push({sci:sp,c:coord[sp],cls:CLASS_EMOJI[cls[sp]]?cls[sp]:g.c,n:freq[sp]}));
+  });
+  picks.sort((a,b)=>b.n-a.n);
+  return picks;
+}
 function loadNearCreatures(lat,lng,radius){
   removeCreatures(); threatToastShown=false;   // 地点/半径ごとに「近所に絶滅危惧種！」トーストを一度だけ
   const k=nearKey(lat,lng,radius); creaturesKey=k;
@@ -443,18 +457,20 @@ function loadNearCreatures(lat,lng,radius){
   creatureTimer=setTimeout(async()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
     try{
-      // クラス別に occurrence を並行取得（鳥は少なめlimit）→各クラス上位数種をマーカー化＝マーカーも鳥だらけを回避。
-      const per=await Promise.all(GBIF_VERT_GROUPS.map(g=>
-        gbifOccByGroup(lat,lng,radius,g.keys,g.c==='Aves'?24:36,y1,y2).then(res=>({g,res}))));
+      // クラス別に occurrence を並行取得（多めに取り確実にマーカーを出す）→各クラス上位種をマーカー化＝鳥だらけ回避。
+      let per=await Promise.all(GBIF_VERT_GROUPS.map(g=>
+        gbifOccByGroup(lat,lng,radius,g.keys,g.c==='Aves'?40:60,y1,y2).then(res=>({g,res}))));
       if(creaturesKey!==k || !currentMode || currentMode.type!=='near') return;   // 古い/別地点の応答は破棄
-      const picks=[], perGroup=4;   // 各クラス最大4種
-      per.forEach(({g,res})=>{
-        const freq={}, coord={}, cls={};
-        res.forEach(o=>{ const sp=(o.species||'').trim(); if(!sp || o.decimalLatitude==null || o.decimalLongitude==null) return;
-          freq[sp]=(freq[sp]||0)+1; if(!coord[sp]) coord[sp]=[o.decimalLongitude,o.decimalLatitude]; if(!cls[sp]) cls[sp]=o.class||''; });
-        Object.keys(freq).sort((a,b)=>freq[b]-freq[a]).slice(0,perGroup).forEach(sp=>picks.push({sci:sp,c:coord[sp],cls:CLASS_EMOJI[cls[sp]]?cls[sp]:g.c,n:freq[sp]}));
-      });
-      picks.sort((a,b)=>b.n-a.n);   // 件数順に整えつつ上限で間引き
+      let picks=collectPicks(per);
+      // 過疎/近すぎで少ない時は1段だけ半径を広げて再取得（確実にアイコンを出す）。3倍・最大100km＝対応ズームの画面内に収まる。
+      if(picks.length<4 && radius<80){
+        const wideR=Math.min(radius*3,100);
+        per=await Promise.all(GBIF_VERT_GROUPS.map(g=>
+          gbifOccByGroup(lat,lng,wideR,g.keys,g.c==='Aves'?40:60,y1,y2).then(res=>({g,res}))));
+        if(creaturesKey!==k || !currentMode || currentMode.type!=='near') return;
+        const wide=collectPicks(per);
+        if(wide.length>picks.length) picks=wide;
+      }
       spawnCreatures(picks.slice(0,CREATURE_MAX));
     }catch(e){ /* 失敗は静かに（一覧・地図は維持） */ }
   },260);
