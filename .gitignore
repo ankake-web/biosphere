@@ -8,3 +8,6 @@ PROGRESS.md
 DESIGN.md
 _pending_species/
 *.bak_*
+
+# 検証の一時成果物（ハーネス本体 tools/*.mjs は追跡する）
+tools/shots/
