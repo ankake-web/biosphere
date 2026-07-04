@@ -1105,7 +1105,7 @@ const NEAR_CLASS_KEYS={Aves:[212],Mammalia:[359],Reptilia:[11592253,11418114],Am
 // クラス別 facet 取得（429リトライ）。scientificName を二名へ正規化して返す。
 async function gbifFacetNear(lat,lng,radius,keys,facetLimit,y1,y2){
   const kp=keys.map(x=>'&taxonKey='+x).join('');
-  const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km${kp}&hasCoordinate=true&year=${y1},${y2}&limit=0&facet=scientificName&facetLimit=${facetLimit}`;
+  const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km${kp}&hasCoordinate=true&basisOfRecord=HUMAN_OBSERVATION&year=${y1},${y2}&limit=0&facet=scientificName&facetLimit=${facetLimit}`;
   for(let i=0;i<3;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1200*(i+1))); continue; }
     if(!r.ok) return []; const d=await r.json(); return mergeBinomials((d.facets&&d.facets[0]&&d.facets[0].counts)||[]);
   }catch(e){ await new Promise(s=>setTimeout(s,600)); } }
@@ -1114,7 +1114,7 @@ async function gbifFacetNear(lat,lng,radius,keys,facetLimit,y1,y2){
 // クラス別 occurrence 取得（座標付き＝マーカー用）
 async function gbifOccByGroup(lat,lng,radius,keys,limit,y1,y2){
   const kp=keys.map(x=>'&taxonKey='+x).join('');
-  const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km${kp}&hasCoordinate=true&year=${y1},${y2}&limit=${limit}`;
+  const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km${kp}&hasCoordinate=true&basisOfRecord=HUMAN_OBSERVATION&year=${y1},${y2}&limit=${limit}`;
   for(let i=0;i<3;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1000*(i+1))); continue; }
     if(!r.ok){ await new Promise(s=>setTimeout(s,400)); continue; } const d=await r.json(); return d.results||[];
   }catch(e){ await new Promise(s=>setTimeout(s,500)); } }
@@ -1448,7 +1448,7 @@ async function loadSeason(sci){
   const key=await resolveSpeciesKey(sci); const {lat,lng,radius}=nearState;
   if(!key){ wrap.innerHTML='<span class="muted">季節データを取得できませんでした。</span>'; return; }
   try{
-    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true&limit=0&facet=month&facetLimit=12`;
+    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true&basisOfRecord=HUMAN_OBSERVATION&limit=0&facet=month&facetLimit=12`;
     const d=await (await fetch(u)).json();
     if(document.getElementById('seasonwrap')!==wrap)return;
     const counts=(d.facets&&d.facets[0]&&d.facets[0].counts)||[];
@@ -1569,7 +1569,7 @@ async function toggleNearPoints(sci,btn){
   const key=await resolveSpeciesKey(sci); const {lat,lng,radius}=nearState;
   if(!key){ btn.textContent='📍 観測スポットを地図に表示'; toast('📍','観測点を取得できませんでした',2000); return; }
   try{
-    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true&limit=300`;
+    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true&basisOfRecord=HUMAN_OBSERVATION&limit=300`;
     const d=await (await fetch(u)).json();
     const feats=(d.results||[]).filter(o=>o.decimalLatitude!=null&&o.decimalLongitude!=null).map(o=>({type:'Feature',geometry:{type:'Point',coordinates:[o.decimalLongitude,o.decimalLatitude]},properties:{}}));
     if(!feats.length){ btn.textContent='📍 観測スポットを地図に表示'; toast('📍','この範囲の観測点は見つかりませんでした',2200); return; }
