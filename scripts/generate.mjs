@@ -34,10 +34,11 @@ const PHOTO_CRED = species.photoCred;
     if (m) return '0|' + m[1] + '|' + m[2];                // 0|ab|file
     return '9|' + u;
   };
-  const coreAnimals = ANIMALS.map(a => { const c = { ...a }; delete c.stats; delete c.desc; c.photo = compactPhoto(c.photo); return c; });
+  // core = 一覧/地図/検索に要る軽い項目。カード専用の stats/desc/eco/human/wiki は core から外し detail へ（coreを肥大させない）。
+  const coreAnimals = ANIMALS.map(a => { const c = { ...a }; delete c.stats; delete c.desc; delete c.eco; delete c.human; delete c.wiki; c.photo = compactPhoto(c.photo); return c; });
   fs.writeFileSync(path.join(ROOT, 'data/species-core.json'), JSON.stringify({ animals: coreAnimals }));
   const detail = {};
-  for (const a of ANIMALS) detail[a.id] = { stats: a.stats, desc: a.desc };
+  for (const a of ANIMALS) { const o = { stats: a.stats, desc: a.desc }; if (a.eco) o.eco = a.eco; if (a.human) o.human = a.human; if (a.wiki) o.wiki = a.wiki; detail[a.id] = o; }
   fs.writeFileSync(path.join(ROOT, 'data/species-detail.json'), JSON.stringify({ detail, photoCred: PHOTO_CRED }));
   const kb = f => (fs.statSync(path.join(ROOT, 'data', f)).size / 1024).toFixed(0);
   console.log(`分割データ生成：species-core.json ${kb('species-core.json')}KB / species-detail.json ${kb('species-detail.json')}KB`);
@@ -141,7 +142,7 @@ ${isThreatened(a) ? `<div class="conserv"><h2 style="margin-top:0;color:#ffcf7a"
 <div class="stat"><div class="k">🍖 食性</div><div class="v">${esc(a.stats.diet)}</div></div>
 <div class="stat"><div class="k">⏳ 寿命</div><div class="v">${esc(a.stats.life)}</div></div>
 </div>
-<h2>分布する地域（${a.range.length}地域）</h2>
+${(a.eco || a.human) ? `<h2>🌿 生態</h2><p class="desc">${esc(a.eco || a.desc)}</p>${a.human ? `<h2>👤 人との関わり</h2><p class="desc">${esc(a.human)}</p>` : ''}${a.wiki ? `<p class="src">生態・人との関わりの出典：<a href="${esc(a.wiki)}">Wikipedia ↗</a></p>` : ''}\n` : ''}<h2>分布する地域（${a.range.length}地域）</h2>
 <div class="geos">${geos}</div>
 <p><a class="cta" href="../#${a.id}">▶ 3D地球儀でこの種の実分布（GBIF）を見る</a></p>
 <p class="src">出典：<a href="${iucnURL(a)}">IUCN レッドリスト ↗</a> ／ <a href="${gbifURL(a)}">GBIF 種ページ ↗</a></p>

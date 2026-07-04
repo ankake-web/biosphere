@@ -695,7 +695,7 @@ let __detailReady=null;
 function ensureDetail(){
   if(__detailReady) return __detailReady;
   __detailReady = Promise.all([__speciesReady, fetch('data/species-detail.json').then(r=>{ if(!r.ok) throw new Error('species-detail.json '+r.status); return r.json(); })])
-    .then(([,d])=>{ const D=d.detail||{}; PHOTO_CRED=d.photoCred||{}; for(const a of ANIMALS){ const x=D[a.id]; if(x){ a.stats=x.stats; a.desc=x.desc; } } })
+    .then(([,d])=>{ const D=d.detail||{}; PHOTO_CRED=d.photoCred||{}; for(const a of ANIMALS){ const x=D[a.id]; if(x){ a.stats=x.stats; a.desc=x.desc; if(x.eco)a.eco=x.eco; if(x.human)a.human=x.human; if(x.wiki)a.wiki=x.wiki; } } })
     .catch(e=>{ console.error(e); });   // 失敗してもカードは基本情報＋フォールバックで表示（下の renderAnimalCard が防御）
   return __detailReady;
 }
@@ -914,7 +914,7 @@ function renderAnimalCard(a, head){
         <div class="stat"><div class="k">🍖 食性</div><div class="v">${st.diet}</div></div>
         <div class="stat"><div class="k">⏳ 寿命</div><div class="v">${st.life}</div></div>
       </div>
-      <div class="flavor">${a.desc||''}</div>
+      <div class="flavor2" data-fid="${esc(a.id)}"></div>
       <div class="ndsec" id="figsound" style="margin:2px 0 10px"><button class="nbtn wide" onclick="playFigureSound('${a.id}',this)">🔊 鳴き声を聞く</button></div>
       ${['CR','EN','VU','NT','DD'].includes(a.status)?`<div class="conserv">
         <div class="cvhead">🛡 おもな脅威と保全 <span class="cvst" style="color:${r.color}">${r.jp}（${a.status}）</span></div>
@@ -927,6 +927,84 @@ function renderAnimalCard(a, head){
       ${MIGRATION[a.id]?`<div class="gbifnote mignote">🧭 <b>季節移動</b>：${MIGRATION[a.id].note}。地図に<span style="color:#ffd45e;font-weight:700">繁殖↔越冬の経路</span>（模式）を表示中。</div>`:''}
     </div>`;
   panelSheet(false); openPanel();
+  fillFlavor(a);
+}
+/* ---------- フレーバー2本立て（🌿生態 / 👤人との関わり） ---------- */
+// curated種（species.jsonにeco/humanを静的保持）は即表示。非curated種はまずdescを🌿に出し、
+// ja Wikipediaを非同期取得して差し替える（スピナー→挿入）。捏造しない：出典に無いことは載せない。
+function flavBlocks({eco,human,src,loading}){
+  let h='';
+  h+=`<div class="flavblk"><div class="flavh">🌿 生態</div><div class="flavtx">${esc(eco)||'—'}</div></div>`;
+  if(human) h+=`<div class="flavblk"><div class="flavh">👤 人との関わり</div><div class="flavtx">${esc(human)}</div></div>`;
+  if(loading) h+=`<div class="flavmeta"><span class="flavspin"></span>Wikipediaから生態・人との関わりを取得中…</div>`;
+  else if(src) h+=`<div class="flavmeta">出典 <a href="${esc(src)}" target="_blank" rel="noopener">Wikipedia ↗</a></div>`;
+  return h;
+}
+function fillFlavor(a){
+  const el=panelEl.querySelector('.flavor2'); if(!el) return;
+  if(a.eco||a.human){ el.innerHTML=flavBlocks({eco:a.eco||a.desc||'', human:a.human||'', src:a.wiki||''}); return; }  // curated＝即表示（eco欠時はdescで補う）
+  el.innerHTML=flavBlocks({eco:a.desc||'', human:'', loading:true});                                                 // 非curated＝desc仮表示＋スピナー
+  loadWikiFlavor(a, el);
+}
+function applyWikiFlavor(el, a, res){
+  if(!el.isConnected) return;
+  const eco=(res&&res.eco)?res.eco:(a.desc||'');
+  const human=(res&&res.human)?res.human:'';
+  const src=(res&&res.url)?res.url:'';
+  el.innerHTML=flavBlocks({eco,human,src});
+}
+function loadWikiFlavor(a, el){
+  const c=wikiFlavorGet(a.id); if(c){ applyWikiFlavor(el,a,c); return; }
+  wikiFlavorFetch(a).then(res=>{ if(res) wikiFlavorSet(a.id,res); applyWikiFlavor(el,a,res); })
+    .catch(()=>{ if(el.isConnected) el.innerHTML=flavBlocks({eco:a.desc||'', human:''}); });
+}
+// localStorage キャッシュ（7日）。往復を1種1回に。
+const LS_WIKI='biosphere_wikiflav_';
+function wikiFlavorGet(id){ try{const o=JSON.parse(localStorage.getItem(LS_WIKI+id)||'null'); if(o&&(Date.now()-o.t)<6048e5) return o.v;}catch(e){} return null; }
+function wikiFlavorSet(id,v){ try{localStorage.setItem(LS_WIKI+id,JSON.stringify({t:Date.now(),v}));}catch(e){} }
+// ja Wikipedia を CORS(origin=*) で取得し、節を🌿/👤に振り分け。生態=リード or 生態節、人との関わり=節ありのみ。
+const WIKI_EXCL=/脚注|注釈|出典|参考文献|参考図書|関連項目|外部リンク|画像|ギャラリー|分類|学名|シノニム|亜種|語源|命名|名称|表記/;
+const WIKI_ECO=/生態|繁殖|生活|食性|食う|捕食|狩|行動|社会|群れ|天敵|コミュニ|鳴き|発生|産卵|回遊|渡り|越冬|冬眠|生育|幼虫|幼生|成虫|蛹|変態|習性|生殖|営巣|生息/;
+const WIKI_HUM=/人間|人と|利用|文化|飼育|栽培|保全|保護|絶滅|減少|脅威|食用|食味|料理|漁|狩猟|養殖|農業|園芸|害|益|駆除|被害|ペット|家畜|採集|象徴|神話|信仰|伝説|民俗|研究史|歴史|関係|条約|レッドリスト|ワシントン/;
+function wikiSentences(t,maxCh,maxN){ // 先頭からmaxN文・maxCh字まで
+  if(!t) return '';
+  const s=t.replace(/\s+/g,' ').trim();
+  const parts=s.split(/(?<=。)/); let out='',n=0;
+  for(const p of parts){ const q=p.trim(); if(!q) continue; if(n>=maxN||(out.length+q.length)>maxCh) break; out+=q; n++; }
+  if(!out) out=s.slice(0,maxCh);
+  return out.trim();
+}
+function wikiParse(extract){
+  const lines=extract.split('\n'); const secs=[]; let cur={title:'(lead)',text:[]};
+  for(const ln of lines){ const m=ln.match(/^(={2,})\s*(.+?)\s*\1\s*$/); if(m){ secs.push(cur); cur={title:m[2].trim(),text:[]}; } else cur.text.push(ln); }
+  secs.push(cur);
+  let lead='',ecoSec='',humSec='';
+  for(const s of secs){ const tx=s.text.join('\n').replace(/\n{2,}/g,'\n').trim(); if(!tx) continue;
+    if(s.title==='(lead)'){ lead=tx; continue; }
+    if(WIKI_EXCL.test(s.title)) continue;
+    if(!humSec && WIKI_HUM.test(s.title)) humSec=tx;
+    else if(!ecoSec && WIKI_ECO.test(s.title)) ecoSec=tx;
+  }
+  const eco=wikiSentences(ecoSec||lead, 140, 3);
+  const human=humSec? wikiSentences(humSec, 130, 2) : '';
+  return {eco,human};
+}
+async function wikiFetchExtract(title){
+  const u='https://ja.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts|info&inprop=url&explaintext=1&exsectionformat=wiki&redirects=1&titles='+encodeURIComponent(title);
+  const r=await fetch(u); if(!r.ok) throw new Error('wiki '+r.status);
+  const j=await r.json(); const p=Object.values(j.query.pages)[0];
+  if(p.missing!==undefined) return null;
+  return {title:p.title, url:p.fullurl, extract:p.extract||''};
+}
+function wikiFlavorFetch(a){
+  return dedupe('wikiflav:'+a.id, async()=>{
+    let e=null;
+    try{ e=await wikiFetchExtract(a.nameJa); }catch(err){}
+    if((!e || (e.extract||'').length<500) && a.nameSci){ try{ const e2=await wikiFetchExtract(a.nameSci); if(e2&&(e2.extract||'').length>((e&&e.extract)?e.extract.length:0)) e=e2; }catch(err){} }
+    if(!e) return null;
+    const {eco,human}=wikiParse(e.extract);
+    return {eco,human,url:e.url};
+  });
 }
 function renderCountryCard(code,animals){
   const rows=animals.length? animals.map(a=>{const r=RARITY[a.status];
