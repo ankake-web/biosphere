@@ -695,7 +695,7 @@ let __detailReady=null;
 function ensureDetail(){
   if(__detailReady) return __detailReady;
   __detailReady = Promise.all([__speciesReady, fetch('data/species-detail.json').then(r=>{ if(!r.ok) throw new Error('species-detail.json '+r.status); return r.json(); })])
-    .then(([,d])=>{ const D=d.detail||{}; PHOTO_CRED=d.photoCred||{}; for(const a of ANIMALS){ const x=D[a.id]; if(x){ a.stats=x.stats; a.desc=x.desc; if(x.eco)a.eco=x.eco; if(x.human)a.human=x.human; if(x.wiki)a.wiki=x.wiki; } } })
+    .then(([,d])=>{ const D=d.detail||{}; PHOTO_CRED=d.photoCred||{}; for(const a of ANIMALS){ const x=D[a.id]; if(x){ a.stats=x.stats; a.desc=x.desc; if(x.eco)a.eco=x.eco; if(x.human)a.human=x.human; if(x.cook)a.cook=x.cook; if(x.wiki)a.wiki=x.wiki; } } })
     .catch(e=>{ console.error(e); });   // 失敗してもカードは基本情報＋フォールバックで表示（下の renderAnimalCard が防御）
   return __detailReady;
 }
@@ -932,17 +932,18 @@ function renderAnimalCard(a, head){
 /* ---------- フレーバー2本立て（🌿生態 / 👤人との関わり） ---------- */
 // curated種（species.jsonにeco/humanを静的保持）は即表示。非curated種はまずdescを🌿に出し、
 // ja Wikipediaを非同期取得して差し替える（スピナー→挿入）。捏造しない：出典に無いことは載せない。
-function flavBlocks({eco,human,src,loading}){
+function flavBlocks({eco,human,cook,src,loading}){
   let h='';
-  h+=`<div class="flavblk"><div class="flavh">🌿 生態</div><div class="flavtx">${esc(eco)||'—'}</div></div>`;
-  if(human) h+=`<div class="flavblk"><div class="flavh">👤 人との関わり</div><div class="flavtx">${esc(human)}</div></div>`;
+  h+=`<div class="flavblk eco"><div class="flavh">🌿 生態</div><div class="flavtx">${esc(eco)||'—'}</div></div>`;
+  if(human) h+=`<div class="flavblk human"><div class="flavh">👤 人との関わり</div><div class="flavtx">${esc(human)}</div></div>`;
+  if(cook) h+=`<div class="flavblk cook"><div class="flavh">🍴 調理法・味</div><div class="flavtx">${esc(cook)}</div></div>`;
   if(loading) h+=`<div class="flavmeta"><span class="flavspin"></span>Wikipediaから生態・人との関わりを取得中…</div>`;
   else if(src) h+=`<div class="flavmeta">出典 <a href="${esc(src)}" target="_blank" rel="noopener">Wikipedia ↗</a></div>`;
   return h;
 }
 function fillFlavor(a){
   const el=panelEl.querySelector('.flavor2'); if(!el) return;
-  if(a.eco||a.human){ el.innerHTML=flavBlocks({eco:a.eco||a.desc||'', human:a.human||'', src:a.wiki||''}); return; }  // curated＝即表示（eco欠時はdescで補う）
+  if(a.eco||a.human||a.cook){ el.innerHTML=flavBlocks({eco:a.eco||a.desc||'', human:a.human||'', cook:a.cook||'', src:a.wiki||''}); return; }  // curated＝即表示（eco欠時はdescで補う）
   el.innerHTML=flavBlocks({eco:a.desc||'', human:'', loading:true});                                                 // 非curated＝desc仮表示＋スピナー
   loadWikiFlavor(a, el);
 }
@@ -950,8 +951,9 @@ function applyWikiFlavor(el, a, res){
   if(!el.isConnected) return;
   const eco=(res&&res.eco)?res.eco:(a.desc||'');
   const human=(res&&res.human)?res.human:'';
+  const cook=(res&&res.cook)?res.cook:'';
   const src=(res&&res.url)?res.url:'';
-  el.innerHTML=flavBlocks({eco,human,src});
+  el.innerHTML=flavBlocks({eco,human,cook,src});
 }
 function loadWikiFlavor(a, el){
   const c=wikiFlavorGet(a.id); if(c){ applyWikiFlavor(el,a,c); return; }
@@ -965,7 +967,8 @@ function wikiFlavorSet(id,v){ try{localStorage.setItem(LS_WIKI+id,JSON.stringify
 // ja Wikipedia を CORS(origin=*) で取得し、節を🌿/👤に振り分け。生態=リード or 生態節、人との関わり=節ありのみ。
 const WIKI_EXCL=/脚注|注釈|出典|参考文献|参考図書|関連項目|外部リンク|画像|ギャラリー|分類|学名|シノニム|亜種|語源|命名|名称|表記/;
 const WIKI_ECO=/生態|繁殖|生活|食性|食う|捕食|狩|行動|社会|群れ|天敵|コミュニ|鳴き|発生|産卵|回遊|渡り|越冬|冬眠|生育|幼虫|幼生|成虫|蛹|変態|習性|生殖|営巣|生息/;
-const WIKI_HUM=/人間|人と|利用|文化|飼育|栽培|保全|保護|絶滅|減少|脅威|食用|食味|料理|漁|狩猟|養殖|農業|園芸|害|益|駆除|被害|ペット|家畜|採集|象徴|神話|信仰|伝説|民俗|研究史|歴史|関係|条約|レッドリスト|ワシントン/;
+const WIKI_HUM=/人間|人と|利用|文化|飼育|栽培|保全|保護|絶滅|減少|脅威|漁|狩猟|養殖|農業|園芸|害|益|駆除|被害|ペット|家畜|採集|象徴|神話|信仰|伝説|民俗|研究史|歴史|関係|条約|レッドリスト|ワシントン/;
+const WIKI_COOK=/食用|料理|食味|調理|美味|食材|かば焼|蒲焼|刺身|食文化|味わい|珍味|食べ方|グルメ/;   // 🍴調理法・味の節
 function wikiSentences(t,maxCh,maxN){ // 先頭からmaxN文・maxCh字まで
   if(!t) return '';
   const s=t.replace(/\s+/g,' ').trim();
@@ -978,16 +981,18 @@ function wikiParse(extract){
   const lines=extract.split('\n'); const secs=[]; let cur={title:'(lead)',text:[]};
   for(const ln of lines){ const m=ln.match(/^(={2,})\s*(.+?)\s*\1\s*$/); if(m){ secs.push(cur); cur={title:m[2].trim(),text:[]}; } else cur.text.push(ln); }
   secs.push(cur);
-  let lead='',ecoSec='',humSec='';
+  let lead='',ecoSec='',humSec='',cookSec='';
   for(const s of secs){ const tx=s.text.join('\n').replace(/\n{2,}/g,'\n').trim(); if(!tx) continue;
     if(s.title==='(lead)'){ lead=tx; continue; }
     if(WIKI_EXCL.test(s.title)) continue;
-    if(!humSec && WIKI_HUM.test(s.title)) humSec=tx;
+    if(!cookSec && WIKI_COOK.test(s.title)) cookSec=tx;        // 🍴 調理法・味（食用/料理/食味 等の節を優先）
+    else if(!humSec && WIKI_HUM.test(s.title)) humSec=tx;
     else if(!ecoSec && WIKI_ECO.test(s.title)) ecoSec=tx;
   }
   const eco=wikiSentences(ecoSec||lead, 140, 3);
   const human=humSec? wikiSentences(humSec, 130, 2) : '';
-  return {eco,human};
+  const cook=cookSec? wikiSentences(cookSec, 120, 2) : '';
+  return {eco,human,cook};
 }
 async function wikiFetchExtract(title){
   const u='https://ja.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts|info&inprop=url&explaintext=1&exsectionformat=wiki&redirects=1&titles='+encodeURIComponent(title);
@@ -1002,8 +1007,8 @@ function wikiFlavorFetch(a){
     try{ e=await wikiFetchExtract(a.nameJa); }catch(err){}
     if((!e || (e.extract||'').length<500) && a.nameSci){ try{ const e2=await wikiFetchExtract(a.nameSci); if(e2&&(e2.extract||'').length>((e&&e.extract)?e.extract.length:0)) e=e2; }catch(err){} }
     if(!e) return null;
-    const {eco,human}=wikiParse(e.extract);
-    return {eco,human,url:e.url};
+    const {eco,human,cook}=wikiParse(e.extract);
+    return {eco,human,cook,url:e.url};
   });
 }
 function renderCountryCard(code,animals){
@@ -1170,11 +1175,11 @@ function bindMap(){
 /* ---------- 近くの生き物（脊椎動物・Chordata=taxonKey44） ----------
    現在地→GBIF geoDistance facet で周辺の種一覧→iNatで和名/写真を遅延付与。
    プライバシー：座標は~1km丸めしGBIF/iNatの問い合わせにのみ使用（保存はローカルのみ）。 */
-const NEAR_RADII=[1,3,5,10,30,50,100,300,500,1000];                       // 半径(km)の選択肢（〜1000km＝広域探索）
-const ZOOM_BY_R={1:13.2,3:11.9,5:11,10:10,30:8.4,50:7.6,100:6.6,300:5.2,500:4.5,1000:3.6};  // 半径→ズーム（円が収まる程度）
+const NEAR_RADII=[1,5,10,50,100,500,1000];                       // 半径(km)の選択肢（3/30/300は間引き）
+const ZOOM_BY_R={1:13.2,3:11.9,5:11,10:10,30:8.4,50:7.6,100:6.6,300:5.2,500:4.5,1000:3.6};  // 半径→ズーム（円が収まる程度・全半径分を保持）
 const NEAR_DEFAULT_R=10;
 const NEAR_PRESETS=[['東京',35.68,139.76],['大阪',34.69,135.50],['札幌',43.06,141.35],['那覇',26.21,127.68],['ニューヨーク',40.71,-74.01],['ロンドン',51.51,-0.13],['シンガポール',1.35,103.82],['シドニー',-33.87,151.21],['ナイロビ',-1.29,36.82],['リオデジャネイロ',-22.91,-43.17]];
-const NEAR_ICONIC={Aves:'鳥類',Mammalia:'哺乳類',Reptilia:'爬虫類',Amphibia:'両生類',Actinopterygii:'魚類',Chondrichthyes:'魚類（軟骨魚）',Insecta:'昆虫',Arachnida:'クモ類'};
+const NEAR_ICONIC={Aves:'鳥類',Mammalia:'哺乳類',Reptilia:'爬虫類',Amphibia:'両生類',Actinopterygii:'魚類',Chondrichthyes:'魚類（軟骨魚）',Teleostei:'魚類',Elasmobranchii:'魚類（軟骨魚）',Insecta:'昆虫',Arachnida:'クモ類'};
 // 🐛虫は既定OFF（「すべて」に含めない＝苦手な人に配慮）。明示的に🐛虫チップを選んだ時だけ昆虫を出す。
 const NEAR_CLASSES=[['','すべて'],['Aves','🐦鳥'],['Mammalia','🦫哺乳'],['Reptilia','🦎爬虫'],['Amphibia','🐸両生'],['Fish','🐟魚'],['Insecta','🐛虫']];
 const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_', LS_IUCN='biosphere_iucn_', LS_CRT='biosphere_crt_';
@@ -1191,7 +1196,7 @@ function spreadPoint(pts, placed){ if(!pts||!pts.length) return null; if(!placed
 // 1種の観測点群を「重心付近＋広がる数点」に間引く（散らし用の候補＝キャッシュも小さく保つ）。
 function thinPoints(list){ if(!list||!list.length) return []; if(list.length<=5) return list.slice();
   const out=[medoid(list)]; while(out.length<5){ const p=spreadPoint(list,out); if(!p||out.some(q=>q[0]===p[0]&&q[1]===p[1])) break; out.push(p); } return out; }
-const CLASS_EMOJI={Aves:'🐦',Mammalia:'🐾',Reptilia:'🦎',Amphibia:'🐸',Actinopterygii:'🐟',Chondrichthyes:'🦈',Fish:'🐟',Insecta:'🐛',Arachnida:'🕷️',Mollusca:'🐚'};
+const CLASS_EMOJI={Aves:'🐦',Mammalia:'🐾',Reptilia:'🦎',Amphibia:'🐸',Actinopterygii:'🐟',Chondrichthyes:'🦈',Fish:'🐟',Teleostei:'🐟',Elasmobranchii:'🦈',Insecta:'🐛',Arachnida:'🕷️',Mollusca:'🐚'};
 function classEmoji(cls){ return CLASS_EMOJI[cls]||'🐾'; }
 // ② 近くの生き物名を図鑑の和名に統一：学名(二名)が図鑑にあればその和名を優先（iNat和名との食い違いを解消）。未収録種はnull。
 let _sci2an=null;
@@ -1236,8 +1241,47 @@ async function gbifOccByGroup(lat,lng,radius,keys,limit,y1,y2,human){
   }catch(e){ await new Promise(s=>setTimeout(s,500)); } }
   return [];
 }
+// ① 海洋データは OBIS（海の生物地理情報システム）を併用＝GBIFの人観測が乏しい外洋/海でも魚が出る。
+//   taxonid=硬骨魚(10194)+サメ類(10193)+クジラ類(2688)に絞りプランクトン/微生物を除外。radius→矩形bboxで問い合わせる。
+const OBIS_TAXA='10194,10193,2688';
+function obisBbox(lat,lng,radius){ const dLat=radius/111, dLng=radius/(111*Math.max(0.18,Math.cos(lat*Math.PI/180)));
+  const x0=(lng-dLng).toFixed(4), x1=(lng+dLng).toFixed(4), y0=Math.max(-89.9,lat-dLat).toFixed(4), y1=Math.min(89.9,lat+dLat).toFixed(4);
+  return `POLYGON((${x0} ${y0},${x1} ${y0},${x1} ${y1},${x0} ${y1},${x0} ${y0}))`; }
+async function obisOcc(lat,lng,radius,limit){   // 座標付き occurrence（マーカー用・GBIFと同形で返す）
+  const url=`https://api.obis.org/v3/occurrence?geometry=${encodeURIComponent(obisBbox(lat,lng,radius))}&taxonid=${OBIS_TAXA}&size=${limit}`;
+  for(let i=0;i<3;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1000*(i+1))); continue; }
+    if(!r.ok){ await new Promise(s=>setTimeout(s,400)); continue; } const d=await r.json();
+    return (d.results||[]).filter(o=>o.decimalLatitude!=null&&o.decimalLongitude!=null).map(o=>({
+      species:o.species||'', scientificName:o.scientificName||o.species||'', class:o.class||'Actinopterygii',
+      decimalLatitude:o.decimalLatitude, decimalLongitude:o.decimalLongitude }));
+  }catch(e){ await new Promise(s=>setTimeout(s,500)); } }
+  return [];
+}
+async function obisChecklist(lat,lng,radius){   // 種＋記録数（一覧用・[{name,count}]）
+  const url=`https://api.obis.org/v3/checklist?geometry=${encodeURIComponent(obisBbox(lat,lng,radius))}&taxonid=${OBIS_TAXA}`;
+  for(let i=0;i<3;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1000*(i+1))); continue; }
+    if(!r.ok){ await new Promise(s=>setTimeout(s,400)); continue; } const d=await r.json();
+    return (d.results||[]).filter(o=>o.taxonRank==='Species'&&o.scientificName).map(o=>({name:o.scientificName,count:o.records||0}));
+  }catch(e){ await new Promise(s=>setTimeout(s,500)); } }
+  return [];
+}
+function mergeCounts(...lists){ const m=new Map();   // 複数の[{name,count}]を二名キーで統合（最大値・降順）
+  for(const l of lists) for(const r of (l||[])){ const k=(r.name||'').toLowerCase(); if(!k) continue; const e=m.get(k); if(e) e.count=Math.max(e.count,r.count); else m.set(k,{name:r.name,count:r.count}); }
+  return [...m.values()].sort((a,b)=>b.count-a.count);
+}
 let nearState=null;                 // {lat,lng,radius,label}
-let nearMarker=null, nearPick=false, nearTimer=null, nearClass='', nearThreatOnly=false, nearRows=[], nearPtsOn=false;
+let nearMarker=null, nearPick=false, nearTimer=null, nearClass='', nearThreatOnly=false, nearRows=[], nearPtsOn=false, nearSort='count';
+// ⑤ 一覧の並び替え（既定＝記録の多い順＝その範囲の生息数のめやす）。名前/分類/絶滅危機に切替可。
+const NEAR_CLS_ORDER=['Mammalia','Aves','Reptilia','Amphibia','Fish','Teleostei','Elasmobranchii','Actinopterygii','Chondrichthyes','Insecta'];
+function nearClsRank(c){ const i=NEAR_CLS_ORDER.indexOf(c.gcls||c.ic||''); return i<0?99:i; }
+function nearThRank(st){ return {CR:3,EN:2,VU:1}[st]||0; }
+function nearSortRows(){
+  if(nearSort==='name') nearRows.sort((a,b)=>String(a.ja||a.name).localeCompare(String(b.ja||b.name),'ja'));
+  else if(nearSort==='cls') nearRows.sort((a,b)=>(nearClsRank(a)-nearClsRank(b))||(b.count-a.count));
+  else if(nearSort==='threat') nearRows.sort((a,b)=>(nearThRank(b.st2)-nearThRank(a.st2))||(b.count-a.count));
+  else nearRows.sort((a,b)=>b.count-a.count);   // count＝記録の多い順（既定）
+}
+function setNearSort(v){ nearSort=v; if(v!=='count') resolveRemainingRows(); renderNearList(); }   // 名前/分類/絶滅危機は解決データが要る＝残りも解決
 let creatureMarkers=[], creatureTimer=null, creaturesKey=null, threatToastShown=false, creatureGen=0, queryGen=0;   // Gen=単調増加の世代トークン（同一丸め座標への素早い出戻りA→B→Aでも古いin-flightバッチを確実に破棄）
 function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
@@ -1378,7 +1422,11 @@ function queryNear(immediate){
     const stale=()=> gen!==queryGen||!currentMode||currentMode.type!=='near'||(nearKey(currentMode.lat,currentMode.lng,nearState.radius)+'|'+(nearClass||'all'))!==k;
     // クラス選択時は単一クエリ（そのクラスの taxonKey）＝段階描画は不要。
     if(nearClass && NEAR_CLASS_KEYS[nearClass]){
-      gbifFacetNear(lat,lng,radius,NEAR_CLASS_KEYS[nearClass],45,y1,y2,nearClass!=='Fish').then(rows=>{
+      const isFish=nearClass==='Fish';   // ① 魚選択時は GBIF facet ＋ OBIS checklist を併合
+      const fp=isFish
+        ? Promise.all([gbifFacetNear(lat,lng,radius,NEAR_CLASS_KEYS[nearClass],45,y1,y2,false), obisChecklist(lat,lng,radius)]).then(([a,b])=>mergeCounts(a,b))
+        : gbifFacetNear(lat,lng,radius,NEAR_CLASS_KEYS[nearClass],45,y1,y2,true);
+      fp.then(rows=>{
         if(stale()) return;
         const counts=rows.slice(0,40).map(c=>({name:c.name,count:c.count,gcls:nearClass}));
         if(!counts.length){ const lab=(NEAR_CLASSES.find(x=>x[0]===nearClass)||['',''])[1].replace(/^[^\p{L}]+/u,''); nearRows=[]; renderNearList('<div class="nearsum">この範囲の'+esc(lab)+'の記録は見つかりませんでした。半径を広げるか場所を変えてみてください。</div>'); return; }
@@ -1399,7 +1447,11 @@ function queryNear(immediate){
       return merged.slice(0,45);
     };
     GBIF_VERT_GROUPS.forEach((g,gi)=>{
-      gbifFacetNear(lat,lng,radius,g.keys,18,y1,y2,g.c!=='Fish')
+      const isFish=g.c==='Fish';   // ① 魚グループは GBIF facet ＋ OBIS checklist を併合（外洋の魚も一覧に）
+      const fp=isFish
+        ? Promise.all([gbifFacetNear(lat,lng,radius,g.keys,18,y1,y2,false), obisChecklist(lat,lng,radius)]).then(([a,b])=>mergeCounts(a,b))
+        : gbifFacetNear(lat,lng,radius,g.keys,18,y1,y2,true);
+      fp
         .then(rows=>{ if(stale()) return;
           groupRows[gi]=rows.slice(0,g.cap).map(c=>({name:c.name,count:c.count,gcls:g.c}));
           if(!firstPainted){ const merged=rebuild(); if(merged.length){ nearRows=merged; renderNearList(); firstPainted=true; } }   // 最速クラスで一覧を即出す
@@ -1417,9 +1469,12 @@ function queryNear(immediate){
 function nearControlsHTML(){
   const rchips=NEAR_RADII.map(r=>`<button class="rchip${nearState.radius===r?' on':''}" onclick="setNearRadius(${r})">${r}km</button>`).join('');
   const cchips=NEAR_CLASSES.map(([k,l])=>`<button class="cchip${nearClass===k?' on':''}" onclick="setNearClass('${k}')">${l}</button>`).join('');
+  const sortOpts=[['count','記録の多い順'],['name','名前順'],['cls','分類ごと'],['threat','絶滅危機順']]
+    .map(([v,l])=>`<option value="${v}"${nearSort===v?' selected':''}>${l}</option>`).join('');
   return `<div class="nearctl">
     <div class="ctlrow"><span class="ctll">半径</span><div class="rchips">${rchips}</div></div>
     <div class="ctlrow"><span class="ctll">種別</span><div class="cchips">${cchips}</div></div>
+    <div class="ctlrow"><span class="ctll">並び</span><select class="nearsort" onchange="setNearSort(this.value)">${sortOpts}</select></div>
     <div class="ctlrow ctlbtns"><button class="nbtn" onclick="recenterCurrent()">📍 現在地</button><button class="nbtn" onclick="armNearPick()">📌 タップで移動</button><button class="nbtn" onclick="shareNearCard(this)">📤 シェア</button></div>
   </div>`;
 }
@@ -1427,6 +1482,7 @@ function renderNearList(overrideInner){
   if(!nearState)return;
   const controls=nearControlsHTML();
   if(overrideInner){ renderNearShell(nearState.label+'の近く', controls+overrideInner); openPanel(); return; }
+  nearSortRows();   // ⑤ 並び替え（既定＝記録の多い順）
   const rows=nearRows.map((c,i)=>{const sci=c.name, e=encodeURIComponent(sci);
     const cat=animalBySci(sci); const rowJa=(cat&&cat.nameJa)||c.ja||'…';   // ② 図鑑収録種は図鑑の和名で統一
     return `<button class="locrow nearrow" data-sci="${esc(sci)}" data-cnt="${c.count}" data-i="${i}" onclick="openNearDetail(this)">
@@ -1440,19 +1496,29 @@ function renderNearList(overrideInner){
      <div class="locsp" id="nearlist">${rows}</div>`);
   openPanel(); resolveAllRows();
 }
-// 全行のiNat（和名/写真/クラス）を throttle で解決＝クラス絞り込みも可能に
+// ④ 重さ対策：一覧が出た瞬間に全行(最大45)のiNat/IUCNを一斉解決しない。IntersectionObserverで
+//   「見えている行だけ」を遅延解決し、applyNearFilterはrAFでデバウンス（解決ごとのO(n^2)再走査を回避）。
+let _nearIO=null, _nearFilterQ=false;
+function scheduleNearFilter(){ if(_nearFilterQ) return; _nearFilterQ=true; requestAnimationFrame(()=>{ _nearFilterQ=false; applyNearFilter(); }); }
+function resolveRow(i){ const c=nearRows[i]; if(!c||c.done||c.loading) return; c.loading=true;
+  inatEnqueue(async()=>{ const v=await inatResolve(c.name); Object.assign(c,v); c.st2=await resolveIucn(c.name); c.done=true; c.loading=false; applyRowDom(i); scheduleNearFilter(); }); }
+function resolveRemainingRows(){ nearRows.forEach((c,i)=>{ if(!c.done&&!c.loading) resolveRow(i); }); }   // 絶滅危機フィルタ/並び替えで全解決が要るとき
 function resolveAllRows(){
-  nearRows.forEach((c,i)=>{
-    if(c.done){ applyRowDom(i); return; }
-    inatEnqueue(async()=>{ const v=await inatResolve(c.name); Object.assign(c,v); c.st2=await resolveIucn(c.name); c.done=true; applyRowDom(i); applyNearFilter(); });
-  });
-  applyNearFilter();
+  if(_nearIO){ _nearIO.disconnect(); _nearIO=null; }
+  nearRows.forEach((c,i)=>{ if(c.done) applyRowDom(i); });   // 解決済みは即描画
+  const root=document.querySelector('#nearlist');
+  if(('IntersectionObserver' in window) && root){
+    const scroller=root.closest('.panel')||null;
+    _nearIO=new IntersectionObserver(ents=>{ ents.forEach(en=>{ if(en.isIntersecting){ _nearIO.unobserve(en.target); resolveRow(+en.target.dataset.i); } }); }, {root:scroller, rootMargin:'160px'});
+    root.querySelectorAll('.nearrow').forEach(el=>{ const c=nearRows[+el.dataset.i]; if(!c||!c.done) _nearIO.observe(el); });
+  } else { resolveRemainingRows(); }   // 非対応は従来どおり全解決
+  scheduleNearFilter();
 }
 function applyRowDom(i){
   const row=document.querySelector(`#nearlist .nearrow[data-i="${i}"]`); if(!row)return;
   const c=nearRows[i], av=row.querySelector('.locav'), ja=row.querySelector('.nja');
   const cat=animalBySci(c.name), nm=(cat&&cat.nameJa)||c.ja||'（和名なし）';   // ② 図鑑名優先
-  if(c.ph&&av&&!av.querySelector('img')) av.innerHTML=`<img src="${esc(c.ph)}" alt="${esc(nm)}" onload="this.style.opacity=1">`;
+  if(c.ph&&av&&!av.querySelector('img')) av.innerHTML=`<img src="${esc(c.ph)}" alt="${esc(nm)}" loading="lazy" onload="this.style.opacity=1">`;
   if(ja) ja.textContent=nm;
   row.dataset.ic=c.ic||''; row.dataset.th=THREAT_CATS.has(c.st2)?'1':'';
   // 保全状況ピル（絶滅危惧VU/EN/CRのみ強調＝レア度カラー）
@@ -1463,7 +1529,7 @@ function applyRowDom(i){
     row.classList.add('threat');
   }
 }
-function toggleNearThreat(){ nearThreatOnly=!nearThreatOnly; applyNearFilter(); }
+function toggleNearThreat(){ nearThreatOnly=!nearThreatOnly; if(nearThreatOnly) resolveRemainingRows(); applyNearFilter(); }   // 絶滅危機の判定はIUCN解決が要る＝ON時に残りも解決
 function applyNearFilter(){
   let vis=0, thCount=0;
   document.querySelectorAll('#nearlist .nearrow').forEach(row=>{
@@ -1800,7 +1866,11 @@ function loadNearCreatures(lat,lng,radius,immediate){
     const grab=(r)=>{
       let settled=0;
       groups.forEach(g=>{
-        gbifOccByGroup(lat,lng,r,g.keys,single?140:(g.c==='Aves'?60:90),y1,y2,g.c!=='Fish')
+        const isFish=g.c==='Fish';   // ① 魚は GBIF(縛り緩和)＋OBIS(海洋)を併合＝外洋/海でもマーカーが出る
+        const op=isFish
+          ? Promise.all([gbifOccByGroup(lat,lng,r,g.keys,single?110:80,y1,y2,false), obisOcc(lat,lng,r,single?200:120)]).then(([a,b])=>a.concat(b))
+          : gbifOccByGroup(lat,lng,r,g.keys,single?140:(g.c==='Aves'?60:90),y1,y2,true);
+        op
           .then(res=>{ if(stale()) return;
             const fresh=collectPicks([{g,res}], single?cap:Math.ceil(cap/groups.length)+3).filter(p=>!shown.has(p.sci.toLowerCase()));
             fresh.forEach(addPool);   // プールには全候補を貯める（次回キャッシュ抽選の母数＝再訪の多様性）
