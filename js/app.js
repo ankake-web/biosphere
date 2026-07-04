@@ -1174,13 +1174,23 @@ const NEAR_RADII=[1,3,5,10,30,50,100];                       // 半径(km)の選
 const ZOOM_BY_R={1:13.2,3:11.9,5:11,10:10,30:8.4,50:7.6,100:6.6};  // 半径→ズーム（円が収まる程度）
 const NEAR_DEFAULT_R=10;
 const NEAR_PRESETS=[['東京',35.68,139.76],['大阪',34.69,135.50],['札幌',43.06,141.35],['那覇',26.21,127.68],['ニューヨーク',40.71,-74.01],['ロンドン',51.51,-0.13],['シンガポール',1.35,103.82],['シドニー',-33.87,151.21],['ナイロビ',-1.29,36.82],['リオデジャネイロ',-22.91,-43.17]];
-const NEAR_ICONIC={Aves:'鳥類',Mammalia:'哺乳類',Reptilia:'爬虫類',Amphibia:'両生類',Actinopterygii:'魚類',Chondrichthyes:'魚類（軟骨魚）'};
-const NEAR_CLASSES=[['','すべて'],['Aves','🐦鳥'],['Mammalia','🦫哺乳'],['Reptilia','🦎爬虫'],['Amphibia','🐸両生'],['Fish','🐟魚']];
+const NEAR_ICONIC={Aves:'鳥類',Mammalia:'哺乳類',Reptilia:'爬虫類',Amphibia:'両生類',Actinopterygii:'魚類',Chondrichthyes:'魚類（軟骨魚）',Insecta:'昆虫',Arachnida:'クモ類'};
+// 🐛虫は既定OFF（「すべて」に含めない＝苦手な人に配慮）。明示的に🐛虫チップを選んだ時だけ昆虫を出す。
+const NEAR_CLASSES=[['','すべて'],['Aves','🐦鳥'],['Mammalia','🦫哺乳'],['Reptilia','🦎爬虫'],['Amphibia','🐸両生'],['Fish','🐟魚'],['Insecta','🐛虫']];
 const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_', LS_IUCN='biosphere_iucn_', LS_CRT='biosphere_crt_';
 const THREAT_CATS=new Set(['VU','EN','CR']);   // 絶滅危惧（Threatened）
-// 地図に「ふわっと」出す生き物マーカー（ポケGO風）。GBIF実観測点に種マーカー＝1種1個・上限で間引き。
-const CREATURE_MAX=12;   // 地図に出す生き物マーカー上限（パン時の再配置負荷を抑えるため18→12）
-const CREATURE_POOL=28;  // ③ 地点キャッシュに貯める候補プール上限（表示より多め＝再訪ごとに重み付きランダムで別の顔ぶれ）
+// 地図に「ふわっと」出す生き物マーカー（ポケGO風）。GBIF実観測点に種マーカーを配置し、観測点へ広く散らす。
+// ① マーカー上限は半径連動＝近くは控えめ、広域ほど多く出して「広い範囲にいろんな動物」を演出（パン負荷とのバランス）。
+const CREATURE_CAP_BY_R={1:12,3:14,5:16,10:18,30:22,50:26,100:30};
+function creatureCap(r){ return CREATURE_CAP_BY_R[r]||16; }
+const CREATURE_POOL=44;  // ③ 地点キャッシュに貯める候補プール上限（表示上限より多め＝再訪ごとに重み付きランダムで別の顔ぶれ・広域cap30に対応）
+// ② 広く散らす：farthest-point sampling。候補点のうち既存マーカーから最も遠い点を返す（円内をまんべんなく埋める）。
+function distSq(a,b){ const dx=a[0]-b[0], dy=a[1]-b[1]; return dx*dx+dy*dy; }
+function spreadPoint(pts, placed){ if(!pts||!pts.length) return null; if(!placed||!placed.length) return pts[0];
+  let best=pts[0], bestMin=-1; for(const p of pts){ let m=Infinity; for(const q of placed){ const d=distSq(p,q); if(d<m){ m=d; if(m<=bestMin) break; } } if(m>bestMin){ bestMin=m; best=p; } } return best; }
+// 1種の観測点群を「重心付近＋広がる数点」に間引く（散らし用の候補＝キャッシュも小さく保つ）。
+function thinPoints(list){ if(!list||!list.length) return []; if(list.length<=5) return list.slice();
+  const out=[medoid(list)]; while(out.length<5){ const p=spreadPoint(list,out); if(!p||out.some(q=>q[0]===p[0]&&q[1]===p[1])) break; out.push(p); } return out; }
 const CLASS_EMOJI={Aves:'🐦',Mammalia:'🐾',Reptilia:'🦎',Amphibia:'🐸',Actinopterygii:'🐟',Chondrichthyes:'🦈',Fish:'🐟',Insecta:'🐛',Arachnida:'🕷️',Mollusca:'🐚'};
 function classEmoji(cls){ return CLASS_EMOJI[cls]||'🐾'; }
 // 鳴き声（発声）する分類だけに鳴き声ボタンを出す。植物・魚・爬虫・貝などは iNat の「音」が環境音/誤り
@@ -1198,7 +1208,9 @@ const GBIF_VERT_GROUPS=[
   {c:'Amphibia', keys:[131],               cap:12},
   {c:'Fish',     keys:[204,121],           cap:12},
 ];
-const NEAR_CLASS_KEYS={Aves:[212],Mammalia:[359],Reptilia:[11592253,11418114],Amphibia:[131],Fish:[204,121]};
+const NEAR_CLASS_KEYS={Aves:[212],Mammalia:[359],Reptilia:[11592253,11418114],Amphibia:[131],Fish:[204,121],Insecta:[216]};
+// 近くマーカー/一覧の取得グループ。クラス選択時はそのクラスだけ（🐛虫も明示選択で有効）／「すべて」は脊椎動物のみ。
+function nearGroups(){ return (nearClass && NEAR_CLASS_KEYS[nearClass]) ? [{c:nearClass, keys:NEAR_CLASS_KEYS[nearClass]}] : GBIF_VERT_GROUPS; }
 // クラス別 facet 取得（429リトライ）。scientificName を二名へ正規化して返す。
 async function gbifFacetNear(lat,lng,radius,keys,facetLimit,y1,y2){
   const kp=keys.map(x=>'&taxonKey='+x).join('');
@@ -1339,7 +1351,7 @@ function setNearRadius(r){ if(!nearState)return; nearState.radius=r; removeNearP
   map.flyTo({center:[nearState.lng,nearState.lat],zoom:ZOOM_BY_R[r]||9,speed:.8,curve:1.3,essential:true});
   queryNear(); loadNearCreatures(nearState.lat,nearState.lng,r);
   saveLastLoc(nearState.lat,nearState.lng,r); }
-function setNearClass(c){ nearClass=c; if(nearState) queryNear(); }   // クラス選択はクエリ側で絞る（再取得）
+function setNearClass(c){ nearClass=c; if(nearState){ queryNear(); loadNearCreatures(nearState.lat,nearState.lng,nearState.radius,true); } }   // 一覧＋マーカーの両方をそのクラスで絞り再取得
 function armNearPick(){ nearPick=true; toast('📌','地図をタップすると、その地点に移動します',2400); }
 function recenterCurrent(){
   if(!('geolocation' in navigator)){ toast('📍','現在地を取得できません',2000); return; }
@@ -1362,7 +1374,7 @@ function queryNear(immediate){
       gbifFacetNear(lat,lng,radius,NEAR_CLASS_KEYS[nearClass],45,y1,y2).then(rows=>{
         if(stale()) return;
         const counts=rows.slice(0,40).map(c=>({name:c.name,count:c.count,gcls:nearClass}));
-        if(!counts.length){ nearRows=[]; renderNearList('<div class="nearsum">この範囲の脊椎動物の記録は見つかりませんでした。半径を広げるか場所を変えてみてください。</div>'); return; }
+        if(!counts.length){ const lab=(NEAR_CLASSES.find(x=>x[0]===nearClass)||['',''])[1].replace(/^[^\p{L}]+/u,''); nearRows=[]; renderNearList('<div class="nearsum">この範囲の'+esc(lab)+'の記録は見つかりませんでした。半径を広げるか場所を変えてみてください。</div>'); return; }
         nearCacheSet(k,counts); nearRows=counts; renderNearList();
       }).catch(()=>{ if(currentMode&&currentMode.type==='near'&&!nearRows.length) renderNearList('<div class="nearsum">実データの取得に失敗しました（オフライン？）。少し時間をおいて再度お試しください。</div>'); });
       return;
@@ -1741,50 +1753,58 @@ function weightedSample(items, n){
   return out;
 }
 function collectPicks(per){
-  const picks=[], perGroup=6;   // プールを広めに集め、重み付きランダムで抽出＝同じ場所でも毎回変化
+  const picks=[], perGroup=10;   // プールを広めに集め、重み付きランダムで抽出＝同じ場所でも毎回変化（cap増に対応）
   per.forEach(({g,res})=>{
     const freq={}, pts={}, cls={};
     (res||[]).forEach(o=>{ let sp=(o.species||'').trim();
       if(!sp){ const p=(o.scientificName||o.acceptedScientificName||'').trim().split(/\s+/); if(p.length>=2&&/^[A-Z][a-zé-]+$/.test(p[0])&&/^[a-zé-]+$/.test(p[1])) sp=p[0]+' '+p[1]; }
       if(!sp || o.decimalLatitude==null || o.decimalLongitude==null) return;
       freq[sp]=(freq[sp]||0)+1; (pts[sp]||(pts[sp]=[])).push([o.decimalLongitude,o.decimalLatitude]); if(!cls[sp]) cls[sp]=o.class||''; });
-    const cand=Object.keys(freq).map(sp=>({sci:sp,c:medoid(pts[sp]),cls:CLASS_EMOJI[cls[sp]]?cls[sp]:g.c,n:freq[sp]}));
-    weightedSample(cand, perGroup).forEach(p=>{ if(p.c) picks.push(p); });   // 重み付きランダムで perGroup 種
+    const cand=Object.keys(freq).map(sp=>({sci:sp,pts:thinPoints(pts[sp]),cls:CLASS_EMOJI[cls[sp]]?cls[sp]:g.c,n:freq[sp]}));   // 各種の散らし用に数点を保持（重心＋広がる点）
+    weightedSample(cand, perGroup).forEach(p=>{ if(p.pts&&p.pts.length) picks.push(p); });   // 重み付きランダムで perGroup 種
   });
   return picks;
 }
 function loadNearCreatures(lat,lng,radius,immediate){
   removeCreatures(); threatToastShown=false;   // 地点/半径ごとに「近所に絶滅危惧種！」トーストを一度だけ
-  const k=nearKey(lat,lng,radius); creaturesKey=k; const gen=++creatureGen;   // gen=この呼び出しの世代（同一座標への出戻りでも旧バッチを破棄）
+  const k=nearKey(lat,lng,radius)+'|'+(nearClass||'all'); creaturesKey=k; const gen=++creatureGen;   // gen=この呼び出しの世代（座標/半径/クラスの切替でも旧バッチを破棄）
+  const groups=nearGroups();   // すべて＝脊椎5クラス／クラス選択時＝そのクラスのみ（🐛虫は明示選択時だけ）
+  const cap=creatureCap(radius);   // ① 半径連動のマーカー上限（cached/run 両経路で使用）
   clearTimeout(creatureTimer);
   const shown=new Set();      // 既に表示した種（小文字）＝クラス間・キャッシュとの重複防止
   const pool=[];              // 候補プール（表示上限より多めに貯めてキャッシュ＝再訪ごとに別の顔ぶれを抽選）③
   const addPool=(p)=>{ const key=p.sci.toLowerCase(); if(!pool.some(q=>q.sci.toLowerCase()===key)) pool.push(p); };
+  const placedOf=()=>creatureMarkers.map(m=>{const o=m.getLngLat();return [o.lng,o.lat];});   // 既存マーカー座標（散らしの基準）
   // ⑤+③ 直近に見た地点はキャッシュのプールから重み付きランダムで即マーカー化（往復ゼロ＋毎回ちがう顔ぶれ）。裏で最新を取得しプール更新。
   const cached=creatureCacheGet(k);
-  if(cached&&cached.length){ const cpool=cached.filter(p=>p&&p.sci&&Array.isArray(p.c)); cpool.forEach(addPool);
-    const cp=weightedSample(cpool, CREATURE_MAX); cp.forEach(p=>shown.add(p.sci.toLowerCase())); if(cp.length) spawnCreatures(cp,false,gen); }
+  if(cached&&cached.length){ const cpool=cached.filter(p=>p&&p.sci&&(Array.isArray(p.pts)||Array.isArray(p.c))); cpool.forEach(addPool);
+    const placed=[], cp=[];
+    for(const p of weightedSample(cpool, cap)){ const c=spreadPoint(p.pts||[p.c], placed); if(!c) continue; cp.push({sci:p.sci,cls:p.cls,n:p.n,c}); placed.push(c); }
+    cp.forEach(p=>shown.add(p.sci.toLowerCase())); if(cp.length) spawnCreatures(cp,false,gen); }
   const run=()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
     const stale=()=> gen!==creatureGen || creaturesKey!==k || !currentMode || currentMode.type!=='near';   // 世代/地点が変わった応答は破棄（A→B→Aの重複積み増しを防ぐ）
     let widened=false;
     // ★段階描画：クラス別 occurrence を Promise.all で束ねず、返ってきたクラスから即マーカー化。
     //   最速クラスの速度で初アイコンが出る（応答が最も遅い鳥を待たない）。空きスロット分だけ随時追加。
+    const single=groups.length===1;                // クラス選択時は1グループ＝取得件数を厚めにして散らす母数を確保
     const grab=(r)=>{
       let settled=0;
-      GBIF_VERT_GROUPS.forEach(g=>{
-        gbifOccByGroup(lat,lng,r,g.keys,g.c==='Aves'?40:60,y1,y2)
+      groups.forEach(g=>{
+        gbifOccByGroup(lat,lng,r,g.keys,single?140:(g.c==='Aves'?60:90),y1,y2)
           .then(res=>{ if(stale()) return;
             const fresh=collectPicks([{g,res}]).filter(p=>!shown.has(p.sci.toLowerCase()));
             fresh.forEach(addPool);   // プールには全候補を貯める（次回キャッシュ抽選の母数＝再訪の多様性）
-            const room=CREATURE_MAX-creatureMarkers.length; if(room<=0) return;
-            const add=fresh.slice(0,room);
-            add.forEach(p=>shown.add(p.sci.toLowerCase()));
+            const room=cap-creatureMarkers.length; if(room<=0) return;
+            // ② 広く散らす：各種を重心1点でなく、既存マーカーから最も遠い観測点へ置く（円内を埋める）
+            const placed=placedOf();
+            const add=[];
+            for(const p of fresh){ if(add.length>=room) break; const c=spreadPoint(p.pts, placed); if(!c) continue; add.push({sci:p.sci,cls:p.cls,n:p.n,c}); placed.push(c); shown.add(p.sci.toLowerCase()); }
             if(add.length) spawnCreatures(add,true,gen);   // 既存を消さず追加（append）＝返った順に積む
           })
           .catch(()=>{})
           .finally(()=>{ settled++;
-            if(settled!==GBIF_VERT_GROUPS.length) return;
+            if(settled!==groups.length) return;
             // 全クラス出そろって過疎/近すぎ＝初回描画の後ろで1段だけ半径拡大（確実にアイコン）。3倍・最大100km。
             if(!widened && !stale() && creatureMarkers.length<4 && r<80){ widened=true; grab(Math.min(r*3,100)); return; }
             if(!stale() && pool.length) creatureCacheSet(k, pool.slice(0,CREATURE_POOL));   // 候補プールを保存＝次回は別の顔ぶれを抽選
