@@ -1081,7 +1081,7 @@ const NEAR_DEFAULT_R=10;
 const NEAR_PRESETS=[['東京',35.68,139.76],['大阪',34.69,135.50],['札幌',43.06,141.35],['那覇',26.21,127.68],['ニューヨーク',40.71,-74.01],['ロンドン',51.51,-0.13],['シンガポール',1.35,103.82],['シドニー',-33.87,151.21],['ナイロビ',-1.29,36.82],['リオデジャネイロ',-22.91,-43.17]];
 const NEAR_ICONIC={Aves:'鳥類',Mammalia:'哺乳類',Reptilia:'爬虫類',Amphibia:'両生類',Actinopterygii:'魚類',Chondrichthyes:'魚類（軟骨魚）'};
 const NEAR_CLASSES=[['','すべて'],['Aves','🐦鳥'],['Mammalia','🦫哺乳'],['Reptilia','🦎爬虫'],['Amphibia','🐸両生'],['Fish','🐟魚']];
-const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_', LS_IUCN='biosphere_iucn_';
+const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_', LS_IUCN='biosphere_iucn_', LS_CRT='biosphere_crt_';
 const THREAT_CATS=new Set(['VU','EN','CR']);   // 絶滅危惧（Threatened）
 // 地図に「ふわっと」出す生き物マーカー（ポケGO風）。GBIF実観測点に種マーカー＝1種1個・上限で間引き。
 const CREATURE_MAX=12;   // 地図に出す生き物マーカー上限（パン時の再配置負荷を抑えるため18→12）
@@ -1126,6 +1126,9 @@ function inatGet(s){ try{const o=JSON.parse(localStorage.getItem(LS_INAT+s)||'nu
 function inatSet(s,v){ try{localStorage.setItem(LS_INAT+s,JSON.stringify({t:Date.now(),v}));}catch(e){} }
 function nearCacheGet(k){ try{const o=JSON.parse(localStorage.getItem(LS_NEAR+k)||'null'); if(o&&(Date.now()-o.t)<864e5)return o.c;}catch(e){} return null; }
 function nearCacheSet(k,c){ try{localStorage.setItem(LS_NEAR+k,JSON.stringify({t:Date.now(),c}));}catch(e){} }
+// ⑤ 生き物マーカーの地点キャッシュ（1日）＝直近に見た地点は往復ゼロで即マーカー化。pick={sci,c:[lon,lat],cls,n}。
+function creatureCacheGet(k){ try{const o=JSON.parse(localStorage.getItem(LS_CRT+k)||'null'); if(o&&(Date.now()-o.t)<864e5&&Array.isArray(o.c))return o.c;}catch(e){} return null; }
+function creatureCacheSet(k,c){ try{localStorage.setItem(LS_CRT+k,JSON.stringify({t:Date.now(),c}));}catch(e){} }
 // iNat呼び出しはthrottle（同時3・間隔120ms）で礼儀正しく
 let inatQueue=[], inatBusy=0;
 function inatEnqueue(fn){ inatQueue.push(fn); pumpInat(); }
@@ -1544,10 +1547,15 @@ function loadNearCreatures(lat,lng,radius,immediate){
   removeCreatures(); threatToastShown=false;   // 地点/半径ごとに「近所に絶滅危惧種！」トーストを一度だけ
   const k=nearKey(lat,lng,radius); creaturesKey=k;
   clearTimeout(creatureTimer);
+  const shown=new Set();      // 既に出した種（小文字）＝クラス間・キャッシュとの重複防止
+  const displayed=[];         // 実際に配置したpick（確定時にキャッシュ更新＝次回の即描画用）
+  // ⑤ 直近に見た地点はキャッシュから即マーカー化（往復ゼロで初アイコン）。裏で最新を取得し空きスロットを埋める。
+  const cached=creatureCacheGet(k);
+  if(cached&&cached.length){ const cp=cached.filter(p=>p&&p.sci&&Array.isArray(p.c)).slice(0,CREATURE_MAX);
+    cp.forEach(p=>shown.add(p.sci.toLowerCase())); displayed.push(...cp); if(cp.length) spawnCreatures(cp,false); }
   const run=()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
     const stale=()=> creaturesKey!==k || !currentMode || currentMode.type!=='near';   // 古い/別地点の応答は破棄
-    const shown=new Set();   // 既に出した種（小文字）＝クラス間の重複防止
     let widened=false;
     // ★段階描画：クラス別 occurrence を Promise.all で束ねず、返ってきたクラスから即マーカー化。
     //   最速クラスの速度で初アイコンが出る（応答が最も遅い鳥を待たない）。空きスロット分だけ随時追加。
@@ -1558,13 +1566,15 @@ function loadNearCreatures(lat,lng,radius,immediate){
           .then(res=>{ if(stale()) return;
             const room=CREATURE_MAX-creatureMarkers.length; if(room<=0) return;
             const fresh=collectPicks([{g,res}]).filter(p=>!shown.has(p.sci.toLowerCase())).slice(0,room);
-            fresh.forEach(p=>shown.add(p.sci.toLowerCase()));
+            fresh.forEach(p=>shown.add(p.sci.toLowerCase())); displayed.push(...fresh);
             if(fresh.length) spawnCreatures(fresh,true);   // 既存を消さず追加（append）＝返った順に積む
           })
           .catch(()=>{})
           .finally(()=>{ settled++;
+            if(settled!==GBIF_VERT_GROUPS.length) return;
             // 全クラス出そろって過疎/近すぎ＝初回描画の後ろで1段だけ半径拡大（確実にアイコン）。3倍・最大100km。
-            if(settled===GBIF_VERT_GROUPS.length && !widened && !stale() && creatureMarkers.length<4 && r<80){ widened=true; grab(Math.min(r*3,100)); }
+            if(!widened && !stale() && creatureMarkers.length<4 && r<80){ widened=true; grab(Math.min(r*3,100)); return; }
+            if(!stale() && displayed.length) creatureCacheSet(k, displayed.slice(0,CREATURE_MAX));   // 次回の即描画用に確定分を保存
           });
       });
     };
