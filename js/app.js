@@ -1090,6 +1090,10 @@ const THREAT_CATS=new Set(['VU','EN','CR']);   // 絶滅危惧（Threatened）
 const CREATURE_MAX=12;   // 地図に出す生き物マーカー上限（パン時の再配置負荷を抑えるため18→12）
 const CLASS_EMOJI={Aves:'🐦',Mammalia:'🐾',Reptilia:'🦎',Amphibia:'🐸',Actinopterygii:'🐟',Chondrichthyes:'🦈',Fish:'🐟',Insecta:'🐛',Arachnida:'🕷️',Mollusca:'🐚'};
 function classEmoji(cls){ return CLASS_EMOJI[cls]||'🐾'; }
+// 鳴き声（発声）する分類だけに鳴き声ボタンを出す。植物・魚・爬虫・貝などは iNat の「音」が環境音/誤り
+// になりやすいので抑制。iNat iconic名(Aves…)と図鑑の和名クラス(鳥類…)の両方を受ける。空(不明)は許容＝過剰抑制回避。
+const VOCAL_CLASSES=new Set(['Aves','Mammalia','Amphibia','Insecta','鳥類','哺乳類','両生類','昆虫']);
+function vocalizes(k){ return !k || VOCAL_CLASSES.has(k); }
 // ★GBIF occurrence は eBird 由来で鳥に極端に偏る（同一地点で鳥が哺乳の約300倍）。単一 taxonKey=44 の
 // 観測数順だと上位がほぼ全部鳥になる（＝報告バグ）。クラス別に facet 取得してマージし各クラスのご当地上位を必ず出す。
 // キーは実occurrenceで動作確認済（新backbone）：鳥212・哺乳359・両生131・爬虫=Squamata11592253+Testudines11418114・
@@ -1144,17 +1148,22 @@ async function inatResolve(sci){
   const c=inatGet(sci); if(c) return c;
   return dedupe('inat:'+sci, async()=>{
     const c0=inatGet(sci); if(c0) return c0;
+    const low=String(sci).toLowerCase(), bin=low.split(/\s+/).slice(0,2).join(' ');   // bin=二名（三名/亜種はiNatの種ランク二名に一致させる）
     for(let i=0;i<3;i++){
       try{
-        const r=await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(sci)}&rank=species&per_page=1&locale=ja`);
+        const r=await fetch(`https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(sci)}&rank=species&per_page=5&locale=ja`);
         if(r.status===429){ await new Promise(s=>setTimeout(s,1500*(i+1))); continue; }
-        const d=await r.json(), x=d.results&&d.results[0], dp=x&&x.default_photo;
+        const d=await r.json(), arr=(d.results||[]);
+        const nm=t=>(t.name||'').toLowerCase();
+        const exactHit=arr.find(t=>nm(t)===low || nm(t)===bin);   // 学名一致(二名/三名どちらでも)を優先＝別種の写真/和名/鳴き声を掴まない
+        const x=exactHit||arr[0], dp=x&&x.default_photo;
         const at=(dp&&dp.attribution||'').replace(/<[^>]*>/g,'').replace(/\(c\)/gi,'©');
-        const v=x?{ja:x.preferred_common_name||'',ph:(dp&&dp.square_url)||'',ic:x.iconic_taxon_name||'',st:(x.conservation_status&&x.conservation_status.status_name)||'',at,id:x.id||0}:{ja:'',ph:'',ic:'',st:'',at:'',id:0};
+        const exact=!!(x&&(nm(x)===low||nm(x)===bin));   // 完全一致(二名正規化含む)＝鳴き声を出してよいかの判定に使う
+        const v=x?{ja:x.preferred_common_name||'',ph:(dp&&dp.square_url)||'',ic:x.iconic_taxon_name||'',st:(x.conservation_status&&x.conservation_status.status_name)||'',at,id:x.id||0,exact}:{ja:'',ph:'',ic:'',st:'',at:'',id:0,exact:false};
         inatSet(sci,v); return v;
       }catch(e){ await new Promise(s=>setTimeout(s,600)); }
     }
-    return {ja:'',ph:'',ic:'',st:'',at:'',id:0};
+    return {ja:'',ph:'',ic:'',st:'',at:'',id:0,exact:false};
   });
 }
 // GBIF種キー解決（species/match、localStorageキャッシュ）＝月別/観測点に使用
@@ -1410,7 +1419,7 @@ function renderFigNear(){
         <div class="ndtags">${cls?`<span class="ndtag">${cls}</span>`:''}<span class="ndtag">この範囲で ${fmtN(cnt)}件</span><span id="ndstatus"></span></div>
         <div class="ndsec"><div class="ndsech">📅 観察が多い月（出会いやすさの目安）</div><div id="seasonwrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
         <div class="ndsec"><div class="ndsech">🕐 観察が多い時間帯（朝・昼・夕の目安）</div><div id="timewrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
-        ${v.id?`<div class="ndsec" id="ndsound"><button class="nbtn wide" onclick="playNearSound(${v.id},this)">🔊 鳴き声を聞く</button></div>`:''}
+        ${(v.id && vocalizes(v.ic) && v.exact!==false)?`<div class="ndsec" id="ndsound"><button class="nbtn wide" onclick="playNearSound(${v.id},this)">🔊 鳴き声を聞く</button></div>`:''}
         <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sciKey(sci)}',this)">📍 観測スポットを地図に表示</button>
         ${nearFig.hit?'':`<button class="nbtn wide" onclick="shareSpeciesCard('${sciKey(sci)}',this)">📤 この種をシェア</button>`}
         <p class="ndnote">あなたの範囲（半径${nearState?nearState.radius:''}km）でGBIFに記録された生き物です。出会えるかは季節・時間帯によります。写真は iNaturalist（CC）。${nearFig.hit?'<br>📖<b>図鑑</b>タブで詳しい図鑑カードと分布メッシュが見られます。':''}</p>
@@ -1484,13 +1493,13 @@ function renderHourBars(hours){
    near詳細（inat id 既知）と種カード（学名→inatResolve）で共用。永続rAFなし・ユーザー操作起点で再生。 */
 async function fetchInatSound(taxonId){
   if(!taxonId) return null;
-  try{
-    const u=`https://api.inaturalist.org/v1/observations?taxon_id=${taxonId}&sounds=true&license=cc-by,cc-by-nc,cc-by-sa,cc-by-nc-sa,cc0&per_page=1&order_by=votes&order=desc`;
-    const d=await (await fetch(u)).json();
+  const base=`https://api.inaturalist.org/v1/observations?taxon_id=${taxonId}&sounds=true&license=cc-by,cc-by-nc,cc-by-sa,cc-by-nc-sa,cc0&per_page=1&order_by=votes&order=desc`;
+  const tryFetch=async(extra)=>{ try{ const d=await (await fetch(base+extra)).json();
     const o=d.results&&d.results[0], s=o&&o.sounds&&o.sounds[0];
-    if(!s||!s.file_url) return null;
-    return { url:s.file_url, at:(s.attribution||'').replace(/<[^>]*>/g,'').replace(/\(c\)/gi,'©') };
-  }catch(e){ return null; }
+    return (s&&s.file_url)?{ url:s.file_url, at:(s.attribution||'').replace(/<[^>]*>/g,'').replace(/\(c\)/gi,'©') }:null;
+  }catch(e){ return null; } };
+  // まず研究グレード（同定が確定した観測＝誤同定の鳴き声を避ける）→ 無ければ通常
+  return (await tryFetch('&quality_grade=research')) || (await tryFetch(''));
 }
 function mountSound(mount, snd){
   if(!mount||!snd) return;
@@ -1503,8 +1512,12 @@ function mountSound(mount, snd){
 async function playFigureSound(id, btn){
   const a=(typeof ANIMALS!=='undefined'&&ANIMALS.find)?ANIMALS.find(x=>x.id===id):null; if(!a||!btn) return;
   btn.disabled=true; btn.textContent='🔊 読み込み中…';
-  try{ const v=await inatResolve(a.nameSci); const snd=(v&&v.id)?await fetchInatSound(v.id):null;
+  try{ const v=await inatResolve(a.nameSci);
     if(currentAnimal!==a) return;   // 別の種へ移った
+    // 発声しない分類（植物/魚/爬虫/貝など）や、iNatで別種一致（環境音・誤同定の鳴き声を掴む）は鳴き声を出さない②
+    if(!v||!v.id||!vocalizes(v.ic)||v.exact===false){ btn.disabled=false; btn.textContent='🔇 鳴き声の記録なし'; return; }
+    const snd=await fetchInatSound(v.id);
+    if(currentAnimal!==a) return;
     const wrap=btn.parentNode;
     if(snd&&wrap){ mountSound(wrap,snd); const au=wrap.querySelector('audio'); if(au){try{au.play();}catch(e){}} }
     else { btn.disabled=false; btn.textContent='🔇 鳴き声の記録なし'; }
