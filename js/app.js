@@ -1222,8 +1222,8 @@ function setNearPin(latRaw,lngRaw,label,radius){
   setLocalBasemap(true); localMapAutoOn=true;   // 近く＝本物の地図（OpenFreeMap）を自動ON（離脱時に自動分だけ戻す）
   drawNearVisuals(lat,lng,nearState.radius);
   stopSpin(); map.flyTo({center:[lng,lat],zoom:ZOOM_BY_R[nearState.radius]||9,speed:.9,curve:1.4,essential:true});
-  queryNear();
-  loadNearCreatures(lat,lng,nearState.radius);   // 地図に生き物がふわっと出現
+  queryNear(true);   // ★地点確定（現在地/都市/タップ/ドラッグ終了）は単発操作＝デバウンス0で即取得（初アイコンを速く）
+  loadNearCreatures(lat,lng,nearState.radius,true);   // 地図に生き物がふわっと出現（初回=即）
   saveLastLoc(lat,lng,nearState.radius);   // 次回起動のフォールバック（前回の場所）に記録
 }
 function setNearRadius(r){ if(!nearState)return; nearState.radius=r; removeNearPoints();
@@ -1241,12 +1241,12 @@ function recenterCurrent(){
     ()=>toast('📍','現在地を取得できませんでした',2200),{enableHighAccuracy:false,timeout:8000,maximumAge:300000});
 }
 // GBIFファセットで近傍の種一覧を取得→nearRowsへ（クラス別バランス取得＝鳥偏重を打破）
-function queryNear(){
+function queryNear(immediate){
   const {lat,lng,radius}=nearState, k=nearKey(lat,lng,radius)+'|'+(nearClass||'all'), cached=nearCacheGet(k);
   if(cached&&cached.length){ nearRows=cached.map(c=>({name:c.name,count:c.count,gcls:c.gcls})); renderNearList(); }
   else { nearRows=[]; renderNearList('<div class="nearsum">🛰️ 周辺の記録を集めています…</div>'); }
   clearTimeout(nearTimer);
-  nearTimer=setTimeout(async()=>{
+  const run=async()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
     const stale=()=> !currentMode||currentMode.type!=='near'||(nearKey(currentMode.lat,currentMode.lng,nearState.radius)+'|'+(nearClass||'all'))!==k;
     try{
@@ -1269,7 +1269,8 @@ function queryNear(){
       if(!currentMode||currentMode.type!=='near') return;
       if(!nearRows.length) renderNearList('<div class="nearsum">実データの取得に失敗しました（オフライン？）。少し時間をおいて再度お試しください。</div>');
     }
-  },250);
+  };
+  if(immediate) run(); else nearTimer=setTimeout(run,250);   // ★初回(地点確定)は即・半径/種別の連打はデバウンス
 }
 function nearControlsHTML(){
   const rchips=NEAR_RADII.map(r=>`<button class="rchip${nearState.radius===r?' on':''}" onclick="setNearRadius(${r})">${r}km</button>`).join('');
@@ -1524,11 +1525,11 @@ function collectPicks(per){
   picks.sort((a,b)=>b.n-a.n);
   return picks;
 }
-function loadNearCreatures(lat,lng,radius){
+function loadNearCreatures(lat,lng,radius,immediate){
   removeCreatures(); threatToastShown=false;   // 地点/半径ごとに「近所に絶滅危惧種！」トーストを一度だけ
   const k=nearKey(lat,lng,radius); creaturesKey=k;
   clearTimeout(creatureTimer);
-  creatureTimer=setTimeout(async()=>{
+  const run=async()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
     try{
       // クラス別に occurrence を並行取得（多めに取り確実にマーカーを出す）→各クラス上位種をマーカー化＝鳥だらけ回避。
@@ -1547,7 +1548,8 @@ function loadNearCreatures(lat,lng,radius){
       }
       spawnCreatures(picks.slice(0,CREATURE_MAX));
     }catch(e){ /* 失敗は静かに（一覧・地図は維持） */ }
-  },260);
+  };
+  if(immediate) run(); else creatureTimer=setTimeout(run,260);   // ★初回(地点確定)は即・半径連打はデバウンス
 }
 function spawnCreatures(list){
   if(!mapReady) return; removeCreatures();
