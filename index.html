@@ -344,6 +344,11 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .nbchip{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;color:#e7eef2;font-size:12.5px;padding:6px 12px;cursor:pointer;}
 .nbchip:hover{background:rgba(52,216,198,.16);border-color:#34d8c6;}
 .nbback{background:none;border:none;color:#34d8c6;font-size:13px;cursor:pointer;padding:14px 16px 4px;}
+/* 近く詳細/図鑑カードの上部タブ（📍近く / 📖図鑑）。右の✕(pclose)を避けて右パディング。 */
+.figtabs{display:flex;gap:6px;padding:4px 52px 4px 14px;}
+.figtab{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;color:#cdd9df;font-size:13px;font-weight:700;padding:8px 6px;cursor:pointer;transition:background .15s,border-color .15s,color .15s;}
+.figtab:hover{background:rgba(255,255,255,.09);}
+.figtab.on{background:rgba(52,216,198,.16);border-color:rgba(52,216,198,.5);color:#bdeee7;}
 /* 初回ウェルカム（一度きり・価値提示＋2択） */
 .wcm{padding:4px 2px 8px;}
 .wcm-lead{font-size:15px;color:#eaf2f6;line-height:1.6;margin:0 0 8px;}.wcm-lead b{color:#34d8c6;}

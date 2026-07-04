@@ -868,13 +868,15 @@ function openPanel(){ panelEl.classList.add('open'); }
 function closePanel(){ panelEl.classList.remove('open'); }
 // モバイルのシート高さ：近くの一覧/詳細は中間（地図＋生き物を上に見せる）、種/国カードは通常（full）。
 function panelSheet(mid){ panelEl.classList.toggle('sheet-mid', !!mid); }
-function renderAnimalCard(a){
+// head を渡すと（近くの生き物→📖図鑑タブ経由）上部にタブ＋分布メッシュトグルを差し込む。通常の種選択では head 無し＝従来どおり。
+function renderAnimalCard(a, head){
   const r=RARITY[a.status], g=BIOMES[a.biome]?BIOMES[a.biome].g:['#1b3a43','#0d1b22'], tm=TREND_META[trendOf(a)];
   const cred=PHOTO_CRED[a.id]||{by:'Wikimedia Commons',lic:''};
   const st=a.stats||{size:'—',weight:'—',diet:'—',life:'—'};   // 詳細ロード前/失敗時のフォールバック
   panelEl.innerHTML=`
     <button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button>
     <div class="grab"></div>
+    ${head||''}
     <div class="hero" style="background:linear-gradient(140deg,${g[0]},${g[1]})">
       <div class="emojibg">${a.emoji}</div>
       <img class="bgph" src="${a.photo}" alt="${a.nameJa}" onload="this.classList.add('loaded')" onerror="this.remove()">
@@ -885,6 +887,7 @@ function renderAnimalCard(a){
     </div>
     <div class="pbody">
       <div class="row1"><span class="tax">🧬 ${a.taxon}</span><span class="tax">${BIOMES[a.biome].e} ${a.biome}</span><button class="tax pshare" onclick="shareFigureCard('${a.id}',this)">🔗 共有</button></div>
+      ${head?`<button class="nbtn wide${figGbifOn?' on':''}" id="figDistBtn" onclick="toggleFigDist(this)">${figGbifOn?'🛰️ 分布メッシュを消す':'🛰️ この地点の分布メッシュを表示'}</button>`:''}
       <div class="rare" style="background:${hexA(r.color,.1)}">
         <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
         <span class="gem" style="color:${r.color}">${r.gem}</span>
@@ -1354,17 +1357,51 @@ function applyNearFilter(){
   else head=`この範囲で記録の多い脊椎動物 <b>${nearRows.length}種</b>`;
   sum.innerHTML=`${head}<br>${thChip}<br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIF実観測（タップで詳細／📖は図鑑収録）</span>`;
 }
+/* ==== 近くの生き物 詳細（上部タブ：📍近く / 📖図鑑）====
+   近くのアイコン/一覧から開く詳細パネル。図鑑収録種は上部タブで「近く情報」と
+   「図鑑カード（renderAnimalCard）」を地図を動かさずに切り替えられる。
+   図鑑タブでは「🛰️ この地点の分布メッシュ」トグルでGBIFヘックスを現在地の地図に重ねられる。 */
+let nearFig=null, figGbifOn=false;   // nearFig={sci,cnt,i,hit,tab} ／ figGbifOn=図鑑タブの分布メッシュ表示中か
+// 詳細パネル上部の共通ヘッダ（一覧へ戻る＋図鑑収録種ならタブ）。図鑑カードにも同じヘッダを差し込む。
+function figHeaderHTML(active){
+  const tabs=(nearFig&&nearFig.hit)?`<div class="figtabs" role="tablist" aria-label="表示を切り替え">
+      <button class="figtab${active==='near'?' on':''}" role="tab" aria-selected="${active==='near'}" onclick="showFigTab('near')">📍 近く</button>
+      <button class="figtab${active==='zukan'?' on':''}" role="tab" aria-selected="${active==='zukan'}" onclick="showFigTab('zukan')">📖 図鑑</button>
+    </div>`:'';
+  return `<button class="nbback" onclick="backToNear()">← 一覧へ</button>${tabs}`;
+}
 function openNearDetail(btn){
-  const c=nearRows[+btn.dataset.i]||{name:btn.dataset.sci,count:+btn.dataset.cnt}, sci=c.name, cnt=c.count;
-  const hit=ANIMALS.find(a=>(a.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===sci.toLowerCase());
-  // ★地図は動かさず、その場で詳細を表示（世界地図への引き＝分布ビューはボタンで任意に）。図鑑収録種は分布ボタンを出す。
+  const i=+btn.dataset.i;
+  const c=nearRows[i]||{name:btn.dataset.sci,count:+btn.dataset.cnt};
+  openFigDetail(c.name, c.count, i);
+}
+// 生き物アイコン/一覧行からの詳細を開く共通入口。図鑑収録種は hit を持たせタブを出す。地図は動かさない。
+function openFigDetail(sci, cnt, i){
+  const hit=ANIMALS.find(a=>(a.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===String(sci).toLowerCase());
+  nearFig={sci, cnt, i, hit, tab:'near'};
+  figGbifOn=false; removeGbif();
+  renderFigNear();
+}
+// タブ切替：📍近く＝近く情報を再描画／📖図鑑＝図鑑カード。近くへ戻る時は重ねた分布メッシュを消す。
+function showFigTab(tab){
+  if(!nearFig) return;
+  if(tab==='zukan'){ nearFig.tab='zukan'; showFigZukan(); }
+  else { removeGbif(); figGbifOn=false; renderFigNear(); }
+}
+// 「近く」タブ＝iNat写真・季節・時間帯・観測スポット等（地図は現在地のまま）
+function renderFigNear(){
+  if(!nearFig) return;
+  nearFig.tab='near';
+  const sci=nearFig.sci, cnt=nearFig.cnt;
+  const c=nearRows[nearFig.i]||{name:sci,count:cnt};
+  panelSheet(true);
   renderNearShell(sci,'<div class="nearsum">情報を読み込んでいます…</div>'); openPanel();
   inatResolve(sci).then(v=>{
-    if(!currentMode||currentMode.type!=='near')return;
+    if(!currentMode||currentMode.type!=='near'||!nearFig||nearFig.tab!=='near')return;   // 待機中にモード/タブが変わったら破棄
     Object.assign(c,v,{done:true});
     const cls=NEAR_ICONIC[v.ic]||'';
     panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
-      <button class="nbback" onclick="backToNear()">← 近くの一覧へ</button>
+      ${figHeaderHTML('near')}
       <div class="nd">
         ${v.ph?`<img class="ndimg" src="${esc(v.ph.replace('/square.','/medium.'))}" alt="${esc(v.ja||sci)}" onerror="this.src='${esc(v.ph)}'">`:'<div class="ndimg ndnoimg">🐾</div>'}
         ${v.at?`<div class="ndcred">📷 ${esc(v.at)}（iNaturalist）</div>`:''}
@@ -1375,9 +1412,8 @@ function openNearDetail(btn){
         <div class="ndsec"><div class="ndsech">🕐 観察が多い時間帯（朝・昼・夕の目安）</div><div id="timewrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
         ${v.id?`<div class="ndsec" id="ndsound"><button class="nbtn wide" onclick="playNearSound(${v.id},this)">🔊 鳴き声を聞く</button></div>`:''}
         <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sciKey(sci)}',this)">📍 観測スポットを地図に表示</button>
-        ${hit?`<button class="nbtn wide" onclick="selectAnimal('${hit.id}')">🌍 世界地図で分布を見る（図鑑）</button>`:''}
-        <button class="nbtn wide" onclick="shareSpeciesCard('${sciKey(sci)}',this)">📤 この種をシェア</button>
-        <p class="ndnote">あなたの範囲（半径${nearState?nearState.radius:''}km）でGBIFに記録された生き物です。出会えるかは季節・時間帯によります。写真は iNaturalist（CC）。</p>
+        ${nearFig.hit?'':`<button class="nbtn wide" onclick="shareSpeciesCard('${sciKey(sci)}',this)">📤 この種をシェア</button>`}
+        <p class="ndnote">あなたの範囲（半径${nearState?nearState.radius:''}km）でGBIFに記録された生き物です。出会えるかは季節・時間帯によります。写真は iNaturalist（CC）。${nearFig.hit?'<br>📖<b>図鑑</b>タブで詳しい図鑑カードと分布メッシュが見られます。':''}</p>
         <a class="cta" target="_blank" rel="noopener" href="https://www.inaturalist.org/taxa/search?q=${encodeURIComponent(sci)}">iNaturalistで詳しく見る ↗</a><br>
         <a class="ndlink" target="_blank" rel="noopener" href="https://www.gbif.org/species/search?q=${encodeURIComponent(sci)}">GBIFで記録を見る ↗</a>
       </div>`;
@@ -1388,7 +1424,24 @@ function openNearDetail(btn){
       c.st2=code; });
   });
 }
-function backToNear(){ removeNearPoints(); if(nearState) renderNearList(); }
+// 「図鑑」タブ＝図鑑カード（renderAnimalCard）を地図を動かさずに表示。分布メッシュはトグルで任意に重ねる。
+async function showFigZukan(){
+  const hit=nearFig&&nearFig.hit; if(!hit) return;
+  const a=await DATA.getAnimal(hit.id); if(!a){ toast('📖','図鑑データを読み込めませんでした',1800); return; }
+  await ensureDetail();
+  if(!nearFig||nearFig.tab!=='zukan'||!currentMode||currentMode.type!=='near') return;   // 待機中にタブ/モードが変わったら破棄
+  renderAnimalCard(a, figHeaderHTML('zukan'));   // ★flyTo/removeNearbyVisuals はしない＝近くの地図と生き物を保つ
+  markSeen(a.id);
+}
+// 図鑑タブ内トグル：この地点の地図にGBIF分布ヘックスを重ねる/消す（現在地のまま＝寄れば局所分布、引けば広域が見える）
+function toggleFigDist(btn){
+  const hit=nearFig&&nearFig.hit;
+  if(!hit||!hit.gbif){ toast('🛰️','この種の分布データがありません',1800); return; }
+  figGbifOn=!figGbifOn;
+  if(figGbifOn){ addGbif(hit.gbif); btn.classList.add('on'); btn.textContent='🛰️ 分布メッシュを消す'; }
+  else { removeGbif(); btn.classList.remove('on'); btn.textContent='🛰️ この地点の分布メッシュを表示'; }
+}
+function backToNear(){ removeNearPoints(); removeGbif(); figGbifOn=false; nearFig=null; if(nearState) renderNearList(); }
 // 季節性：その種の月別記録数（geoDistance内）を取得して棒グラフ
 async function loadSeason(sci){
   const wrap=document.getElementById('seasonwrap'); if(!wrap||!nearState)return;
@@ -1607,10 +1660,11 @@ function spawnCreatures(list,append,gen){
 }
 function openCreature(sci,cnt){
   const i=nearRows.findIndex(r=>(r.name||'').toLowerCase()===String(sci).toLowerCase());
-  openNearDetail({dataset:{sci:sci,cnt:String(cnt||0),i:String(i)}});   // 既存の近く詳細を流用（図鑑収録種なら種カードへ）
+  openFigDetail(sci, cnt, i);   // 詳細パネル（図鑑収録種は上部タブで📖図鑑カードに切替可）
 }
 function removeNearbyVisuals(){
   nearPick=false; nearClass='';
+  nearFig=null; figGbifOn=false; removeGbif();   // 図鑑タブで重ねた分布メッシュ／タブ状態も片付ける
   clearTimeout(nearTimer); clearTimeout(creatureTimer);   // 近くを離れる際は保留中の周辺/生き物クエリも取消（無駄なAPI呼出・リーク防止）
   if(localMapAutoOn){ setLocalBasemap(false); localMapAutoOn=false; }   // 自動ONした基図だけ戻す（手動🏷️ONは温存）
   removeCreatures();        // 生き物マーカーも撤去
@@ -1892,4 +1946,4 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openNearDetail, openRedlist, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, selectAnimal, setNearClass, setNearPin, setNearRadius, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, toggleNearPoints, toggleNearThreat })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openNearDetail, openRedlist, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, selectAnimal, setNearClass, setNearPin, setNearRadius, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat })
