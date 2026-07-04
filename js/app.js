@@ -138,7 +138,7 @@ const ccFlag=(c)=>CC[c]?CC[c][1]:'📍';
 
 /* ---------- シードデータ（28種）---------- */
 let ANIMALS = [];
-// 種データは data/species.json から非同期ロード（地図はこれを待たずに即初期化）。
+// 種データは data/species-core.json（軽量コア）を非同期ロード（地図はこれを待たずに即初期化）。詳細は下記 ensureDetail() で遅延ロード。
 // ※fetch を使うため file:// 直開きは不可＝HTTP配信（GitHub Pages / localhost）が前提。
 let __speciesDone; const __speciesReady = new Promise(r=>{ __speciesDone = r; });
 // 初回はコア（一覧/地図/検索に要る軽い項目）だけ読み込む。カードでだけ要る詳細(stats/desc/photoCred)は
