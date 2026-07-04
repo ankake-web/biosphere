@@ -1119,7 +1119,7 @@ async function gbifOccByGroup(lat,lng,radius,keys,limit,y1,y2){
 }
 let nearState=null;                 // {lat,lng,radius,label}
 let nearMarker=null, nearPick=false, nearTimer=null, nearClass='', nearThreatOnly=false, nearRows=[], nearPtsOn=false;
-let creatureMarkers=[], creatureTimer=null, creaturesKey=null, threatToastShown=false;
+let creatureMarkers=[], creatureTimer=null, creaturesKey=null, threatToastShown=false, creatureGen=0, queryGen=0;   // Gen=単調増加の世代トークン（同一丸め座標への素早い出戻りA→B→Aでも古いin-flightバッチを確実に破棄）
 function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
 function inatGet(s){ try{const o=JSON.parse(localStorage.getItem(LS_INAT+s)||'null'); if(o&&(Date.now()-o.t)<2592e6)return o.v;}catch(e){} return null; }
@@ -1245,13 +1245,13 @@ function recenterCurrent(){
 }
 // GBIFファセットで近傍の種一覧を取得→nearRowsへ（クラス別バランス取得＝鳥偏重を打破）
 function queryNear(immediate){
-  const {lat,lng,radius}=nearState, k=nearKey(lat,lng,radius)+'|'+(nearClass||'all'), cached=nearCacheGet(k);
+  const {lat,lng,radius}=nearState, k=nearKey(lat,lng,radius)+'|'+(nearClass||'all'), cached=nearCacheGet(k), gen=++queryGen;
   if(cached&&cached.length){ nearRows=cached.map(c=>({name:c.name,count:c.count,gcls:c.gcls})); renderNearList(); }
   else { nearRows=[]; renderNearList('<div class="nearsum">🛰️ 周辺の記録を集めています…</div>'); }
   clearTimeout(nearTimer);
   const run=()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
-    const stale=()=> !currentMode||currentMode.type!=='near'||(nearKey(currentMode.lat,currentMode.lng,nearState.radius)+'|'+(nearClass||'all'))!==k;
+    const stale=()=> gen!==queryGen||!currentMode||currentMode.type!=='near'||(nearKey(currentMode.lat,currentMode.lng,nearState.radius)+'|'+(nearClass||'all'))!==k;
     // クラス選択時は単一クエリ（そのクラスの taxonKey）＝段階描画は不要。
     if(nearClass && NEAR_CLASS_KEYS[nearClass]){
       gbifFacetNear(lat,lng,radius,NEAR_CLASS_KEYS[nearClass],45,y1,y2).then(rows=>{
@@ -1545,17 +1545,17 @@ function collectPicks(per){
 }
 function loadNearCreatures(lat,lng,radius,immediate){
   removeCreatures(); threatToastShown=false;   // 地点/半径ごとに「近所に絶滅危惧種！」トーストを一度だけ
-  const k=nearKey(lat,lng,radius); creaturesKey=k;
+  const k=nearKey(lat,lng,radius); creaturesKey=k; const gen=++creatureGen;   // gen=この呼び出しの世代（同一座標への出戻りでも旧バッチを破棄）
   clearTimeout(creatureTimer);
   const shown=new Set();      // 既に出した種（小文字）＝クラス間・キャッシュとの重複防止
   const displayed=[];         // 実際に配置したpick（確定時にキャッシュ更新＝次回の即描画用）
   // ⑤ 直近に見た地点はキャッシュから即マーカー化（往復ゼロで初アイコン）。裏で最新を取得し空きスロットを埋める。
   const cached=creatureCacheGet(k);
   if(cached&&cached.length){ const cp=cached.filter(p=>p&&p.sci&&Array.isArray(p.c)).slice(0,CREATURE_MAX);
-    cp.forEach(p=>shown.add(p.sci.toLowerCase())); displayed.push(...cp); if(cp.length) spawnCreatures(cp,false); }
+    cp.forEach(p=>shown.add(p.sci.toLowerCase())); displayed.push(...cp); if(cp.length) spawnCreatures(cp,false,gen); }
   const run=()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
-    const stale=()=> creaturesKey!==k || !currentMode || currentMode.type!=='near';   // 古い/別地点の応答は破棄
+    const stale=()=> gen!==creatureGen || creaturesKey!==k || !currentMode || currentMode.type!=='near';   // 世代/地点が変わった応答は破棄（A→B→Aの重複積み増しを防ぐ）
     let widened=false;
     // ★段階描画：クラス別 occurrence を Promise.all で束ねず、返ってきたクラスから即マーカー化。
     //   最速クラスの速度で初アイコンが出る（応答が最も遅い鳥を待たない）。空きスロット分だけ随時追加。
@@ -1567,7 +1567,7 @@ function loadNearCreatures(lat,lng,radius,immediate){
             const room=CREATURE_MAX-creatureMarkers.length; if(room<=0) return;
             const fresh=collectPicks([{g,res}]).filter(p=>!shown.has(p.sci.toLowerCase())).slice(0,room);
             fresh.forEach(p=>shown.add(p.sci.toLowerCase())); displayed.push(...fresh);
-            if(fresh.length) spawnCreatures(fresh,true);   // 既存を消さず追加（append）＝返った順に積む
+            if(fresh.length) spawnCreatures(fresh,true,gen);   // 既存を消さず追加（append）＝返った順に積む
           })
           .catch(()=>{})
           .finally(()=>{ settled++;
@@ -1582,9 +1582,9 @@ function loadNearCreatures(lat,lng,radius,immediate){
   };
   if(immediate) run(); else creatureTimer=setTimeout(run,260);   // ★初回(地点確定)は即・半径連打はデバウンス
 }
-function spawnCreatures(list,append){
+function spawnCreatures(list,append,gen){
   if(!mapReady) return; if(!append) removeCreatures();   // append=段階描画で既存を消さず積み増す
-  const myKey=creaturesKey;   // この生成バッチの世代。地点/半径を切替えたら古いバッチの後処理はスキップ。
+  const myKey=creaturesKey, myGen=(gen==null?creatureGen:gen);   // この生成バッチの世代。地点/半径/世代を切替えたら古いバッチの後処理はスキップ。
   const base=append?creatureMarkers.length:0;   // append時はstaggerを既存マーカー数から継続（順次出現を維持）
   list.forEach((it,idx)=>{
     const el=document.createElement('div'); el.className='cmk-wrap'; el.style.setProperty('--d',((base+idx)*60)+'ms');   // 出現stagger＝wrapに置き .cmk pop と .cmk-lab peek の両方に継承させる
@@ -1595,13 +1595,13 @@ function spawnCreatures(list,append){
     let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(it.c).addTo(map); }catch(e){ return; }
     creatureMarkers.push(mk);
     // 写真サムネに差し替え＆ホバーラベル更新（iNat・キャッシュ/throttle 共有）。鮮度ガード＝古い世代/撤去済みは何もしない。
-    inatEnqueue(async()=>{ if(creaturesKey!==myKey||!bub.isConnected) return; const v=await inatResolve(it.sci);
-      if(creaturesKey!==myKey||!bub.isConnected) return;
+    inatEnqueue(async()=>{ if(myGen!==creatureGen||creaturesKey!==myKey||!bub.isConnected) return; const v=await inatResolve(it.sci);
+      if(myGen!==creatureGen||creaturesKey!==myKey||!bub.isConnected) return;
       const clsLab=NEAR_ICONIC[v.ic]||'';
       if(v.ja||clsLab) lab.innerHTML=(v.ja?`<b>${esc(v.ja)}</b>`:`<i>${esc(it.sci)}</i>`)+(clsLab?` <span class="cl">${clsLab}</span>`:'');
       if(v&&v.ph&&!bub.querySelector('img')){ const img=document.createElement('img'); img.src=v.ph; img.alt=''; img.onload=()=>img.classList.add('on'); bub.appendChild(img); } });
     // 近くの絶滅危惧種を強調（「近所にコレ!?」）＋ラベルにも保全状況
-    resolveIucn(it.sci).then(code=>{ if(creaturesKey!==myKey||!bub.isConnected) return; if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); lab.classList.add('th'); lab.insertAdjacentHTML('afterbegin',`<span class="w">⚠${code}</span> `);
+    resolveIucn(it.sci).then(code=>{ if(myGen!==creatureGen||creaturesKey!==myKey||!bub.isConnected) return; if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); lab.classList.add('th'); lab.insertAdjacentHTML('afterbegin',`<span class="w">⚠${code}</span> `);
       if(!threatToastShown){ threatToastShown=true; const nm=inatGet(it.sci); toast('⚠','近所に絶滅危惧種！ '+((nm&&nm.ja)||it.sci)+'（'+code+'）',3800); } } });   // 「近所にコレ!?」の感情ピークを1地点1回だけ拾う
   });
 }
