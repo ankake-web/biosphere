@@ -27,6 +27,8 @@ const SCENARIOS = [
       ['maplibre読込', `typeof maplibregl!=='undefined'`],
       ['地図canvas', `!!document.querySelector('.maplibregl-canvas')`],
       ['種カードにライオン', `document.body.innerText.includes('ライオン')`, 8000],
+      // 詳細(desc/stats)は species-detail.json から遅延ロード。カードの解説文が入れば成功。
+      ['カード詳細の遅延ロード', `(document.querySelector('.flavor')?.textContent.trim().length||0) > 5`, 8000],
     ],
   },
   {
@@ -45,8 +47,8 @@ const SCENARIOS = [
     checks: [
       ['maplibre読込', `typeof maplibregl!=='undefined'`],
       ['地図canvas', `!!document.querySelector('.maplibregl-canvas')`],
-      // データ層は内部変数に依存せず独立fetchで確認（全リファクタ後も不変）
-      ['species.json 5000種以上', `fetch('${BASE}/data/species.json').then(r=>r.json()).then(j=>Array.isArray(j.animals)&&j.animals.length>=5000)`, 12000, true],
+      // データ層は内部変数に依存せず独立fetchで確認（runtime はコアを読む）
+      ['species-core.json 5000種以上', `fetch('${BASE}/data/species-core.json').then(r=>r.json()).then(j=>Array.isArray(j.animals)&&j.animals.length>=5000)`, 12000, true],
     ],
   },
 ]

@@ -141,7 +141,9 @@ let ANIMALS = [];
 // 種データは data/species.json から非同期ロード（地図はこれを待たずに即初期化）。
 // ※fetch を使うため file:// 直開きは不可＝HTTP配信（GitHub Pages / localhost）が前提。
 let __speciesDone; const __speciesReady = new Promise(r=>{ __speciesDone = r; });
-const __spData = fetch('data/species.json').then(r=>{ if(!r.ok) throw new Error('species.json '+r.status); return r.json(); });
+// 初回はコア（一覧/地図/検索に要る軽い項目）だけ読み込む。カードでだけ要る詳細(stats/desc/photoCred)は
+// species-detail.json に分離し、種カードを開いた時に ensureDetail() で初回だけ遅延ロードする（scripts/generate.mjs が両ファイルを生成）。
+const __spData = fetch('data/species-core.json').then(r=>{ if(!r.ok) throw new Error('species-core.json '+r.status); return r.json(); });
 
 /* 写真クレジット（Wikimedia Commons API から取得した撮影者・ライセンス）。出典明記=ライセンス遵守 */
 let PHOTO_CRED = {};
@@ -661,8 +663,18 @@ if(matchMedia('(max-width:640px)').matches){ chipsEl.innerHTML=''; }
 else { (window.requestIdleCallback||(f=>setTimeout(()=>f(),300)))(()=>buildChips(),{timeout:2200}); }
 } // initCatalog
 // 種データ到着後：採番 → 図鑑UI構築 → 「準備完了」を通知（地図側はこれを await して描画）
-__spData.then(d=>{ ANIMALS=d.animals; PHOTO_CRED=d.photoCred; ANIMALS.forEach((a,i)=>a.no=i+1); initCatalog(); __speciesDone(); })
+__spData.then(d=>{ ANIMALS=d.animals; ANIMALS.forEach((a,i)=>a.no=i+1); initCatalog(); __speciesDone(); })
         .catch(e=>{ console.error(e); if(typeof bootFail==='function') bootFail('種データを読み込めませんでした。'); __speciesDone(); });
+
+// 詳細データ（stats/desc/photoCred）を初回だけ遅延ロードして各 animal にマージ。種カードを開く時に await する。
+let __detailReady=null;
+function ensureDetail(){
+  if(__detailReady) return __detailReady;
+  __detailReady = Promise.all([__speciesReady, fetch('data/species-detail.json').then(r=>{ if(!r.ok) throw new Error('species-detail.json '+r.status); return r.json(); })])
+    .then(([,d])=>{ const D=d.detail||{}; PHOTO_CRED=d.photoCred||{}; for(const a of ANIMALS){ const x=D[a.id]; if(x){ a.stats=x.stats; a.desc=x.desc; } } })
+    .catch(e=>{ console.error(e); });   // 失敗してもカードは基本情報＋フォールバックで表示（下の renderAnimalCard が防御）
+  return __detailReady;
+}
 
 /* ---------- セレクション ---------- */
 function pressChip(id){ chipsEl.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.id===id?'true':'false')); }
@@ -753,7 +765,7 @@ async function selectAnimal(id){
   removeNearbyVisuals();
   currentMode={type:'animal',id}; currentAnimal=a;
   pressChip(id); pressBiome(null); filterChips(null);
-  paintAnimal(a); flyTo(a.focus.c,a.focus.z); renderAnimalCard(a); markSeen(id);
+  paintAnimal(a); flyTo(a.focus.c,a.focus.z); await ensureDetail(); renderAnimalCard(a); markSeen(id);
   try{ history.replaceState(null,'','#'+id); }catch(e){}   // 共有用ディープリンク
   setMode(animalModeText(a)); showYearbar(gbifOn);
 }
@@ -849,6 +861,7 @@ function panelSheet(mid){ panelEl.classList.toggle('sheet-mid', !!mid); }
 function renderAnimalCard(a){
   const r=RARITY[a.status], g=BIOMES[a.biome]?BIOMES[a.biome].g:['#1b3a43','#0d1b22'], tm=TREND_META[trendOf(a)];
   const cred=PHOTO_CRED[a.id]||{by:'Wikimedia Commons',lic:''};
+  const st=a.stats||{size:'—',weight:'—',diet:'—',life:'—'};   // 詳細ロード前/失敗時のフォールバック
   panelEl.innerHTML=`
     <button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button>
     <div class="grab"></div>
@@ -869,12 +882,12 @@ function renderAnimalCard(a){
         <button type="button" class="iucn" onclick="openRedlist('${a.status}','${a.id}')" title="保全状況（IUCNレッドリスト）の意味を見る"><span class="code" style="background:${r.color}">${a.status}<span class="qm">?</span></span><span class="jp">${r.jp}・${r.band}</span></button>
       </div>
       <div class="stats">
-        <div class="stat"><div class="k">📏 大きさ</div><div class="v">${a.stats.size}</div></div>
-        <div class="stat"><div class="k">⚖️ 体重</div><div class="v">${a.stats.weight}</div></div>
-        <div class="stat"><div class="k">🍖 食性</div><div class="v">${a.stats.diet}</div></div>
-        <div class="stat"><div class="k">⏳ 寿命</div><div class="v">${a.stats.life}</div></div>
+        <div class="stat"><div class="k">📏 大きさ</div><div class="v">${st.size}</div></div>
+        <div class="stat"><div class="k">⚖️ 体重</div><div class="v">${st.weight}</div></div>
+        <div class="stat"><div class="k">🍖 食性</div><div class="v">${st.diet}</div></div>
+        <div class="stat"><div class="k">⏳ 寿命</div><div class="v">${st.life}</div></div>
       </div>
-      <div class="flavor">${a.desc}</div>
+      <div class="flavor">${a.desc||''}</div>
       <div class="ndsec" id="figsound" style="margin:2px 0 10px"><button class="nbtn wide" onclick="playFigureSound('${a.id}',this)">🔊 鳴き声を聞く</button></div>
       ${['CR','EN','VU','NT','DD'].includes(a.status)?`<div class="conserv">
         <div class="cvhead">🛡 おもな脅威と保全 <span class="cvst" style="color:${r.color}">${r.jp}（${a.status}）</span></div>

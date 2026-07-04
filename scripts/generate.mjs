@@ -19,6 +19,19 @@ const ANIMALS = species.animals;
 ANIMALS.forEach((a, i) => a.no = i + 1);
 const PHOTO_CRED = species.photoCred;
 
+// --- 実行時用の分割データを生成（初回はコアだけ読み込み、カードを開いた時に詳細を遅延ロード） ---
+// species.json が単一ソース。ここから派生する core（一覧/地図/検索に要る軽い項目）と
+// detail（カードでだけ要る stats/desc/photoCred）を書き出す。runtime は core→detail の順に読む。
+{
+  const coreAnimals = ANIMALS.map(a => { const c = { ...a }; delete c.stats; delete c.desc; return c; });
+  fs.writeFileSync(path.join(ROOT, 'data/species-core.json'), JSON.stringify({ animals: coreAnimals }));
+  const detail = {};
+  for (const a of ANIMALS) detail[a.id] = { stats: a.stats, desc: a.desc };
+  fs.writeFileSync(path.join(ROOT, 'data/species-detail.json'), JSON.stringify({ detail, photoCred: PHOTO_CRED }));
+  const kb = f => (fs.statSync(path.join(ROOT, 'data', f)).size / 1024).toFixed(0);
+  console.log(`分割データ生成：species-core.json ${kb('species-core.json')}KB / species-detail.json ${kb('species-detail.json')}KB`);
+}
+
 // --- 小辞書は js/app.js から抽出（実行時データと単一ソースを共有） ---
 // ※RARITY/BIOMES/CC/POP/TREND/CLASS/clsOrder/THREAT_OVR は index.html→js/data.js→(連結で)js/app.js と移動。
 const html = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
