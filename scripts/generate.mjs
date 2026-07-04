@@ -23,7 +23,18 @@ const PHOTO_CRED = species.photoCred;
 // species.json が単一ソース。ここから派生する core（一覧/地図/検索に要る軽い項目）と
 // detail（カードでだけ要る stats/desc/photoCred）を書き出す。runtime は core→detail の順に読む。
 {
-  const coreAnimals = ANIMALS.map(a => { const c = { ...a }; delete c.stats; delete c.desc; return c; });
+  // 写真URLをコンパクト表記に短縮（共通prefix除去＋thumbの重複ファイル名除去）。runtime の photoURL() と対で復元。
+  const compactPhoto = u => {
+    const P = 'https://upload.wikimedia.org/wikipedia/commons/';
+    if (typeof u !== 'string' || !u.startsWith(P)) return '9|' + u;
+    const r = u.slice(P.length);
+    let m = r.match(/^thumb\/[0-9a-f]\/([0-9a-f]{2})\/(.+?)\/(\d+)px-\2$/);
+    if (m) return '1|' + m[3] + '|' + m[1] + '|' + m[2];   // 1|width|ab|file（ab[0]=1文字目は復元時に導出）
+    m = r.match(/^[0-9a-f]\/([0-9a-f]{2})\/(.+)$/);
+    if (m) return '0|' + m[1] + '|' + m[2];                // 0|ab|file
+    return '9|' + u;
+  };
+  const coreAnimals = ANIMALS.map(a => { const c = { ...a }; delete c.stats; delete c.desc; c.photo = compactPhoto(c.photo); return c; });
   fs.writeFileSync(path.join(ROOT, 'data/species-core.json'), JSON.stringify({ animals: coreAnimals }));
   const detail = {};
   for (const a of ANIMALS) detail[a.id] = { stats: a.stats, desc: a.desc };

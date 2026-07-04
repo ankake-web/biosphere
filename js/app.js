@@ -147,6 +147,16 @@ const __spData = fetch('data/species-core.json').then(r=>{ if(!r.ok) throw new E
 
 /* 写真クレジット（Wikimedia Commons API から取得した撮影者・ライセンス）。出典明記=ライセンス遵守 */
 let PHOTO_CRED = {};
+// 写真URLの短縮復元：core は容量削減のため写真URLをコンパクト表記("1|w|ab|file"等)で持つ。
+// ロード時に photoURL() で本来の Wikimedia URL に戻す（scripts/generate.mjs の compactPhoto と対）。
+function photoURL(p){
+  if(typeof p!=='string') return p||'';
+  const t=p.split('|'); const P='https://upload.wikimedia.org/wikipedia/commons/';
+  if(t[0]==='9') return p.slice(2);                                   // 9|<フルURL>（非Commons等はそのまま）
+  if(t[0]==='1'){ const w=t[1],ab=t[2],f=t[3]; return P+'thumb/'+ab[0]+'/'+ab+'/'+f+'/'+w+'px-'+f; } // thumb
+  if(t[0]==='0'){ const ab=t[1],f=t[2]; return P+ab[0]+'/'+ab+'/'+f; }                               // 直リンク
+  return p;                                                           // 未知＝そのまま（後方互換）
+}
 // 出典URLヘルパー（写真＝Commonsファイルページ / 保全状況=IUCN / 観測=GBIF種ページ）
 function commonsFile(url){ let m=url.match(/commons\/thumb\/[^/]+\/[^/]+\/([^/]+)\//)||url.match(/commons\/[^/]+\/[^/]+\/([^/?]+)$/); return m?m[1]:null; }
 function commonsPageURL(url){ const f=commonsFile(url); return f?('https://commons.wikimedia.org/wiki/File:'+f):'https://commons.wikimedia.org/'; }
@@ -663,7 +673,7 @@ if(matchMedia('(max-width:640px)').matches){ chipsEl.innerHTML=''; }
 else { (window.requestIdleCallback||(f=>setTimeout(()=>f(),300)))(()=>buildChips(),{timeout:2200}); }
 } // initCatalog
 // 種データ到着後：採番 → 図鑑UI構築 → 「準備完了」を通知（地図側はこれを await して描画）
-__spData.then(d=>{ ANIMALS=d.animals; ANIMALS.forEach((a,i)=>a.no=i+1); initCatalog(); __speciesDone(); })
+__spData.then(d=>{ ANIMALS=d.animals; ANIMALS.forEach((a,i)=>{ a.no=i+1; a.photo=photoURL(a.photo); }); initCatalog(); __speciesDone(); })
         .catch(e=>{ console.error(e); if(typeof bootFail==='function') bootFail('種データを読み込めませんでした。'); __speciesDone(); });
 
 // 詳細データ（stats/desc/photoCred）を初回だけ遅延ロードして各 animal にマージ。種カードを開く時に await する。
