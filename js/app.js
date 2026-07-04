@@ -1246,29 +1246,44 @@ function queryNear(immediate){
   if(cached&&cached.length){ nearRows=cached.map(c=>({name:c.name,count:c.count,gcls:c.gcls})); renderNearList(); }
   else { nearRows=[]; renderNearList('<div class="nearsum">🛰️ 周辺の記録を集めています…</div>'); }
   clearTimeout(nearTimer);
-  const run=async()=>{
+  const run=()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
     const stale=()=> !currentMode||currentMode.type!=='near'||(nearKey(currentMode.lat,currentMode.lng,nearState.radius)+'|'+(nearClass||'all'))!==k;
-    try{
-      let counts;
-      if(nearClass && NEAR_CLASS_KEYS[nearClass]){
-        // クラス選択：そのクラスの taxonKey で直接取得（クライアント側 classMatch は廃止＝空にならない）
-        counts=(await gbifFacetNear(lat,lng,radius,NEAR_CLASS_KEYS[nearClass],45,y1,y2)).slice(0,40).map(c=>({name:c.name,count:c.count,gcls:nearClass}));
-      } else {
-        // 既定：クラス別に並行取得→クラスをラウンドロビンでインターリーブ（先頭からクラスが交互＝鳥ばかりに見えない）
-        const groupRows=await Promise.all(GBIF_VERT_GROUPS.map(g=>
-          gbifFacetNear(lat,lng,radius,g.keys,18,y1,y2).then(rows=>rows.slice(0,g.cap).map(c=>({name:c.name,count:c.count,gcls:g.c})))));
-        const merged=[], seen=new Set(), maxLen=Math.max(0,...groupRows.map(r=>r.length));
-        for(let i=0;i<maxLen;i++) for(const rows of groupRows){ const c=rows[i]; if(c){ const key=c.name.toLowerCase(); if(!seen.has(key)){ seen.add(key); merged.push(c); } } }
-        counts=merged.slice(0,45);
-      }
-      if(stale()) return;
-      if(!counts.length){ nearRows=[]; renderNearList('<div class="nearsum">この範囲の脊椎動物の記録は見つかりませんでした。半径を広げるか場所を変えてみてください。</div>'); return; }
-      nearCacheSet(k,counts); nearRows=counts; renderNearList();
-    }catch(e){
-      if(!currentMode||currentMode.type!=='near') return;
-      if(!nearRows.length) renderNearList('<div class="nearsum">実データの取得に失敗しました（オフライン？）。少し時間をおいて再度お試しください。</div>');
+    // クラス選択時は単一クエリ（そのクラスの taxonKey）＝段階描画は不要。
+    if(nearClass && NEAR_CLASS_KEYS[nearClass]){
+      gbifFacetNear(lat,lng,radius,NEAR_CLASS_KEYS[nearClass],45,y1,y2).then(rows=>{
+        if(stale()) return;
+        const counts=rows.slice(0,40).map(c=>({name:c.name,count:c.count,gcls:nearClass}));
+        if(!counts.length){ nearRows=[]; renderNearList('<div class="nearsum">この範囲の脊椎動物の記録は見つかりませんでした。半径を広げるか場所を変えてみてください。</div>'); return; }
+        nearCacheSet(k,counts); nearRows=counts; renderNearList();
+      }).catch(()=>{ if(currentMode&&currentMode.type==='near'&&!nearRows.length) renderNearList('<div class="nearsum">実データの取得に失敗しました（オフライン？）。少し時間をおいて再度お試しください。</div>'); });
+      return;
     }
+    // ★段階描画（既定）：クラス別 facet を Promise.all で束ねず、最初に返ったクラスで一覧を即描画→出そろい時に確定。
+    //   行は name キーでオブジェクトを使い回すので、再描画で iNat解決済み(和名/写真/保全)を失わない。
+    const groupRows=new Array(GBIF_VERT_GROUPS.length).fill(null), rowObj=new Map();
+    let firstPainted=!!(cached&&cached.length), settled=0;   // キャッシュ表示済みなら中間描画を省いてチラつき回避
+    const rebuild=()=>{   // 現在返っているクラスをラウンドロビンでインターリーブ（先頭からクラスが交互＝鳥ばかりに見えない）
+      const merged=[], seen=new Set(), maxLen=Math.max(0,...groupRows.map(r=>r?r.length:0));
+      for(let i=0;i<maxLen;i++) for(let gi=0;gi<groupRows.length;gi++){ const rr=groupRows[gi], c=rr&&rr[i]; if(!c) continue;
+        const key=c.name.toLowerCase(); if(seen.has(key)) continue; seen.add(key);
+        let obj=rowObj.get(key); if(!obj){ obj={name:c.name,count:c.count,gcls:c.gcls}; rowObj.set(key,obj); } else obj.count=Math.max(obj.count,c.count);
+        merged.push(obj); }
+      return merged.slice(0,45);
+    };
+    GBIF_VERT_GROUPS.forEach((g,gi)=>{
+      gbifFacetNear(lat,lng,radius,g.keys,18,y1,y2)
+        .then(rows=>{ if(stale()) return;
+          groupRows[gi]=rows.slice(0,g.cap).map(c=>({name:c.name,count:c.count,gcls:g.c}));
+          if(!firstPainted){ const merged=rebuild(); if(merged.length){ nearRows=merged; renderNearList(); firstPainted=true; } }   // 最速クラスで一覧を即出す
+        })
+        .catch(()=>{})
+        .finally(()=>{ settled++; if(settled!==GBIF_VERT_GROUPS.length || stale()) return;   // 全クラス出そろい＝確定描画＋キャッシュ
+          const merged=rebuild();
+          if(!merged.length){ nearRows=[]; renderNearList('<div class="nearsum">この範囲の脊椎動物の記録は見つかりませんでした。半径を広げるか場所を変えてみてください。</div>'); }
+          else { nearCacheSet(k,merged.map(c=>({name:c.name,count:c.count,gcls:c.gcls}))); nearRows=merged; renderNearList(); }
+        });
+    });
   };
   if(immediate) run(); else nearTimer=setTimeout(run,250);   // ★初回(地点確定)は即・半径/種別の連打はデバウンス
 }
@@ -1529,33 +1544,40 @@ function loadNearCreatures(lat,lng,radius,immediate){
   removeCreatures(); threatToastShown=false;   // 地点/半径ごとに「近所に絶滅危惧種！」トーストを一度だけ
   const k=nearKey(lat,lng,radius); creaturesKey=k;
   clearTimeout(creatureTimer);
-  const run=async()=>{
+  const run=()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
-    try{
-      // クラス別に occurrence を並行取得（多めに取り確実にマーカーを出す）→各クラス上位種をマーカー化＝鳥だらけ回避。
-      let per=await Promise.all(GBIF_VERT_GROUPS.map(g=>
-        gbifOccByGroup(lat,lng,radius,g.keys,g.c==='Aves'?40:60,y1,y2).then(res=>({g,res}))));
-      if(creaturesKey!==k || !currentMode || currentMode.type!=='near') return;   // 古い/別地点の応答は破棄
-      let picks=collectPicks(per);
-      // 過疎/近すぎで少ない時は1段だけ半径を広げて再取得（確実にアイコンを出す）。3倍・最大100km＝対応ズームの画面内に収まる。
-      if(picks.length<4 && radius<80){
-        const wideR=Math.min(radius*3,100);
-        per=await Promise.all(GBIF_VERT_GROUPS.map(g=>
-          gbifOccByGroup(lat,lng,wideR,g.keys,g.c==='Aves'?40:60,y1,y2).then(res=>({g,res}))));
-        if(creaturesKey!==k || !currentMode || currentMode.type!=='near') return;
-        const wide=collectPicks(per);
-        if(wide.length>picks.length) picks=wide;
-      }
-      spawnCreatures(picks.slice(0,CREATURE_MAX));
-    }catch(e){ /* 失敗は静かに（一覧・地図は維持） */ }
+    const stale=()=> creaturesKey!==k || !currentMode || currentMode.type!=='near';   // 古い/別地点の応答は破棄
+    const shown=new Set();   // 既に出した種（小文字）＝クラス間の重複防止
+    let widened=false;
+    // ★段階描画：クラス別 occurrence を Promise.all で束ねず、返ってきたクラスから即マーカー化。
+    //   最速クラスの速度で初アイコンが出る（応答が最も遅い鳥を待たない）。空きスロット分だけ随時追加。
+    const grab=(r)=>{
+      let settled=0;
+      GBIF_VERT_GROUPS.forEach(g=>{
+        gbifOccByGroup(lat,lng,r,g.keys,g.c==='Aves'?40:60,y1,y2)
+          .then(res=>{ if(stale()) return;
+            const room=CREATURE_MAX-creatureMarkers.length; if(room<=0) return;
+            const fresh=collectPicks([{g,res}]).filter(p=>!shown.has(p.sci.toLowerCase())).slice(0,room);
+            fresh.forEach(p=>shown.add(p.sci.toLowerCase()));
+            if(fresh.length) spawnCreatures(fresh,true);   // 既存を消さず追加（append）＝返った順に積む
+          })
+          .catch(()=>{})
+          .finally(()=>{ settled++;
+            // 全クラス出そろって過疎/近すぎ＝初回描画の後ろで1段だけ半径拡大（確実にアイコン）。3倍・最大100km。
+            if(settled===GBIF_VERT_GROUPS.length && !widened && !stale() && creatureMarkers.length<4 && r<80){ widened=true; grab(Math.min(r*3,100)); }
+          });
+      });
+    };
+    grab(radius);
   };
   if(immediate) run(); else creatureTimer=setTimeout(run,260);   // ★初回(地点確定)は即・半径連打はデバウンス
 }
-function spawnCreatures(list){
-  if(!mapReady) return; removeCreatures();
+function spawnCreatures(list,append){
+  if(!mapReady) return; if(!append) removeCreatures();   // append=段階描画で既存を消さず積み増す
   const myKey=creaturesKey;   // この生成バッチの世代。地点/半径を切替えたら古いバッチの後処理はスキップ。
+  const base=append?creatureMarkers.length:0;   // append時はstaggerを既存マーカー数から継続（順次出現を維持）
   list.forEach((it,idx)=>{
-    const el=document.createElement('div'); el.className='cmk-wrap'; el.style.setProperty('--d',(idx*60)+'ms');   // 出現stagger＝wrapに置き .cmk pop と .cmk-lab peek の両方に継承させる
+    const el=document.createElement('div'); el.className='cmk-wrap'; el.style.setProperty('--d',((base+idx)*60)+'ms');   // 出現stagger＝wrapに置き .cmk pop と .cmk-lab peek の両方に継承させる
     const bub=document.createElement('div'); bub.className='cmk'; bub.textContent=classEmoji(it.cls);
     const lab=document.createElement('div'); lab.className='cmk-lab'; lab.innerHTML=`<i>${esc(it.sci)}</i>`;   // 出現時に数秒ピーク表示＋ホバーで和名/分類/保全
     el.appendChild(bub); el.appendChild(lab);
