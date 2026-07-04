@@ -157,6 +157,19 @@ function photoURL(p){
   if(t[0]==='0'){ const ab=t[1],f=t[2]; return P+ab[0]+'/'+ab+'/'+f; }                               // 直リンク
   return p;                                                           // 未知＝そのまま（後方互換）
 }
+// 復元済みフルURL(a.photo)から小サムネURLを作る。小さいアイコン(世界の浮遊アイコン等)で原寸/960px画像を丸ごと読まないため。
+// thumb URLは幅を差し替え、直リンク原寸(Commons)はthumb経路へ組み替え、SVG/非Commonsはそのまま。
+function thumbURL(u, w){
+  if(typeof u!=='string' || !u) return u||''; w=w||160;
+  const T='/wikipedia/commons/thumb/', C='/wikipedia/commons/';
+  if(u.indexOf(T)>=0) return u.replace(/\/(\d+)px-([^/]+)$/, '/'+w+'px-$2');   // 既にthumb＝幅だけ差し替え
+  const ci=u.indexOf(C);
+  if(ci>=0 && !/\.svg$/i.test(u)){                                             // 直リンク原寸→thumb化（Commonsは動的生成）
+    const rest=u.slice(ci+C.length), parts=rest.split('/'), f=parts[parts.length-1];
+    if(parts.length===3 && f) return u.slice(0,ci)+T+rest+'/'+w+'px-'+f;
+  }
+  return u;                                                                    // 非Commons/SVG/未知＝そのまま
+}
 // 出典URLヘルパー（写真＝Commonsファイルページ / 保全状況=IUCN / 観測=GBIF種ページ）
 function commonsFile(url){ let m=url.match(/commons\/thumb\/[^/]+\/[^/]+\/([^/]+)\//)||url.match(/commons\/[^/]+\/[^/]+\/([^/?]+)$/); return m?m[1]:null; }
 function commonsPageURL(url){ const f=commonsFile(url); return f?('https://commons.wikimedia.org/wiki/File:'+f):'https://commons.wikimedia.org/'; }
@@ -523,6 +536,7 @@ function drawOverview(){
   setFill(pairs.length ? ['match',['get',CODE_PROP],...pairs,'rgba(0,0,0,0)'] : 'rgba(0,0,0,0)'); clearActive();
   setMode('世界ぜんたいの分布ヒートマップ');
   if(typeof renderLegend==='function') renderLegend('overview');   // 概観＝国塗りは「種の多さ」→凡例もそれに合わせる
+  spawnWorldCreatures();   // ③ 世界ビューにランダム浮遊アイコン（毎回ちがう顔ぶれ・タップで種カード）
 }
 function heatColor(t){
   const stops=[[0,[26,74,60]],[.5,[33,170,140]],[1,[242,193,78]]];
@@ -1088,6 +1102,7 @@ const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_s
 const THREAT_CATS=new Set(['VU','EN','CR']);   // 絶滅危惧（Threatened）
 // 地図に「ふわっと」出す生き物マーカー（ポケGO風）。GBIF実観測点に種マーカー＝1種1個・上限で間引き。
 const CREATURE_MAX=12;   // 地図に出す生き物マーカー上限（パン時の再配置負荷を抑えるため18→12）
+const CREATURE_POOL=28;  // ③ 地点キャッシュに貯める候補プール上限（表示より多め＝再訪ごとに重み付きランダムで別の顔ぶれ）
 const CLASS_EMOJI={Aves:'🐦',Mammalia:'🐾',Reptilia:'🦎',Amphibia:'🐸',Actinopterygii:'🐟',Chondrichthyes:'🦈',Fish:'🐟',Insecta:'🐛',Arachnida:'🕷️',Mollusca:'🐚'};
 function classEmoji(cls){ return CLASS_EMOJI[cls]||'🐾'; }
 // 鳴き声（発声）する分類だけに鳴き声ボタンを出す。植物・魚・爬虫・貝などは iNat の「音」が環境音/誤り
@@ -1229,7 +1244,7 @@ function nearbyFallback(msg){
 // 任意地点に「ピン」を置く（現在地/都市/タップ/ドラッグ 共通の入口）
 function setNearPin(latRaw,lngRaw,label,radius){
   const lat=Math.round(latRaw*100)/100, lng=Math.round(lngRaw*100)/100;   // ~1km丸め（プライバシー）
-  nearPick=false; currentAnimal=null;
+  nearPick=false; currentAnimal=null; removeWorldCreatures();   // 近くへ入るとき世界の浮遊アイコンは撤去
   nearState={lat,lng,radius:radius||(nearState&&nearState.radius)||NEAR_DEFAULT_R,label:label||'指定地点'};
   currentMode={type:'near',lat,lng};
   setMode('📍 '+nearState.label+'の近くの生き物'); showYearbar(false);
@@ -1595,30 +1610,82 @@ async function toggleNearPoints(sci,btn){
    絵文字で即出現（有限CSSアニメ）→iNat写真サムネに差し替え／絶滅危惧はレア度カラーで発光。タップで詳細。
    永続rAFは使わない（アニメはCSS有限）。 */
 function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); creatureMarkers=[]; }
+/* ---------- 世界(概観)ビューのランダム浮遊アイコン（③）----------
+   地球儀/世界地図のとき、図鑑の種を毎回ちがう顔ぶれで数体“浮遊”表示＝ぐるっと見て回る楽しさ。
+   近くはローカルGBIF依存だが世界は図鑑ANIMALSの focus 座標に配置。タップで種カードへ。永続rAFは使わない。 */
+let worldCreatureMarkers=[];
+const WORLD_CREATURE_N=14;
+function removeWorldCreatures(){ worldCreatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); worldCreatureMarkers=[]; }
+function spawnWorldCreatures(){
+  removeWorldCreatures();
+  if(nearPick) return;   // 位置ピッカー中は地図を純粋な地点指定サーフェスに保つ（アイコンがタップを横取りしない）
+  if(!mapReady || !Array.isArray(ANIMALS) || !ANIMALS.length) return;
+  const src=ANIMALS.filter(a=>a&&a.focus&&Array.isArray(a.focus.c)&&a.focus.c.length===2);
+  if(!src.length) return;
+  const pick=[], used=new Set();   // ランダムにN種（重複なし・毎回シャッフル＝再訪で別の顔ぶれ）
+  for(let guard=0; pick.length<Math.min(WORLD_CREATURE_N,src.length) && guard<src.length*5; guard++){
+    const a=src[Math.floor(Math.random()*src.length)];
+    if(used.has(a.id)) continue; used.add(a.id); pick.push(a);
+  }
+  pick.forEach((a,idx)=>{
+    const el=document.createElement('div'); el.className='cmk-wrap'; el.style.setProperty('--d',(idx*70)+'ms');
+    const bub=document.createElement('div'); bub.className='cmk'; bub.textContent=a.emoji||'🐾';
+    const lab=document.createElement('div'); lab.className='cmk-lab'; lab.innerHTML=`<b>${esc(a.nameJa)}</b>`;
+    el.appendChild(bub); el.appendChild(lab);
+    el.addEventListener('click',(e)=>{ e.stopPropagation(); selectAnimal(a.id); });
+    let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(a.focus.c).addTo(map); }catch(e){ return; }
+    worldCreatureMarkers.push(mk);
+    if(a.photo && !bub.querySelector('img')){ const img=document.createElement('img'); img.src=thumbURL(a.photo,160); img.alt=''; img.loading='lazy'; img.onload=()=>img.classList.add('on'); img.onerror=()=>{try{img.remove();}catch(e){}}; bub.appendChild(img); }   // 図鑑写真を小サムネ(160px)で（原寸を丸ごと読まない）
+    const rr=RARITY[a.status]; if(rr && THREAT_CATS.has(a.status)){ bub.classList.add('threat'); bub.style.setProperty('--tc',rr.color); lab.classList.add('th'); }   // 絶滅危惧は発光
+  });
+}
 // occurrence群→マーカー候補（各クラス上位4種・座標付き）。o.species が無い記録も scientificName を二名化して拾う＝取りこぼし減。
+// 観測点群の代表点＝重心にいちばん近い実観測点(medoid)。1点ならその点。
+// 「最初に見つかった点」ではなく局所分布の中心へ置く＝GBIF分布ヘックスと見た目が整合する（①）。
+function medoid(list){
+  if(!list||!list.length) return null;
+  if(list.length===1) return list[0];
+  let sx=0,sy=0; for(const p of list){ sx+=p[0]; sy+=p[1]; }
+  const cx=sx/list.length, cy=sy/list.length;
+  let best=list[0], bd=Infinity;
+  for(const p of list){ const dx=p[0]-cx, dy=p[1]-cy, d=dx*dx+dy*dy; if(d<bd){ bd=d; best=p; } }
+  return best;
+}
+// 重み付きランダム抽出（重複なし・weight=頻度n）。多い種ほど出やすいが毎回ちがう顔ぶれ＝再訪しても新鮮（③）。
+function weightedSample(items, n){
+  const pool=items.slice(), out=[];
+  while(out.length<n && pool.length){
+    let tot=0; for(const it of pool) tot+=Math.max(1,it.n||1);
+    let r=Math.random()*tot, idx=pool.length-1;
+    for(let i=0;i<pool.length;i++){ r-=Math.max(1,pool[i].n||1); if(r<=0){ idx=i; break; } }
+    out.push(pool.splice(idx,1)[0]);
+  }
+  return out;
+}
 function collectPicks(per){
-  const picks=[], perGroup=4;
+  const picks=[], perGroup=6;   // プールを広めに集め、重み付きランダムで抽出＝同じ場所でも毎回変化
   per.forEach(({g,res})=>{
-    const freq={}, coord={}, cls={};
+    const freq={}, pts={}, cls={};
     (res||[]).forEach(o=>{ let sp=(o.species||'').trim();
       if(!sp){ const p=(o.scientificName||o.acceptedScientificName||'').trim().split(/\s+/); if(p.length>=2&&/^[A-Z][a-zé-]+$/.test(p[0])&&/^[a-zé-]+$/.test(p[1])) sp=p[0]+' '+p[1]; }
       if(!sp || o.decimalLatitude==null || o.decimalLongitude==null) return;
-      freq[sp]=(freq[sp]||0)+1; if(!coord[sp]) coord[sp]=[o.decimalLongitude,o.decimalLatitude]; if(!cls[sp]) cls[sp]=o.class||''; });
-    Object.keys(freq).sort((a,b)=>freq[b]-freq[a]).slice(0,perGroup).forEach(sp=>picks.push({sci:sp,c:coord[sp],cls:CLASS_EMOJI[cls[sp]]?cls[sp]:g.c,n:freq[sp]}));
+      freq[sp]=(freq[sp]||0)+1; (pts[sp]||(pts[sp]=[])).push([o.decimalLongitude,o.decimalLatitude]); if(!cls[sp]) cls[sp]=o.class||''; });
+    const cand=Object.keys(freq).map(sp=>({sci:sp,c:medoid(pts[sp]),cls:CLASS_EMOJI[cls[sp]]?cls[sp]:g.c,n:freq[sp]}));
+    weightedSample(cand, perGroup).forEach(p=>{ if(p.c) picks.push(p); });   // 重み付きランダムで perGroup 種
   });
-  picks.sort((a,b)=>b.n-a.n);
   return picks;
 }
 function loadNearCreatures(lat,lng,radius,immediate){
   removeCreatures(); threatToastShown=false;   // 地点/半径ごとに「近所に絶滅危惧種！」トーストを一度だけ
   const k=nearKey(lat,lng,radius); creaturesKey=k; const gen=++creatureGen;   // gen=この呼び出しの世代（同一座標への出戻りでも旧バッチを破棄）
   clearTimeout(creatureTimer);
-  const shown=new Set();      // 既に出した種（小文字）＝クラス間・キャッシュとの重複防止
-  const displayed=[];         // 実際に配置したpick（確定時にキャッシュ更新＝次回の即描画用）
-  // ⑤ 直近に見た地点はキャッシュから即マーカー化（往復ゼロで初アイコン）。裏で最新を取得し空きスロットを埋める。
+  const shown=new Set();      // 既に表示した種（小文字）＝クラス間・キャッシュとの重複防止
+  const pool=[];              // 候補プール（表示上限より多めに貯めてキャッシュ＝再訪ごとに別の顔ぶれを抽選）③
+  const addPool=(p)=>{ const key=p.sci.toLowerCase(); if(!pool.some(q=>q.sci.toLowerCase()===key)) pool.push(p); };
+  // ⑤+③ 直近に見た地点はキャッシュのプールから重み付きランダムで即マーカー化（往復ゼロ＋毎回ちがう顔ぶれ）。裏で最新を取得しプール更新。
   const cached=creatureCacheGet(k);
-  if(cached&&cached.length){ const cp=cached.filter(p=>p&&p.sci&&Array.isArray(p.c)).slice(0,CREATURE_MAX);
-    cp.forEach(p=>shown.add(p.sci.toLowerCase())); displayed.push(...cp); if(cp.length) spawnCreatures(cp,false,gen); }
+  if(cached&&cached.length){ const cpool=cached.filter(p=>p&&p.sci&&Array.isArray(p.c)); cpool.forEach(addPool);
+    const cp=weightedSample(cpool, CREATURE_MAX); cp.forEach(p=>shown.add(p.sci.toLowerCase())); if(cp.length) spawnCreatures(cp,false,gen); }
   const run=()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
     const stale=()=> gen!==creatureGen || creaturesKey!==k || !currentMode || currentMode.type!=='near';   // 世代/地点が変わった応答は破棄（A→B→Aの重複積み増しを防ぐ）
@@ -1630,17 +1697,19 @@ function loadNearCreatures(lat,lng,radius,immediate){
       GBIF_VERT_GROUPS.forEach(g=>{
         gbifOccByGroup(lat,lng,r,g.keys,g.c==='Aves'?40:60,y1,y2)
           .then(res=>{ if(stale()) return;
+            const fresh=collectPicks([{g,res}]).filter(p=>!shown.has(p.sci.toLowerCase()));
+            fresh.forEach(addPool);   // プールには全候補を貯める（次回キャッシュ抽選の母数＝再訪の多様性）
             const room=CREATURE_MAX-creatureMarkers.length; if(room<=0) return;
-            const fresh=collectPicks([{g,res}]).filter(p=>!shown.has(p.sci.toLowerCase())).slice(0,room);
-            fresh.forEach(p=>shown.add(p.sci.toLowerCase())); displayed.push(...fresh);
-            if(fresh.length) spawnCreatures(fresh,true,gen);   // 既存を消さず追加（append）＝返った順に積む
+            const add=fresh.slice(0,room);
+            add.forEach(p=>shown.add(p.sci.toLowerCase()));
+            if(add.length) spawnCreatures(add,true,gen);   // 既存を消さず追加（append）＝返った順に積む
           })
           .catch(()=>{})
           .finally(()=>{ settled++;
             if(settled!==GBIF_VERT_GROUPS.length) return;
             // 全クラス出そろって過疎/近すぎ＝初回描画の後ろで1段だけ半径拡大（確実にアイコン）。3倍・最大100km。
             if(!widened && !stale() && creatureMarkers.length<4 && r<80){ widened=true; grab(Math.min(r*3,100)); return; }
-            if(!stale() && displayed.length) creatureCacheSet(k, displayed.slice(0,CREATURE_MAX));   // 次回の即描画用に確定分を保存
+            if(!stale() && pool.length) creatureCacheSet(k, pool.slice(0,CREATURE_POOL));   // 候補プールを保存＝次回は別の顔ぶれを抽選
           });
       });
     };
@@ -1677,6 +1746,7 @@ function openCreature(sci,cnt){
 }
 function removeNearbyVisuals(){
   nearPick=false; nearClass='';
+  removeWorldCreatures();   // ③ 世界の浮遊アイコンも撤去（種/環境/国/近くへ移るとき）
   nearFig=null; figGbifOn=false; removeGbif();   // 図鑑タブで重ねた分布メッシュ／タブ状態も片付ける
   clearTimeout(nearTimer); clearTimeout(creatureTimer);   // 近くを離れる際は保留中の周辺/生き物クエリも取消（無駄なAPI呼出・リーク防止）
   if(localMapAutoOn){ setLocalBasemap(false); localMapAutoOn=false; }   // 自動ONした基図だけ戻す（手動🏷️ONは温存）
@@ -1753,7 +1823,7 @@ function showWelcome(){
 }
 // 現在地が無い/拒否時：場所選択チップは即時、世界ヒートマップは種データ必須なので到着を待って描画
 // （★デカップリングで startLocalBoot が種データ前に走り得るため。空ANIMALSでの drawOverview を防ぐ）。
-function bootFallback(msg){ nearbyFallback(msg); __speciesReady.then(drawOverview); }
+function bootFallback(msg){ nearbyFallback(msg); __speciesReady.then(()=>{ if(currentMode && currentMode.type!=='near' && currentMode.type!=='animal') drawOverview(); }); }   // 種データ到着前にユーザが近く/種へ遷移していたら割り込まない（world浮遊アイコンの取り残しも防ぐ）
 // 初回ローカル成功時のヒント（地球儀へ戻れることの発見性。一度きり）。
 function localBootHint(){ if(localStorage.getItem(LS_LOCALHINT))return; try{localStorage.setItem(LS_LOCALHINT,'1');}catch(e){} toast('🌐','あなたの近くの生き物。⌂で世界全体（地球儀）へもどれます。',4000); }
 // └───────────────────────────────────────── /nearby.js ─────────────────────────────────────────┘
