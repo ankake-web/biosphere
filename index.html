@@ -425,6 +425,23 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .nbtn:hover{background:rgba(52,216,198,.2);}
 .nbtn.wide{display:block;width:calc(100% - 32px);margin:10px 16px 2px;text-align:center;padding:9px;}
 .nbtn.on{background:rgba(255,176,46,.16);border-color:rgba(255,176,46,.5);color:#ffd089;}
+/* 住所・地名で移動モーダル（body直下・パネル再描画の影響を受けない） */
+.addrmodal{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;}
+.addrmodal[hidden]{display:none;}
+.addrbg{position:absolute;inset:0;background:rgba(4,8,12,.66);backdrop-filter:blur(3px);}
+.addrcard{position:relative;margin-top:12vh;width:min(440px,92vw);background:var(--glass-strong);border:1px solid var(--line-2);border-radius:16px;box-shadow:var(--shadow);padding:16px;}
+.addrhd{display:flex;align-items:center;justify-content:space-between;font-size:15px;margin-bottom:11px;}
+.addrx{background:none;border:0;color:var(--muted);font-size:16px;line-height:1;padding:4px;cursor:pointer;}
+.addrform{display:flex;gap:8px;}
+.addrform input{flex:1;background:var(--glass);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:14px;}
+.addrform input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(52,216,198,.16);outline:none;}
+.addrgo{background:#34d8c6;border:0;color:#04201d;font-weight:700;border-radius:10px;padding:0 15px;font-size:13.5px;cursor:pointer;flex:0 0 auto;}
+.addrresults{margin-top:10px;max-height:46vh;overflow:auto;display:flex;flex-direction:column;gap:5px;}
+.addritem{display:flex;align-items:flex-start;gap:7px;text-align:left;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;color:#dbe6ec;font-size:12.5px;line-height:1.4;padding:9px 11px;cursor:pointer;}
+.addritem:hover{border-color:#34d8c6;background:rgba(52,216,198,.08);}
+.addritem span{flex:1;}
+.addrmsg{color:var(--muted);font-size:12.5px;padding:10px 2px;}
+.addrnote{color:var(--muted-2);font-size:10.5px;margin-top:10px;line-height:1.5;}
 .catbadge{font-size:13px;flex:0 0 auto;opacity:.9;}
 .ndcred{font-size:10.5px;color:var(--muted);margin:5px 0 0;line-height:1.4;}
 .ndsec{margin:14px 0 6px;}
