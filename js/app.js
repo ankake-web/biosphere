@@ -721,14 +721,18 @@ function applyFilters(){
       else if(ft==='status') ok=(c.dataset.status===fv);
       else if(ft==='threat') ok=THREAT.includes(c.dataset.status);
     }
-    c.style.display=ok?'':'none';
+    const tgt=ok?'':'none'; if(c.style.display!==tgt) c.style.display=tgt;   // 表示状態が変わる時だけ書く＝無駄なスタイル無効化を避ける
   });
 }
 // 検索の連続入力用：applyFilters(全5,478チップ走査)を毎キーストロークでなく入力停止後にまとめて実行（トレイリングデバウンス）。
 let _filterT=null;
 function scheduleFilter(){ clearTimeout(_filterT); _filterT=setTimeout(()=>{ _filterT=null; applyFilters(); }, 130); }
 // チップの並び替え（DOM順を入れ替え。並び替え後は入場アニメを止めてスナップ）
+let _curSort='no';   // 現在のDOM並び順。'no'は構築順＝追加チップも常に'no'順で末尾に積まれるので、no→noの再並べ替えは冪等＝省ける。
 function sortChips(mode){
+  mode=mode||'no';
+  if(mode==='no' && _curSort==='no'){ _curSort='no'; return; }   // 既に'no'順なら5,478ノードの再並べ替えを丸ごとスキップ（ぜんぶ/生息環境解除の主コストを除去）
+  _curSort=mode;
   const so='CR EN VU NT LC DD';
   const cmps={
     'no':(a,b)=>(+a.dataset.no)-(+b.dataset.no),
