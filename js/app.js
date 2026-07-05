@@ -339,7 +339,10 @@ map.on('load', async ()=>{
   try{ map.setProjection({type:'globe'}); }catch(e){}
   try{ map.setSky({'sky-color':'#0a1320','horizon-color':'#16324a','fog-color':'#070b11','sky-horizon-blend':.6,'horizon-fog-blend':.5,'fog-ground-blend':.7,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.85,4,.4,7,0]}); }catch(e){}
   try{
-    const res=await fetch('https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson');
+    // 国境データはローカル同梱（外部jsdelivr依存を排除・同一オリジン配信）。拡張子は .json＝GitHub Pagesがgzipする（.geojsonはMIME未登録で無圧縮になる）。
+    // 元 Natural Earth ne_110m を「アプリが実際に読む8プロパティ」だけに削減（生819KB→274KB・gzip約101KB・ジオメトリ無改変・等価性検証済み）。
+    const res=await fetch('data/ne_110m_admin_0_countries.json');
+    if(!res.ok) throw new Error('countries '+res.status);
     countryGeo=await res.json();
   }catch(e){ bootFail('国境データを読み込めませんでした。'); return; }
   const p0=countryGeo.features[0].properties;
