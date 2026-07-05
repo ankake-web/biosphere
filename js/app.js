@@ -621,7 +621,7 @@ function avatar(a,cls=''){
 }
 function makeChip(a,i){
   const b=document.createElement('button');
-  b.className='chip'+(SEEN.has(a.id)?' is-seen':''); b.style.animationDelay=(i*22)+'ms';
+  b.className='chip'+(SEEN.has(a.id)?' is-seen':''); b.style.animationDelay=(Math.min(i,28)*22)+'ms';   // 入場staggerは先頭だけ（末尾で110s遅延＝長時間opacity:0を防ぐ）
   b.setAttribute('aria-pressed','false'); b.dataset.id=a.id; b.dataset.biome=a.biome;
   b.dataset.q=(a.nameJa+' '+a.nameSci+' '+a.taxon+' '+a.biome).toLowerCase();
   b.dataset.no=a.no; b.dataset.status=a.status; b.dataset.cls=classOf(a);
@@ -632,7 +632,7 @@ function makeChip(a,i){
   b.onclick=()=>selectAnimal(a.id);
   return b;
 }
-// 図鑑チップ（最大2506枚＝DOM約4万ノード）は重い。段階描画でもDOM/メモリ/スタイル再計算の負荷が大きいので、
+// 図鑑チップ（最大5,478枚＝DOM約5.5万ノード）は重い。段階描画でもDOM/メモリ/スタイル再計算の負荷が大きいので、
 // モバイルでは「いきもの図鑑」ドックを開くまで構築を遅延する（buildChips）。デスクトップ（ドック常時表示）は即時。
 // デスクトップは「近くの生き物ツール」を主役にするため、初期は先頭160枚だけ構築（DOM約8万→数千に）。
 // 検索/環境/並び替え等、全種が要る操作で buildChips(true) を呼び全構築する。モバイルはドックを開いたら全構築。
@@ -724,6 +724,9 @@ function applyFilters(){
     c.style.display=ok?'':'none';
   });
 }
+// 検索の連続入力用：applyFilters(全5,478チップ走査)を毎キーストロークでなく入力停止後にまとめて実行（トレイリングデバウンス）。
+let _filterT=null;
+function scheduleFilter(){ clearTimeout(_filterT); _filterT=setTimeout(()=>{ _filterT=null; applyFilters(); }, 130); }
 // チップの並び替え（DOM順を入れ替え。並び替え後は入場アニメを止めてスナップ）
 function sortChips(mode){
   const so='CR EN VU NT LC DD';
@@ -737,7 +740,10 @@ function sortChips(mode){
     'name':(a,b)=>a.dataset.name.localeCompare(b.dataset.name,'ja'),
   };
   const arr=[...chipsEl.querySelectorAll('.chip')]; arr.sort(cmps[mode]||cmps.no);
-  arr.forEach(c=>{ c.style.animation='none'; c.style.animationDelay='0ms'; chipsEl.appendChild(c); });
+  // DocumentFragmentへ一括移動＝5,478回の個別appendChild(毎回リフロー)を1回に（並び替えの重さを削減）。
+  const f=document.createDocumentFragment();
+  arr.forEach(c=>{ c.style.animation='none'; c.style.animationDelay='0ms'; f.appendChild(c); });
+  chipsEl.appendChild(f);
 }
 // 並び替え/絞り込みセレクトを生成（実データに存在する分類・保全状況のみ）
 function buildSortFilter(){
@@ -2194,9 +2200,9 @@ async function shareFigureCard(id, btn){
 // ┌───────────────────────────────────────── app.js ─────────────────────────────────────────┐
 /* ---------- ツール ---------- */
 $('#nearBtn').addEventListener('click',openNearby);
-$('#search').addEventListener('input',(e)=>{ if(typeof buildChips==='function') buildChips(true); filterState.q=e.target.value.trim().toLowerCase(); applyFilters(); });
+$('#search').addEventListener('input',(e)=>{ if(typeof buildChips==='function') buildChips(true); filterState.q=e.target.value.trim().toLowerCase(); scheduleFilter(); });
 // モバイル：図鑑ドック内の検索窓（上部バーの検索は≤640pxで非表示）。既存 filterState.q/applyFilters に配線。
-{ const ds=$('#dockSearch'); if(ds) ds.addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); if(typeof buildChips==='function') buildChips(true); applyFilters(); }); }
+{ const ds=$('#dockSearch'); if(ds) ds.addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); if(typeof buildChips==='function') buildChips(true); scheduleFilter(); }); }
 let isGlobe=true;
 function syncGlobeBtn(){ const g=$('#globeBtn'); if(g){ g.setAttribute('aria-pressed',String(isGlobe)); g.textContent=isGlobe?'🌐':'🗺️'; } }
 $('#globeBtn').addEventListener('click',()=>{
