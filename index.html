@@ -489,12 +489,14 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 @media(max-width:860px){.legend{display:none;}}
 
 /* 時系列スライダー（GBIF観測年代） */
-.yearbar{position:fixed;left:50%;bottom:170px;transform:translateX(-50%);z-index:15;
-  display:flex;align-items:center;gap:12px;background:var(--glass-strong);border:1px solid var(--line);
-  border-radius:999px;padding:8px 17px;backdrop-filter:blur(16px);box-shadow:var(--shadow);}
+/* 種を見るときの年代スクラブバー。図鑑ドック(下部)の生息環境バーと重ならないよう上へ(bottom)、
+   かつ左の凡例(~224px)と右の種カード(~400px)の間に収まるよう中心を左へオフセット＋幅を両側で制限（種カード裏に隠れない）。 */
+.yearbar{position:fixed;left:calc(50% - 88px);bottom:250px;transform:translateX(-50%);z-index:15;
+  display:flex;align-items:center;gap:11px;background:var(--glass-strong);border:1px solid var(--line);
+  border-radius:999px;padding:8px 16px;backdrop-filter:blur(16px);box-shadow:var(--shadow);max-width:calc(100vw - 648px);}
 .yearbar[hidden]{display:none;}
 .yearbar .yl{font-size:11px;letter-spacing:.05em;color:var(--muted);font-weight:700;white-space:nowrap;}
-.yearbar input[type=range]{width:190px;accent-color:var(--teal);cursor:pointer;height:4px;}
+.yearbar input[type=range]{width:150px;accent-color:var(--teal);cursor:pointer;height:4px;}
 .yearbar b{font-size:12.5px;font-weight:800;color:var(--teal);min-width:74px;text-align:left;white-space:nowrap;}
 .yearbar .ybtn{appearance:none;background:rgba(52,216,198,.14);border:1px solid rgba(52,216,198,.42);color:var(--teal);width:27px;height:27px;border-radius:50%;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto;padding:0;transition:background .15s;}
 .yearbar .ybtn:hover{background:rgba(52,216,198,.28);}

@@ -801,17 +801,22 @@ async function selectAnimal(id){
   removeNearbyVisuals();
   currentMode={type:'animal',id}; currentAnimal=a;
   pressChip(id); pressBiome(null); filterChips(null);
-  paintAnimal(a); flyTo(a.focus.c,a.focus.z); await ensureDetail(); renderAnimalCard(a); markSeen(id);
+  paintAnimal(a); flyTo(a.focus.c,a.focus.z); await ensureDetail();
+  if(currentAnimal!==a) return;   // ★詳細JSON(初回~1.8MB)ロード中に別へ遷移(生息環境/近く/別種)していたら、この続き(カード描画)を破棄＝取り残し(生息環境アイコン等)防止
+  renderAnimalCard(a); markSeen(id);
   try{ history.replaceState(null,'','#'+id); }catch(e){}   // 共有用ディープリンク
   setMode(animalModeText(a)); showYearbar(gbifOn);
 }
 async function selectBiome(bm){
+  if(currentMode&&currentMode.type==='biome'&&currentMode.bm===bm){ resetAll(); return; }   // ③ 同じ生息環境をもう一度押す＝解除（地図の色分けと絞り込みを元に戻す＝「✺ ぜんぶ」と同じ）
   removeNearbyVisuals();
   currentMode={type:'biome',bm}; currentAnimal=null;
   pressBiome(bm); pressChip(null); filterChips(bm); paintBiome(bm); closePanel(); showYearbar(false);   // filterChips が窓を描き直す（その環境の一致先頭だけ）
   const list=await DATA.getAnimalsByBiome(bm);
   setMode(`${BIOMES[bm].e} ${bm} の住人 ${list.length}種`);
-  if(list[0]) flyTo(list[0].focus.c, Math.max(1.6,list[0].focus.z-0.8));
+  const tz = list[0] ? Math.max(1.6, list[0].focus.z-0.8) : 2;   // 到着ズーム＝数え上げの基準（出発地でなく着地の地図の広さで数を決める）
+  if(list[0]) flyTo(list[0].focus.c, tz);
+  spawnBiomeCreatures(bm, tz);   // ④ その環境の動物アイコンを世界地図に散らす（数は着地の地図の広さ＝ズームに応じて）
 }
 async function showCountry(code, lngLat){
   if(!code)return; removeNearbyVisuals(); currentMode={type:'country',code}; currentAnimal=null; pressChip(null); showYearbar(false);
@@ -1847,14 +1852,19 @@ function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e)
 let worldCreatureMarkers=[];
 const WORLD_CREATURE_N=14;
 function removeWorldCreatures(){ worldCreatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); worldCreatureMarkers=[]; }
-function spawnWorldCreatures(){
+function spawnWorldCreatures(){ spawnCreatureIcons(Array.isArray(ANIMALS)?ANIMALS:[], WORLD_CREATURE_N); }
+// 生息環境を選んだ時：その環境の動物アイコンを世界地図に散らす。数は地図の広さ(ズーム)に応じて＝広い(低ズーム)ほど多め。
+function biomeCreatureCount(z){ if(z==null) z=(mapReady&&map)?map.getZoom():2; return Math.round(Math.max(12, Math.min(28, 32 - z*3))); }
+function spawnBiomeCreatures(bm, z){ spawnCreatureIcons((Array.isArray(ANIMALS)?ANIMALS:[]).filter(a=>a&&a.biome===bm), biomeCreatureCount(z)); }
+// 図鑑ANIMALSの focus 座標に種アイコンを配置（絵文字→写真サムネ・タップで種カード・絶滅危惧は発光）。世界ビュー/生息環境ビューで共用。
+function spawnCreatureIcons(list, n){
   removeWorldCreatures();
   if(nearPick) return;   // 位置ピッカー中は地図を純粋な地点指定サーフェスに保つ（アイコンがタップを横取りしない）
-  if(!mapReady || !Array.isArray(ANIMALS) || !ANIMALS.length) return;
-  const src=ANIMALS.filter(a=>a&&a.focus&&Array.isArray(a.focus.c)&&a.focus.c.length===2);
+  if(!mapReady || !Array.isArray(list) || !list.length) return;
+  const src=list.filter(a=>a&&a.focus&&Array.isArray(a.focus.c)&&a.focus.c.length===2);
   if(!src.length) return;
   const pick=[], used=new Set();   // ランダムにN種（重複なし・毎回シャッフル＝再訪で別の顔ぶれ）
-  for(let guard=0; pick.length<Math.min(WORLD_CREATURE_N,src.length) && guard<src.length*5; guard++){
+  for(let guard=0; pick.length<Math.min(n,src.length) && guard<src.length*6; guard++){
     const a=src[Math.floor(Math.random()*src.length)];
     if(used.has(a.id)) continue; used.add(a.id); pick.push(a);
   }
