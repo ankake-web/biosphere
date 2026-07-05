@@ -959,22 +959,23 @@ function flavBlocks({eco,human,cook,src,loading}){
 }
 function fillFlavor(a){
   const el=panelEl.querySelector('.flavor2'); if(!el) return;
-  if(a.eco||a.human||a.cook){ el.innerHTML=flavBlocks({eco:a.eco||a.desc||'', human:a.human||'', cook:a.cook||'', src:a.wiki||''}); return; }  // curated＝即表示（eco欠時はdescで補う）
-  el.innerHTML=flavBlocks({eco:a.desc||'', human:'', loading:true});                                                 // 非curated＝desc仮表示＋スピナー
+  if(a.eco||a.human){ el.innerHTML=flavBlocks({eco:a.eco||a.desc||'', human:a.human||'', cook:a.cook||'', src:a.wiki||''}); return; }  // 生態/人との関わりがcurated＝即表示
+  // eco/human無し：desc仮表示＋（あれば）curated調理法。Wikipediaで生態/人との関わりを取得して差し替え（🍴はcurated優先で温存）
+  el.innerHTML=flavBlocks({eco:a.desc||'', human:'', cook:a.cook||'', loading:true});
   loadWikiFlavor(a, el);
 }
 function applyWikiFlavor(el, a, res){
   if(!el.isConnected) return;
   const eco=(res&&res.eco)?res.eco:(a.desc||'');
   const human=(res&&res.human)?res.human:'';
-  const cook=(res&&res.cook)?res.cook:'';
-  const src=(res&&res.url)?res.url:'';
+  const cook=a.cook?a.cook:((res&&res.cook)?res.cook:'');   // curated調理法を優先。無ければオンデマンド抽出
+  const src=a.wiki?a.wiki:((res&&res.url)?res.url:'');
   el.innerHTML=flavBlocks({eco,human,cook,src});
 }
 function loadWikiFlavor(a, el){
   const c=wikiFlavorGet(a.id); if(c){ applyWikiFlavor(el,a,c); return; }
   wikiFlavorFetch(a).then(res=>{ if(res) wikiFlavorSet(a.id,res); applyWikiFlavor(el,a,res); })
-    .catch(()=>{ if(el.isConnected) el.innerHTML=flavBlocks({eco:a.desc||'', human:''}); });
+    .catch(()=>{ if(el.isConnected) el.innerHTML=flavBlocks({eco:a.desc||'', human:'', cook:a.cook||'', src:a.wiki||''}); });
 }
 // localStorage キャッシュ（7日）。往復を1種1回に。
 const LS_WIKI='biosphere_wikiflav_';
