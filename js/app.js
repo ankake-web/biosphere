@@ -632,26 +632,60 @@ function makeChip(a,i){
   b.onclick=()=>selectAnimal(a.id);
   return b;
 }
-// 図鑑チップ（最大5,478枚＝DOM約5.5万ノード）は重い。段階描画でもDOM/メモリ/スタイル再計算の負荷が大きいので、
-// モバイルでは「いきもの図鑑」ドックを開くまで構築を遅延する（buildChips）。デスクトップ（ドック常時表示）は即時。
-// デスクトップは「近くの生き物ツール」を主役にするため、初期は先頭160枚だけ構築（DOM約8万→数千に）。
-// 検索/環境/並び替え等、全種が要る操作で buildChips(true) を呼び全構築する。モバイルはドックを開いたら全構築。
-let chipsBuilt=false;   // 初期分の構築を開始した（スケルトン除去済み）
-let chipsAll=false;     // 全5,348を構築済み
-let _ci=0;
-function _flushChips(end){ const f=document.createDocumentFragment(); for(;_ci<end;_ci++) f.appendChild(makeChip(ANIMALS[_ci],_ci)); chipsEl.appendChild(f); }
-function _finishChips(){ if(typeof applyFilters==='function') applyFilters();
-  if(typeof sortChips==='function'){ const ss=document.querySelector('#sortSel'); sortChips(ss&&ss.value||'no'); } }
-function buildChips(all){
-  if(chipsAll) return;
-  const N=ANIMALS.length;
-  const cap = (all || matchMedia('(max-width:640px)').matches) ? N : Math.min(160,N);
-  if(!chipsBuilt){ chipsBuilt=true; chipsEl.innerHTML=''; _ci=0; }   // スケルトン除去
-  if(_ci>=cap){ if(cap>=N){ chipsAll=true; _finishChips(); } return; }
-  _flushChips(Math.min(_ci+160, cap));
-  if(_ci<cap){ setTimeout(()=>buildChips(all), 0); return; }
-  if(cap>=N){ chipsAll=true; _finishChips(); }
+// 図鑑チップは全5,478枚をDOMに持つと初回構築が重い（約5.5万ノード生成＝実測4.7秒/ロングタスク23個）。
+// そこで「窓描画」＝フィルタ/並びに一致する先頭 CHIP_BASE 枚だけをDOM化し、横スクロールで追加ロードする（下記）。
+// buildChips は互換のため残すが「まだ窓が無ければ初期描画」するだけ（全構築はしない）。モバイルはドックを開いた時に初期描画。
+// ★図鑑チップは全5,478種をDOMに持たない＝フィルタ/並びに一致する先頭 _chipLimit 枚だけ描画する「窓描画」。
+//   横スクロールで端に来たら追加ロード。DOMを常に数百枚に抑え、初回の全構築(約5.5万ノード生成=約4.7秒/ロングタスク23個)を撤廃。
+//   フィルタ/並びは DOM でなく ANIMALS(データ) に対して行い、一致した先頭だけを描く。要素は _chipPool で使い回し（画像の再ロード/ちらつき防止）。
+const CHIP_BASE=300, CHIP_STEP=300;   // 初期に描く枚数／スクロール追加の単位
+let chipsBuilt=false;                 // 初回の窓を描いたか（互換フラグ：各所の buildChips ガードに使用）
+let _chipLimit=CHIP_BASE, _sortMode='no', _filtered=[];
+const _chipPool=new Map();            // id→チップ要素。窓外の要素はDOMから外れるだけで破棄しない＝再表示時に再生成しない。
+let _pressedId=null;                  // 現在選択中の種id。窓の描画/再利用時に aria-pressed を貼り直す（窓外プールに残る二重ハイライトを防ぐ）。
+const _clsMemo=new Map(), _clsRank=new Map(clsOrder.map((k,i)=>[k,i]));
+function clsOf(a){ let c=_clsMemo.get(a.id); if(c===undefined){ c=classOf(a); _clsMemo.set(a.id,c); } return c; }   // classOf(CLASS配列の線形走査=重い)を種ごと1回に。cls並べ替えの毎回再計算(=約73msロングタスク)を回避。
+function _clsR(k){ const r=_clsRank.get(k); return r===undefined?-1:r; }   // 旧 clsOrder.indexOf 相当（未知=-1で先頭）
+function chipMatch(a){                 // 1種がフィルタ(環境/検索/分類-傾向-保全)に一致するか
+  const {biome:bm,q,facet}=filterState;
+  if(bm && a.biome!==bm) return false;
+  if(q && !((a.nameJa+' '+a.nameSci+' '+a.taxon+' '+a.biome).toLowerCase().includes(q))) return false;
+  if(facet){ const i=facet.indexOf(':'), ft=facet.slice(0,i), fv=facet.slice(i+1);
+    if(ft==='cls')    { if(clsOf(a)!==fv) return false; }
+    else if(ft==='trend') { if(trendOf(a)!==fv) return false; }
+    else if(ft==='status'){ if(a.status!==fv) return false; }
+    else if(ft==='threat'){ if(!THREAT.includes(a.status)) return false; }
+  }
+  return true;
 }
+const _stO='CR EN VU NT LC DD';
+const CHIP_CMP={
+  'no':(a,b)=>(+a.no)-(+b.no),
+  'pop-desc':(a,b)=>popNum(b)-popNum(a)||(+a.no)-(+b.no),
+  'pop-asc':(a,b)=>{const x=popNum(a),y=popNum(b),xu=x<0,yu=y<0; if(xu&&yu)return (+a.no)-(+b.no); if(xu)return 1; if(yu)return -1; return x-y;},
+  'status':(a,b)=>_stO.indexOf(a.status)-_stO.indexOf(b.status)||(+a.no)-(+b.no),
+  'cls':(a,b)=>_clsR(clsOf(a))-_clsR(clsOf(b))||(+a.no)-(+b.no),
+  'name':(a,b)=>String(a.nameJa||'').localeCompare(String(b.nameJa||''),'ja'),
+};
+function _chipEl(a,i){ let el=_chipPool.get(a.id); if(el){ el.style.animation='none'; } else { el=makeChip(a,i); _chipPool.set(a.id,el); }
+  el.setAttribute('aria-pressed', a.id===_pressedId?'true':'false'); return el; }   // 使い回し要素は入場アニメを再生しない＋選択状態を貼り直す（窓外の残留を打ち消す）
+function _paintWindow(){
+  const end=Math.min(_chipLimit,_filtered.length), f=document.createDocumentFragment();
+  for(let i=0;i<end;i++) f.appendChild(_chipEl(_filtered[i],i));
+  chipsEl.replaceChildren(f);   // 窓の枚数だけをDOMに（プール要素は移動＝再生成しない）
+  chipsBuilt=true;
+}
+// フィルタ/並びが変わった時：一致リストを再計算し窓を先頭から描き直す（DOMは先頭 CHIP_BASE 枚だけ）
+function renderChips(){ _filtered=ANIMALS.filter(chipMatch).sort(CHIP_CMP[_sortMode]||CHIP_CMP.no); _chipLimit=CHIP_BASE; try{chipsEl.scrollLeft=0;}catch(e){} _paintWindow(); }
+// 横スクロールで端付近＝窓を広げて次のバッチを追加描画（既存はそのまま）
+function growChips(){ const shown=chipsEl.childElementCount; if(shown>=_filtered.length) return;
+  _chipLimit=shown+CHIP_STEP; const end=Math.min(_chipLimit,_filtered.length), f=document.createDocumentFragment();
+  for(let i=shown;i<end;i++) f.appendChild(_chipEl(_filtered[i],i)); chipsEl.appendChild(f); }
+let _chipScrollQ=false;
+chipsEl.addEventListener('scroll',()=>{ if(_chipScrollQ)return; _chipScrollQ=true; requestAnimationFrame(()=>{ _chipScrollQ=false;
+  if(chipsEl.scrollLeft+chipsEl.clientWidth >= chipsEl.scrollWidth-800) growChips(); }); },{passive:true});
+// 互換：各所から呼ばれる buildChips は「まだ窓が無ければ初期描画」だけ（全構築はしない）
+function buildChips(all){ if(!chipsBuilt) renderChips(); }
 // 凡例をモード連動に：概観＝国塗り「種の多さ」(緑→ゴールド)、種/環境/国選択＝IUCN保全色。
 // 地図の色語彙と凡例を一致させる（概観のゴールドを「IUCN色」と誤説明していた矛盾を解消）。
 let _legendMode=null;
@@ -704,51 +738,16 @@ function ensureDetail(){
 }
 
 /* ---------- セレクション ---------- */
-function pressChip(id){ chipsEl.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.id===id?'true':'false')); }
+function pressChip(id){ _pressedId=id; chipsEl.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.id===id?'true':'false')); }   // 選択idを保持＝以後の窓再描画で aria-pressed を正しく貼り直す
 function pressBiome(bm){ biomesEl.querySelectorAll('.bm').forEach(c=>c.setAttribute('aria-pressed',c.dataset.bm===bm?'true':'false')); }
 function filterChips(bm){ filterState.biome=bm; applyFilters(); }
-// 環境・検索・分類/傾向/保全 をAND結合して表示/非表示を決める（一元化）
-function applyFilters(){
-  const {biome:bm,q,facet}=filterState; let ft=null,fv=null;
-  if(facet){ const i=facet.indexOf(':'); ft=facet.slice(0,i); fv=facet.slice(i+1); }
-  chipsEl.querySelectorAll('.chip').forEach(c=>{
-    let ok=true;
-    if(bm && c.dataset.biome!==bm) ok=false;
-    if(ok && q && !c.dataset.q.includes(q)) ok=false;
-    if(ok && ft){
-      if(ft==='cls')    ok=(c.dataset.cls===fv);
-      else if(ft==='trend')  ok=(c.dataset.trend===fv);
-      else if(ft==='status') ok=(c.dataset.status===fv);
-      else if(ft==='threat') ok=THREAT.includes(c.dataset.status);
-    }
-    const tgt=ok?'':'none'; if(c.style.display!==tgt) c.style.display=tgt;   // 表示状態が変わる時だけ書く＝無駄なスタイル無効化を避ける
-  });
-}
-// 検索の連続入力用：applyFilters(全5,478チップ走査)を毎キーストロークでなく入力停止後にまとめて実行（トレイリングデバウンス）。
+// 環境・検索・分類/傾向/保全 をAND結合して一致リストを作り、窓を描き直す（DOMは先頭数百枚だけ＝全走査しない）
+function applyFilters(){ renderChips(); }
+// 検索の連続入力用：renderChips を毎キーストロークでなく入力停止後にまとめて実行（トレイリングデバウンス）。
 let _filterT=null;
-function scheduleFilter(){ clearTimeout(_filterT); _filterT=setTimeout(()=>{ _filterT=null; applyFilters(); }, 130); }
-// チップの並び替え（DOM順を入れ替え。並び替え後は入場アニメを止めてスナップ）
-let _curSort='no';   // 現在のDOM並び順。'no'は構築順＝追加チップも常に'no'順で末尾に積まれるので、no→noの再並べ替えは冪等＝省ける。
-function sortChips(mode){
-  mode=mode||'no';
-  if(mode==='no' && _curSort==='no'){ _curSort='no'; return; }   // 既に'no'順なら5,478ノードの再並べ替えを丸ごとスキップ（ぜんぶ/生息環境解除の主コストを除去）
-  _curSort=mode;
-  const so='CR EN VU NT LC DD';
-  const cmps={
-    'no':(a,b)=>(+a.dataset.no)-(+b.dataset.no),
-    'pop-desc':(a,b)=>(+b.dataset.popnum)-(+a.dataset.popnum)||(+a.dataset.no)-(+b.dataset.no),
-    'pop-asc':(a,b)=>{const x=+a.dataset.popnum,y=+b.dataset.popnum,xu=x<0,yu=y<0;
-      if(xu&&yu)return (+a.dataset.no)-(+b.dataset.no); if(xu)return 1; if(yu)return -1; return x-y;},
-    'status':(a,b)=>so.indexOf(a.dataset.status)-so.indexOf(b.dataset.status)||(+a.dataset.no)-(+b.dataset.no),
-    'cls':(a,b)=>clsOrder.indexOf(a.dataset.cls)-clsOrder.indexOf(b.dataset.cls)||(+a.dataset.no)-(+b.dataset.no),
-    'name':(a,b)=>a.dataset.name.localeCompare(b.dataset.name,'ja'),
-  };
-  const arr=[...chipsEl.querySelectorAll('.chip')]; arr.sort(cmps[mode]||cmps.no);
-  // DocumentFragmentへ一括移動＝5,478回の個別appendChild(毎回リフロー)を1回に（並び替えの重さを削減）。
-  const f=document.createDocumentFragment();
-  arr.forEach(c=>{ c.style.animation='none'; c.style.animationDelay='0ms'; f.appendChild(c); });
-  chipsEl.appendChild(f);
-}
+function scheduleFilter(){ clearTimeout(_filterT); _filterT=setTimeout(()=>{ _filterT=null; renderChips(); }, 130); }
+// チップの並び替え：DOMでなくデータを並べ替え、窓を先頭から描き直す。
+function sortChips(mode){ _sortMode=mode||'no'; renderChips(); }
 // 並び替え/絞り込みセレクトを生成（実データに存在する分類・保全状況のみ）
 function buildSortFilter(){
   const sortSel=$('#sortSel'), facetSel=$('#facetSel');
@@ -767,10 +766,10 @@ function buildSortFilter(){
     +`<optgroup label="保全状況で">`
       +(stP.some(s=>THREAT.includes(s))?`<option value="threat:1">⚠ 絶滅危惧（CR・EN・VU）</option>`:'')
       +stP.map(s=>`<option value="status:${s}">${stL[s]}</option>`).join('')+`</optgroup>`;
-  sortSel.onchange=()=>{ if(typeof buildChips==='function') buildChips(true); sortChips(sortSel.value); };
-  facetSel.onchange=()=>{ if(typeof buildChips==='function') buildChips(true); filterState.facet=facetSel.value; applyFilters(); };
+  sortSel.onchange=()=>{ sortChips(sortSel.value); };
+  facetSel.onchange=()=>{ filterState.facet=facetSel.value; applyFilters(); };
 }
-function markSeen(id){ if(!SEEN.has(id)){ SEEN.add(id); localStorage.setItem('biosphere_seen',JSON.stringify([...SEEN])); const ch=chipsEl.querySelector(`.chip[data-id="${id}"]`); if(ch)ch.classList.add('is-seen'); updateDex(); celebrate(id); } }
+function markSeen(id){ if(!SEEN.has(id)){ SEEN.add(id); localStorage.setItem('biosphere_seen',JSON.stringify([...SEEN])); const ch=_chipPool.get(id); if(ch)ch.classList.add('is-seen'); updateDex(); celebrate(id); } }   // プール要素を更新＝窓外でも再表示時に発見済み表示が保たれる
 function saveBadges(){ try{ localStorage.setItem('biosphere_badges',JSON.stringify([...BADGES])); }catch(e){} }
 // コンプ演出：全種＞生息環境ごと＞保全状況ごと。既達成はBADGESで一度きり
 function celebrate(id){
@@ -807,10 +806,9 @@ async function selectAnimal(id){
   setMode(animalModeText(a)); showYearbar(gbifOn);
 }
 async function selectBiome(bm){
-  if(typeof buildChips==='function') buildChips(true);   // 環境で絞る＝全種必要。アイドル/キャップより先に全構築
   removeNearbyVisuals();
   currentMode={type:'biome',bm}; currentAnimal=null;
-  pressBiome(bm); pressChip(null); filterChips(bm); paintBiome(bm); closePanel(); showYearbar(false);
+  pressBiome(bm); pressChip(null); filterChips(bm); paintBiome(bm); closePanel(); showYearbar(false);   // filterChips が窓を描き直す（その環境の一致先頭だけ）
   const list=await DATA.getAnimalsByBiome(bm);
   setMode(`${BIOMES[bm].e} ${bm} の住人 ${list.length}種`);
   if(list[0]) flyTo(list[0].focus.c, Math.max(1.6,list[0].focus.z-0.8));
@@ -878,7 +876,7 @@ function fmtN(n){ return n>=1000? (n/1000).toFixed(n>=10000?0:1)+'k' : String(n)
 function resetAll(){ pressChip(null); pressBiome(null); removeNearbyVisuals();
   filterState.biome=null; filterState.facet=''; filterState.q='';
   const ss=$('#sortSel'),fs=$('#facetSel'),sr=$('#search'); if(fs)fs.value=''; if(sr)sr.value=''; if(ss)ss.value='no';
-  sortChips('no'); applyFilters(); closePanel(); drawOverview();
+  sortChips('no'); closePanel(); drawOverview();   // sortChips が窓を先頭から描き直す（フィルタ解除済み＝全種の先頭CHIP_BASE枚）
   map.flyTo({center:[18,16],zoom:1.45,speed:.7,curve:1.5,essential:true}); }
 function explore(){
   // まだ見ていない種を優先してランダムに（全部見たら全体から）
@@ -2204,9 +2202,9 @@ async function shareFigureCard(id, btn){
 // ┌───────────────────────────────────────── app.js ─────────────────────────────────────────┐
 /* ---------- ツール ---------- */
 $('#nearBtn').addEventListener('click',openNearby);
-$('#search').addEventListener('input',(e)=>{ if(typeof buildChips==='function') buildChips(true); filterState.q=e.target.value.trim().toLowerCase(); scheduleFilter(); });
+$('#search').addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); scheduleFilter(); });
 // モバイル：図鑑ドック内の検索窓（上部バーの検索は≤640pxで非表示）。既存 filterState.q/applyFilters に配線。
-{ const ds=$('#dockSearch'); if(ds) ds.addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); if(typeof buildChips==='function') buildChips(true); scheduleFilter(); }); }
+{ const ds=$('#dockSearch'); if(ds) ds.addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); scheduleFilter(); }); }
 let isGlobe=true;
 function syncGlobeBtn(){ const g=$('#globeBtn'); if(g){ g.setAttribute('aria-pressed',String(isGlobe)); g.textContent=isGlobe?'🌐':'🗺️'; } }
 $('#globeBtn').addEventListener('click',()=>{
