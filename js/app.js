@@ -1071,6 +1071,12 @@ function renderAnimalCard(a, head){
   panelSheet(false); openPanel();
   fillFlavor(a);
 }
+// 図鑑ドックの「⚙ 並び替え・絞り込み」＝多段の並び替え(生息数順/絶滅危機順/分類…)＋絞り込みを開閉（既定は畳む＝No順・docs/design/11-B）。
+function toggleSortFilter(btn){
+  const d=document.getElementById('sortfilter'); if(!d) return;
+  if(d.hasAttribute('hidden')){ d.removeAttribute('hidden'); btn.setAttribute('aria-expanded','true'); }
+  else{ d.setAttribute('hidden',''); btn.setAttribute('aria-expanded','false'); }
+}
 // 図鑑カードの「▾ もっと詳しく」＝二次情報（学名/stats/推定生息数/保全/出典/🛰️実観測トグル）を開閉。
 // ★写真・名前・👀見た！・3フレーバー・生息地は常に表示（docs/design/11・"こだわり"の3フレーバーは隠さない）。
 function toggleCardMore(btn){
@@ -2469,4 +2475,4 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, toggleAnimalDist, toggleCardMore })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, toggleAnimalDist, toggleCardMore, toggleSortFilter })
