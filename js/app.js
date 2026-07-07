@@ -2418,8 +2418,9 @@ function showNaturalPlaces(on){
 function setAtlas(on){ atlasOn=on; if(mapReady && map.getLayer('relief')) map.setLayoutProperty('relief','visibility',on?'visible':'none');
   showNaturalPlaces(on);   // 自然の地理ラベルもアトラス表示に連動
   const b=$('#atlasBtn'); if(b)b.setAttribute('aria-pressed',String(on)); }
-$('#atlasBtn').addEventListener('click',()=>{ setAtlas(!atlasOn);
-  toast(atlasOn?'🏔️':'🗺️', atlasOn?'アトラス表示：地形と地名で旅する':'ミニマル表示にもどしました',1900); });
+// シンプル化③：基図トグルを1つに統合＝🏔️地形(アトラス)をUIから外し、基図切替は🏷️本物の地図(OFM)に一本化（コード残置＝可逆・docs/design/11-A）。ボタン不在でも壊れないよう配線をガード。
+{ const bat=$('#atlasBtn'); if(bat) bat.addEventListener('click',()=>{ setAtlas(!atlasOn);
+  toast(atlasOn?'🏔️':'🗺️', atlasOn?'アトラス表示：地形と地名で旅する':'ミニマル表示にもどしました',1900); }); }
 // 🏷️ 本物の地図トグル：OpenFreeMapのベクター基図（街路・鉄道・地名・地形／日本語優先）を手動ON/OFF。
 // 近く(ローカル)モードでは自動でONになる。setStyle不使用＝gbif/relief/near-me/countries は維持。
 $('#labelBtn').addEventListener('click',()=>{ const on=!localMapOn; setLocalBasemap(on); localMapAutoOn=false;   // 手動操作＝以後、近く離脱の自動OFF対象から外す（ユーザー意思を尊重）
