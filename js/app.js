@@ -222,7 +222,12 @@ const USER = (()=>{
   return {
     all(){ return list; },
     recent(n){ return list.slice(-(n||30)).reverse(); },
-    add(rec){ list.push(rec); if(!save()&&rec.photo){ rec.photo=null; save(); } return rec; },   // 容量超過時は写真を捨てて再保存
+    add(rec){ list.push(rec);
+      if(save()) return {ok:true, photoDropped:false};
+      if(rec.photo){ rec.photo=null; if(rec.confidence==='photo') rec.confidence='sure';   // 容量超過→写真を捨てて再保存
+        if(save()) return {ok:true, photoDropped:true}; }
+      list.pop(); return {ok:false, photoDropped:false};   // それでも保存不可＝in-memoryと永続の乖離を防ぐため巻き戻し
+    },
     hasSeen(id){ return list.some(s=>s.id===id); },
     seenCount(id){ return list.reduce((n,s)=>n+(s.id===id?1:0),0); },
     speciesCount(){ return new Set(list.map(s=>s.id)).size; },
@@ -275,11 +280,15 @@ function submitSeen(id){
   const prev=document.getElementById('seenPrev'); const photo=(prev&&!prev.hidden&&prev.dataset.url)||null;
   const loc=(typeof getLastLoc==='function')?getLastLoc():null;
   const first=!USER.hasSeen(id);
-  USER.add({ id:a.id, sci:a.nameSci, at:Date.now(),
+  const rec={ id:a.id, sci:a.nameSci, at:Date.now(),
     lat:loc?Math.round(loc.lat*100)/100:null, lng:loc?Math.round(loc.lng*100)/100:null,
-    place:null, note:note||null, photo, confidence: photo?'photo':(maybe?'maybe':'sure') });
-  closeSeen(); updateSeenBtn(id);
-  toast(photo?'📸':'👀', `${a.nameJa} を${first?'はじめて':''}記録！ +${first?50:5}XP${photo?' +10📷':''}`, 2600);
+    place:null, note:note||null, photo, confidence: photo?'photo':(maybe?'maybe':'sure') };
+  const res=USER.add(rec);
+  closeSeen();
+  if(!res.ok){ toast('⚠️','端末の保存容量がいっぱいで記録できませんでした。写真を減らすかMyずかんを整理してね', 3200); return; }   // 永続失敗＝巻き戻し済み。偽の成功表示を出さない
+  updateSeenBtn(id);
+  const gotPhoto=!!rec.photo;   // 容量超過で写真が捨てられた場合は false＝toast/XP と実保存を一致させる
+  toast(gotPhoto?'📸':'👀', `${a.nameJa} を${first?'はじめて':''}記録！ +${first?50:5}XP${gotPhoto?' +10📷':''}`, 2600);
   if(first && ['CR','EN','VU','NT'].includes(a.status) && typeof confetti==='function') confetti();   // レアな種＝ちょい演出
 }
 // 📔 Myずかん（自分が見た記録・レベル・連続記録）

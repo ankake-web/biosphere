@@ -598,7 +598,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   .topbar{gap:8px;padding:max(11px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 11px max(12px,env(safe-area-inset-left));}
   .tools{gap:7px;}
   .tbtn{width:44px;height:44px;font-size:17px;}                /* タップ領域を大きく */
-  /* ⋯メニュー：二次操作をポップオーバー奥へ（初期は 📍🎲⌂⋯ だけ） */
+  /* ⋯メニュー：二次操作をポップオーバー奥へ（初期は 📍📔⌂⋯ だけ・🎲探検も奥） */
   #moreBtn{display:grid;}
   .moregroup{position:fixed;top:calc(64px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));flex-direction:column;background:var(--glass-strong);
     border:1px solid var(--line);border-radius:16px;padding:9px;gap:9px;box-shadow:var(--shadow);
@@ -648,10 +648,10 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   <div class="tools">
     <button class="tbtn near" id="nearBtn" aria-label="近くの生き物を探す" title="近くにいる生き物を探す">📍</button>
     <button class="tbtn" id="myDexBtn" aria-label="Myずかん（見た記録）" title="Myずかん（あなたが見た記録・レベル）">📔</button>
-    <button class="tbtn" id="exploreBtn" aria-label="ランダムに1種へ旅する" title="ランダムに1種へ旅する">🎲</button>
     <button class="tbtn" id="homeBtn" aria-label="世界全体（地球儀）にもどる" title="世界全体（地球儀）にもどる">⌂</button>
     <button class="tbtn more" id="moreBtn" aria-label="そのほかの操作" aria-expanded="false" aria-controls="moregroup" title="そのほかの操作">⋯</button>
     <div class="moregroup" id="moregroup">
+      <button class="tbtn" id="exploreBtn" aria-label="ランダムに1種へ旅する" title="ランダムに1種へ旅する">🎲</button>
       <button class="tbtn gbif" id="gbifBtn" aria-pressed="true" aria-label="GBIF実観測データの表示切替" title="GBIF実観測データの表示切替">🛰️</button>
       <button class="tbtn" id="globeBtn" aria-pressed="true" aria-label="地球儀と平面の切替" title="地球儀 / 平面 切替">🌐</button>
       <button class="tbtn" id="atlasBtn" aria-pressed="false" aria-label="地形（アトラス）表示の切替" title="地形（アトラス）表示の切替">🏔️</button>
