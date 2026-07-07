@@ -211,6 +211,105 @@ let dist3D=false;    // 分布の3D（立体）表示。GBIF MVTヘックス＋f
 const LOW_MOTION=(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)||!!(navigator.connection&&navigator.connection.saveData);
 const SEEN = new Set(JSON.parse(localStorage.getItem('biosphere_seen')||'[]'));
 const BADGES = new Set(JSON.parse(localStorage.getItem('biosphere_badges')||'[]'));   // 達成済みのコンプ演出（再表示しない）
+// ===== Myずかん（USER層）：Stage1a=localStorageのみ。将来ここをSupabaseへ差し替える（seam・docs/design/05）=====
+// 既存 SEEN（図鑑で"発見"した種）とは別レイヤー＝現実で「👀見た！」した記録（sightings）。
+const USER = (()=>{
+  const LS='biosphere_sightings';
+  let list; try{ list=JSON.parse(localStorage.getItem(LS)||'[]'); }catch(e){ list=[]; }
+  if(!Array.isArray(list)) list=[];
+  const save=()=>{ try{ localStorage.setItem(LS,JSON.stringify(list)); return true; }catch(e){ return false; } };
+  const dayKey=t=>{ const d=new Date(t); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); };
+  return {
+    all(){ return list; },
+    recent(n){ return list.slice(-(n||30)).reverse(); },
+    add(rec){ list.push(rec); if(!save()&&rec.photo){ rec.photo=null; save(); } return rec; },   // 容量超過時は写真を捨てて再保存
+    hasSeen(id){ return list.some(s=>s.id===id); },
+    seenCount(id){ return list.reduce((n,s)=>n+(s.id===id?1:0),0); },
+    speciesCount(){ return new Set(list.map(s=>s.id)).size; },
+    xp(){ const seen=new Set(); let x=0; for(const s of list){ x+=seen.has(s.id)?5:50; if(s.photo)x+=10; seen.add(s.id); } return x; },
+    level(){ return Math.floor(Math.sqrt(this.xp()/50))+1; },
+    streak(){ if(!list.length)return 0; const days=new Set(list.map(s=>dayKey(s.at)));
+      const d=new Date(); if(!days.has(dayKey(d.getTime()))) d.setDate(d.getDate()-1);   // 今日ぶんは猶予（昨日から数える）
+      let n=0; while(days.has(dayKey(d.getTime()))){ n++; d.setDate(d.getDate()-1); } return n; },
+  };
+})();
+// 画像を縮小して dataURL 化（localStorage節約）。将来は Supabase Storage へ。
+function downscalePhoto(file, max){
+  return new Promise((res)=>{ const fr=new FileReader();
+    fr.onload=()=>{ const img=new Image();
+      img.onload=()=>{ const s=Math.min(1,(max||420)/Math.max(img.width,img.height));
+        const c=document.createElement('canvas'); c.width=Math.round(img.width*s)||1; c.height=Math.round(img.height*s)||1;
+        try{ c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',0.72)); }catch(e){ res(null); } };
+      img.onerror=()=>res(null); img.src=fr.result; };
+    fr.onerror=()=>res(null); fr.readAsDataURL(file); });
+}
+function seenBtnLabel(id){ return USER.hasSeen(id) ? `✅ 見た！（${USER.seenCount(id)}回）・もう一度記録` : '👀 見た！ ずかんに登録'; }
+function updateSeenBtn(id){ const b=document.getElementById('seenBtn'); if(b) b.innerHTML=seenBtnLabel(id); }
+// 「👀見た！」記録モーダル（自己申告/写真の両対応・docs/design/02）
+function openSeen(id){
+  const a=ANIMALS.find(x=>x.id===id); if(!a)return; closeSeen();
+  const m=document.createElement('div'); m.className='modal'; m.id='seenModal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
+  m.innerHTML=`<div class="modal-bg" onclick="closeSeen()"></div>
+    <div class="modal-card seen-card">
+      <button class="pclose" onclick="closeSeen()" aria-label="閉じる">✕</button>
+      <h2>👀 見た！を記録</h2>
+      <div class="seen-sp"><span class="seen-em">${a.emoji}</span><div><b>${esc(a.nameJa)}</b><span class="seen-sci">${esc(a.nameSci)}</span></div></div>
+      <label class="seen-lb" for="seenNote">ひとことメモ（任意）</label>
+      <input id="seenNote" class="seen-in" type="text" maxlength="80" placeholder="どこで・どんな様子だった？">
+      <label class="seen-lb" for="seenPhoto">写真（任意・つけると＋ボーナス）</label>
+      <input id="seenPhoto" class="seen-file" type="file" accept="image/*" onchange="seenPreview(this)">
+      <div id="seenPrev" class="seen-prev" hidden><img alt=""></div>
+      <label class="seen-chk"><input id="seenMaybe" type="checkbox"> 自信なし（たぶん）で記録</label>
+      <div class="seen-row"><button class="nbtn wide seen-go" onclick="submitSeen('${a.id}')">ずかんに記録する</button></div>
+      <p class="seen-hint">位置はおおまか（約1km）に記録。データはこの端末に保存されます（Stage1a）。</p>
+    </div>`;
+  document.body.appendChild(m);
+}
+function closeSeen(){ const m=document.getElementById('seenModal'); if(m)m.remove(); }
+function seenPreview(inp){ const f=inp.files&&inp.files[0]; const p=document.getElementById('seenPrev'); if(!f||!p)return;
+  downscalePhoto(f,420).then(u=>{ if(u){ p.hidden=false; p.dataset.url=u; const im=p.querySelector('img'); if(im)im.src=u; } }); }
+function submitSeen(id){
+  const a=ANIMALS.find(x=>x.id===id); if(!a)return;
+  const noteEl=document.getElementById('seenNote'); const note=(noteEl&&noteEl.value||'').trim();
+  const maybe=!!(document.getElementById('seenMaybe')&&document.getElementById('seenMaybe').checked);
+  const prev=document.getElementById('seenPrev'); const photo=(prev&&!prev.hidden&&prev.dataset.url)||null;
+  const loc=(typeof getLastLoc==='function')?getLastLoc():null;
+  const first=!USER.hasSeen(id);
+  USER.add({ id:a.id, sci:a.nameSci, at:Date.now(),
+    lat:loc?Math.round(loc.lat*100)/100:null, lng:loc?Math.round(loc.lng*100)/100:null,
+    place:null, note:note||null, photo, confidence: photo?'photo':(maybe?'maybe':'sure') });
+  closeSeen(); updateSeenBtn(id);
+  toast(photo?'📸':'👀', `${a.nameJa} を${first?'はじめて':''}記録！ +${first?50:5}XP${photo?' +10📷':''}`, 2600);
+  if(first && ['CR','EN','VU','NT'].includes(a.status) && typeof confetti==='function') confetti();   // レアな種＝ちょい演出
+}
+// 📔 Myずかん（自分が見た記録・レベル・連続記録）
+function openMyDex(){
+  closeMyDex();
+  const lv=USER.level(), xp=USER.xp(), sc=USER.speciesCount(), st=USER.streak();
+  const rows=USER.recent(50).map(s=>{ const a=ANIMALS.find(x=>x.id===s.id);
+    const nm=a?a.nameJa:(s.sci||s.id), em=a?a.emoji:'🐾', d=new Date(s.at), ds=(d.getMonth()+1)+'/'+d.getDate();
+    const cf=s.confidence==='photo'?'📷':(s.confidence==='maybe'?'❓':'👀');
+    return `<button class="myd-row" onclick="closeMyDex();selectAnimal('${s.id}')">
+      <span class="myd-th">${s.photo?`<img src="${s.photo}" alt="">`:em}</span>
+      <span class="myd-mid"><b>${esc(nm)}</b><span class="myd-sub">${cf} ${ds}${s.note?' · '+esc(s.note):''}</span></span></button>`;
+  }).join('')||'<div class="myd-empty">まだ記録がありません。近くの生きものや図鑑カードで「👀見た！」を押してみよう。</div>';
+  const m=document.createElement('div'); m.className='modal'; m.id='myDexModal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
+  m.innerHTML=`<div class="modal-bg" onclick="closeMyDex()"></div>
+    <div class="modal-card myd-card">
+      <button class="pclose" onclick="closeMyDex()" aria-label="閉じる">✕</button>
+      <h2>📔 Myずかん</h2>
+      <div class="myd-stats">
+        <div class="myd-st"><b>Lv.${lv}</b><span>レベル</span></div>
+        <div class="myd-st"><b>${sc}</b><span>見た種</span></div>
+        <div class="myd-st"><b>${xp}</b><span>XP</span></div>
+        <div class="myd-st"><b>${st}日</b><span>連続記録</span></div>
+      </div>
+      <h3>さいきん見た</h3>
+      <div class="myd-list">${rows}</div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function closeMyDex(){ const m=document.getElementById('myDexModal'); if(m)m.remove(); }
 const filterState = {biome:null, q:'', facet:''};   // 環境/検索/分類傾向の絞り込みを一元管理
 let gbifYear=null;   // GBIF分布の年代フィルタ（&year=...）。null=全期間。動物を切り替えても保持
 const YEAR_STOPS=[
@@ -918,6 +1017,7 @@ function renderAnimalCard(a, head){
     </div>
     <div class="pbody">
       <div class="row1"><span class="tax">🧬 ${a.taxon}</span><span class="tax">${BIOMES[a.biome].e} ${a.biome}</span><button class="tax pshare" onclick="shareFigureCard('${a.id}',this)">🔗 共有</button></div>
+      <button class="nbtn wide seenbtn" id="seenBtn" onclick="openSeen('${a.id}')">${seenBtnLabel(a.id)}</button>
       ${head?`<button class="nbtn wide${figGbifOn?' on':''}" id="figDistBtn" onclick="toggleFigDist(this)">${figGbifOn?'🛰️ 分布メッシュを消す':'🛰️ この地点の分布メッシュを表示'}</button>`:''}
       <div class="rare" style="background:${hexA(r.color,.1)}">
         <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
@@ -2263,6 +2363,7 @@ async function shareFigureCard(id, btn){
 // ┌───────────────────────────────────────── app.js ─────────────────────────────────────────┐
 /* ---------- ツール ---------- */
 $('#nearBtn').addEventListener('click',openNearby);
+{ const b=$('#myDexBtn'); if(b) b.addEventListener('click',openMyDex); }
 $('#search').addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); scheduleFilter(); });
 wireMapSug($('#search'));   // 検索窓から住所・地名でも地図移動できるように（種の絞り込みは維持）
 // モバイル：図鑑ドック内の検索窓（上部バーの検索は≤640pxで非表示）。既存 filterState.q/applyFilters に配線。
@@ -2335,4 +2436,4 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex })
