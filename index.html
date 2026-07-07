@@ -443,6 +443,9 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .cmk:hover{filter:brightness(1.13);}
 @media (prefers-reduced-motion:reduce){.cmk{animation:none;}}
 .nearctl{padding:0 16px 8px;display:flex;flex-direction:column;gap:7px;}
+.nearfilters{display:flex;flex-direction:column;gap:7px;}   /* シンプル化⑤b：近くの細かい操作を畳む（既定10km・全種で即開く・docs/design/11-B） */
+.nearfilters[hidden]{display:none;}
+.nearfiltoggle{align-self:flex-start;font-size:12px;padding:5px 11px;}
 .ctlrow{display:flex;align-items:center;gap:8px;}
 .ctll{font-size:11px;color:var(--muted);width:30px;flex:0 0 auto;}
 .rchips,.cchips{display:flex;flex-wrap:wrap;gap:5px;flex:1;}

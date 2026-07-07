@@ -1716,6 +1716,13 @@ function wireMapSug(input){
   input.addEventListener('blur',()=>setTimeout(hideMapSug,150));   // 候補クリックの猶予を残して閉じる
   input.addEventListener('keydown',e=>{ if(e.key==='Escape') hideMapSug(); });
 }
+let nearFiltersOpen=false;   // シンプル化⑤b：近くの細かい操作（半径/種別/並び/表示数）は既定で畳む。開閉状態は再描画をまたいで保持（docs/design/11-B）
+function toggleNearFilters(btn){
+  nearFiltersOpen=!nearFiltersOpen;
+  const d=document.getElementById('nearfilters');
+  if(d){ if(nearFiltersOpen) d.removeAttribute('hidden'); else d.setAttribute('hidden',''); }
+  if(btn) btn.setAttribute('aria-expanded',String(nearFiltersOpen));
+}
 function nearControlsHTML(){
   const rchips=NEAR_RADII.map(r=>`<button class="rchip${nearState.radius===r?' on':''}" onclick="setNearRadius(${r})">${r}km</button>`).join('');
   // 種別はマルチ選択（複数チップON可）。「すべて」は未選択時にON、個別クラスは選択集合に入っていればON。
@@ -1727,14 +1734,17 @@ function nearControlsHTML(){
   const found=(nearRows&&nearRows.length)||0;
   const capchips=[['少なめ',12],['標準',24],['多め',40]].map(([l,n])=>`<button class="cchip${nearCap===n?' on':''}" onclick="setNearCap(${n})">${l}</button>`).join('');
   return `<div class="nearctl">
-    <div class="ctlrow"><span class="ctll">半径</span><div class="rchips">${rchips}</div></div>
-    <div class="ctlrow"><span class="ctll">種別</span><div class="cchips">${cchips}</div></div>
-    <div class="ctlrow"><span class="ctll">並び</span><div class="cchips">${schips}</div></div>
-    <div class="ctlrow"><span class="ctll">表示数</span><div class="capctl">
-      <input class="caprange pc-only" type="range" min="${NEARCAP_MIN}" max="${NEARCAP_MAX}" step="2" value="${nearCap}" oninput="capLive(this.value)" onchange="setNearCap(this.value)" aria-label="近くの表示数（アイコンと一覧の上限）">
-      <div class="capchips mob-only">${capchips}</div>
-      <span class="capnum" title="いま表示中 / 表示上限">🐾 ${found}<span class="capsep">/</span><b>${nearCap}</b></span>
-    </div></div>
+    <button class="nbtn nearfiltoggle" id="nearFilToggle" aria-expanded="${nearFiltersOpen}" aria-controls="nearfilters" onclick="toggleNearFilters(this)">⚙ しぼりこみ（半径・種別・並び・表示数）</button>
+    <div class="nearfilters" id="nearfilters"${nearFiltersOpen?'':' hidden'}>
+      <div class="ctlrow"><span class="ctll">半径</span><div class="rchips">${rchips}</div></div>
+      <div class="ctlrow"><span class="ctll">種別</span><div class="cchips">${cchips}</div></div>
+      <div class="ctlrow"><span class="ctll">並び</span><div class="cchips">${schips}</div></div>
+      <div class="ctlrow"><span class="ctll">表示数</span><div class="capctl">
+        <input class="caprange pc-only" type="range" min="${NEARCAP_MIN}" max="${NEARCAP_MAX}" step="2" value="${nearCap}" oninput="capLive(this.value)" onchange="setNearCap(this.value)" aria-label="近くの表示数（アイコンと一覧の上限）">
+        <div class="capchips mob-only">${capchips}</div>
+        <span class="capnum" title="いま表示中 / 表示上限">🐾 ${found}<span class="capsep">/</span><b>${nearCap}</b></span>
+      </div></div>
+    </div>
     <div class="ctlrow ctlbtns"><button class="nbtn" onclick="openAddrSearch()">🔍 住所で移動</button><button class="nbtn" onclick="recenterCurrent()">📍 現在地</button><button class="nbtn" onclick="armNearPick()">📌 タップで移動</button><button class="nbtn" onclick="shareNearCard(this)">📤 シェア</button></div>
   </div>`;
 }
@@ -2475,4 +2485,4 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, toggleAnimalDist, toggleCardMore, toggleSortFilter })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters })
