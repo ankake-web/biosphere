@@ -668,15 +668,19 @@ function paintAnimal(a){
   showMigration(a);
   if(typeof renderLegend==='function') renderLegend('status');
 }
+// gbifOn を切り替える2経路（カード内 #cardDistBtn ／ ツールバー #gbifBtn）のラベル・状態を常に一致させる＝どちらから操作しても誤誘導しない（敵対レビュー確定・双方向同期）。
+function syncDistBtns(){
+  const gb=$('#gbifBtn'); if(gb) gb.setAttribute('aria-pressed',String(gbifOn));
+  const cb=$('#cardDistBtn'); if(cb){ cb.classList.toggle('on',gbifOn); cb.innerHTML=gbifOn?'🛰️ 実観測メッシュを消す':'🛰️ 実観測（GBIF）を表示'; }
+}
 // 動物カード内の「🛰️ 実観測（GBIF）」トグル＝押した場所で戻せる（docs/design/11・C）。グローバル gbifOn と moregroupの🛰️に同期。
 function toggleAnimalDist(btn){
   if(!currentAnimal) return;
   gbifOn=!gbifOn;
-  const gb=$('#gbifBtn'); if(gb) gb.setAttribute('aria-pressed',String(gbifOn));
   paintAnimal(currentAnimal);
   setMode(animalModeText(currentAnimal));
   showYearbar(gbifOn && currentMode.type==='animal');
-  if(btn){ btn.classList.toggle('on',gbifOn); btn.innerHTML=gbifOn?'🛰️ 実観測メッシュを消す':'🛰️ 実観測（GBIF）を表示'; }
+  syncDistBtns();
 }
 /* ---------- 季節移動の経路（キュレーション） ---------- */
 let migMarkers=[];
@@ -2422,11 +2426,12 @@ $('#globeBtn').addEventListener('click',()=>{
   if(dist3D){ setDist3D(false); return; }                            // 3D（平面専用）中はまず3D解除＝地球儀に戻る
   isGlobe=!isGlobe; try{ map.setProjection({type:isGlobe?'globe':'mercator'}); }catch(e){}
   syncGlobeBtn(); toast(isGlobe?'🌐':'🗺️',isGlobe?'地球儀表示':'平面表示',1500);});
-$('#gbifBtn').addEventListener('click',()=>{ gbifOn=!gbifOn; $('#gbifBtn').setAttribute('aria-pressed',String(gbifOn));
+$('#gbifBtn').addEventListener('click',()=>{ gbifOn=!gbifOn;
   toast('🛰️', gbifOn?'GBIF実観測データ：ON':'実観測データ：OFF（手描き分布）',1900);
   if(currentAnimal) paintAnimal(currentAnimal); else removeGbif();
   if(currentAnimal) setMode(animalModeText(currentAnimal));
-  showYearbar(gbifOn && currentMode.type==='animal'); });
+  showYearbar(gbifOn && currentMode.type==='animal');
+  syncDistBtns(); });   // カード内トグル(#cardDistBtn)とツールバー🛰️の表示を常に一致（誤誘導防止）
 $('#exploreBtn').addEventListener('click',explore);
 $('#homeBtn').addEventListener('click',resetAll);
 $('#yearSlider').addEventListener('input',(e)=>{ stopYearPlay(); applyYear(+e.target.value); });
