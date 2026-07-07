@@ -207,6 +207,7 @@ let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true, A3toA2=
 let gbifOn=false, currentAnimal=null, currentMode={type:'overview'};   // 分布メッシュ(GBIF実観測)は既定OFF＝第一印象は「きれいな地図＋生息地＋カード」。カード内トグルでopt-in（docs/design/11）
 let atlasOn=false;   // アトラス表示（地形relief）のON/OFF。スタイルは入れ替えず重畳トグル
 let dist3D=false;    // 分布の3D（立体）表示。GBIF MVTヘックス＋fill-extrusion（試験的）
+const YEARBAR_ON=false;   // シンプル化②：🕰️年代スライダー(観測年代スクラブ)はUIから外す＝マニア機能（docs/design/11-A）。コード/データは残置＝復活は true に
 // 低モーション/通信節約：自動回転を止めて電力・CPU・通信を節約（モバイル配慮＋アクセシビリティ）
 const LOW_MOTION=(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)||!!(navigator.connection&&navigator.connection.saveData);
 const SEEN = new Set(JSON.parse(localStorage.getItem('biosphere_seen')||'[]'));
@@ -579,6 +580,7 @@ function addGbif3D(key){
 function showYearbar(on){
   const yb=$('#yearbar'); if(!yb)return;
   stopYearPlay();
+  if(!YEARBAR_ON) on=false;   // シンプル化②：年代スライダーは常に隠す（コード残置・復活はYEARBAR_ON=true）
   if(on){ let i=YEAR_STOPS.findIndex(s=>s.y===gbifYear); if(i<0)i=0;
     $('#yearSlider').value=i; $('#yearLabel').textContent=YEAR_STOPS[i].label; yb.removeAttribute('hidden'); updateYearCount(); }
   else yb.setAttribute('hidden','');
@@ -2430,10 +2432,10 @@ function setDist3D(on){ dist3D=on; const b=$('#d3dBtn'); if(b)b.setAttribute('ar
     else  { map.easeTo({pitch:0, duration:500}); isGlobe=true; map.setProjection({type:'globe'}); syncGlobeBtn(); }
   }catch(e){}
   if(currentAnimal && gbifOn && currentAnimal.gbif) addGbif(currentAnimal.gbif); }
-$('#d3dBtn').addEventListener('click',()=>{
+{ const b3d=$('#d3dBtn'); if(b3d) b3d.addEventListener('click',()=>{   // シンプル化②：🧊はUIから外した（コード残置）。ボタン不在でもクラッシュしないよう配線をガード
   if(!currentAnimal && !dist3D){ toast('🧊','まず動物を選ぶと、その分布を3D（立体）で見られます',2400); return; }
   setDist3D(!dist3D);
-  toast(dist3D?'🧊':'🌐', dist3D?'分布を3D（立体）で表示：高い柱ほど観測が多い（平面表示）':'地球儀にもどしました',2400); });
+  toast(dist3D?'🧊':'🌐', dist3D?'分布を3D（立体）で表示：高い柱ほど観測が多い（平面表示）':'地球儀にもどしました',2400); }); }
 $('#dex').addEventListener('click',()=>{ const t=ANIMALS.length,n=SEEN.size; toast(n>=t?'🏆':'🧭', n>=t?'図鑑コンプリート！全種を旅しました':`図鑑 ${n}/${t} 種を発見。🎲で続きを旅しよう`,2600); });
 $('#dex').addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#dex').click(); } });
 $('#aboutBtn').addEventListener('click',openAbout);
