@@ -260,6 +260,18 @@ button{font-family:inherit;cursor:pointer;}
 .myd-th img{width:100%;height:100%;object-fit:cover;}
 .myd-mid b{font-size:13px;} .myd-sub{display:block;font-size:11px;color:var(--muted-2);}
 .myd-empty{font-size:12.5px;color:var(--muted-2);line-height:1.7;padding:8px 0;}
+/* クエスト（Stage1a 増分2・docs/design/03） */
+.q-list{display:flex;flex-direction:column;gap:8px;margin-bottom:2px;}
+.q-row{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:11px;padding:9px 11px;}
+.q-row.done{background:rgba(52,216,198,.08);border-color:rgba(52,216,198,.35);}
+.q-top{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.q-ttl{font-size:13px;font-weight:700;}
+.q-xp{font-size:11px;font-weight:700;color:var(--teal);flex:none;}
+.q-desc{font-size:11px;color:var(--muted-2);margin:2px 0 6px;}
+.q-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;}
+.q-bar span{display:block;height:100%;background:linear-gradient(90deg,#1f9e8e,var(--teal));border-radius:99px;transition:width .3s;}
+.q-prog{font-size:10.5px;color:var(--muted-2);margin-top:4px;}
+.q-row.done .q-prog{color:var(--teal);}
 
 /* レッドリスト解説モーダル（保全状況の「階段」＋危機サマリ） */
 .rl-card{width:min(600px,94vw);}

@@ -291,11 +291,23 @@ function submitSeen(id){
   const gotPhoto=!!rec.photo;   // 容量超過で写真が捨てられた場合は false＝toast/XP と実保存を一致させる
   toast(gotPhoto?'📸':'👀', `${a.nameJa} を${first?'はじめて':''}記録！ +${first?50:5}XP${gotPhoto?' +10📷':''}`, 2600);
   if(first && ['CR','EN','VU','NT'].includes(a.status) && typeof confetti==='function') confetti();   // レアな種＝ちょい演出
+  checkQuests();   // この記録で達成したクエストがあればXP/バッジ/演出（記録toastの後に出る）
 }
 // 📔 Myずかん（自分が見た記録・レベル・連続記録）
 function openMyDex(){
   closeMyDex();
-  const lv=USER.level(), xp=USER.xp(), sc=USER.speciesCount(), st=USER.streak();
+  checkQuests();   // 開いた時点で達成済み（連続記録/期間系など）があれば付与してから描画
+  const base=USER.xp(), qx=questXp(), xp=base+qx;   // 総XP＝記録XP＋クエストボーナス
+  const lv=Math.floor(Math.sqrt(xp/50))+1, sc=USER.speciesCount(), st=USER.streak();
+  const qsorted=[...QUESTS].sort((a,b)=>(QDONE.has(a.id)?1:0)-(QDONE.has(b.id)?1:0));   // 未達成を上に
+  const qrows=qsorted.map(q=>{ const e=evalQuest(q), done=QDONE.has(q.id)||e.done, pct=Math.round(100*e.progress/e.need);
+    const unit=q.metric==='streak'?'日':'種';
+    return `<div class="q-row${done?' done':''}">
+      <div class="q-top"><span class="q-ttl">${done?'✅ ':''}${esc(q.title)}</span><span class="q-xp">+${q.rewardXp}XP</span></div>
+      <div class="q-desc">${esc(q.desc)}</div>
+      <div class="q-bar"><span style="width:${done?100:pct}%"></span></div>
+      <div class="q-prog">${e.progress}/${e.need}${unit}${done?' ・ 達成！':''}</div>
+    </div>`; }).join('');
   const rows=USER.recent(50).map(s=>{ const a=ANIMALS.find(x=>x.id===s.id);
     const nm=a?a.nameJa:(s.sci||s.id), em=a?a.emoji:'🐾', d=new Date(s.at), ds=(d.getMonth()+1)+'/'+d.getDate();
     const cf=s.confidence==='photo'?'📷':(s.confidence==='maybe'?'❓':'👀');
@@ -314,12 +326,68 @@ function openMyDex(){
         <div class="myd-st"><b>${xp}</b><span>XP</span></div>
         <div class="myd-st"><b>${st}日</b><span>連続記録</span></div>
       </div>
+      <h3>🏅 クエスト（${QDONE.size}/${QUESTS.length} 達成）</h3>
+      <div class="q-list">${qrows}</div>
       <h3>さいきん見た</h3>
       <div class="myd-list">${rows}</div>
     </div>`;
   document.body.appendChild(m);
 }
 function closeMyDex(){ const m=document.getElementById('myDexModal'); if(m)m.remove(); }
+// ===== クエスト（criteria + 汎用エンジン1本・進捗はsightingsから算出・達成時のみ記録／docs/design/03）=====
+const QSEV={LC:1,NT:2,VU:3,EN:4,CR:5,DD:0,NE:0};   // 保全/レア度の段階（危機が高い順）＝RARITYを解禁して使う
+function rarityTier(status){ return QSEV[status]||0; }
+const QDONE=new Set(JSON.parse(localStorage.getItem('biosphere_quests')||'[]'));   // 達成済みクエストid（XP/バッジは一度きり）
+function saveQuests(){ try{ localStorage.setItem('biosphere_quests',JSON.stringify([...QDONE])); }catch(e){} }
+function kmBetween(aLat,aLng,bLat,bLng){ const R=6371,t=x=>x*Math.PI/180;
+  const dLa=t(bLat-aLat),dLo=t(bLng-aLng),s=Math.sin(dLa/2)**2+Math.cos(t(aLat))*Math.cos(t(bLat))*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s)); }
+// 初期クエスト（手作り＝コンテンツの種。エンジンは汎用なので後はデータ追加で増やせる）。match省略の条件は無視＝全件一致。
+const QUESTS=[
+  {id:'q_first',      title:'はじめの一歩',   desc:'なんでも1種を「👀見た！」', group:'入門', metric:'species', match:{}, need:1, rewardXp:50},
+  {id:'q_bird1',      title:'はじめての鳥',   desc:'鳥を1種 記録しよう', group:'入門', metric:'species', match:{cls:['鳥類']}, need:1, rewardXp:60, badge:'bird1'},
+  {id:'q_photo1',     title:'はじめての一枚', desc:'写真つきで1種 記録', group:'入門', metric:'species', match:{photo:true}, need:1, rewardXp:60, badge:'photo1'},
+  {id:'q_local5',     title:'ご近所コレクター', desc:'家の近く(約50km)で5種', group:'地元', metric:'species', match:{radiusKm:50}, need:5, rewardXp:150, badge:'local'},
+  {id:'q_streak3',    title:'3日つづけて',    desc:'3日つづけて記録する', group:'習慣', metric:'streak', match:{}, need:3, rewardXp:120, badge:'streak3'},
+  {id:'q_water3',     title:'水辺のいきもの', desc:'湿地・海の生きものを3種', group:'環境', metric:'species', match:{biome:['湿地','海']}, need:3, rewardXp:120},
+  {id:'q_forest4',    title:'森の住人',       desc:'森の哺乳類・鳥を4種', group:'環境', metric:'species', match:{biome:['森林','熱帯雨林'],cls:['哺乳類','鳥類']}, need:4, rewardXp:140},
+  {id:'q_sky10',      title:'空の常連',       desc:'鳥を10種 見た！', group:'環境', metric:'species', match:{cls:['鳥類']}, need:10, rewardXp:250, badge:'birder'},
+  {id:'q_bugs5',      title:'足もとの虫',     desc:'昆虫を5種', group:'環境', metric:'species', match:{cls:['昆虫']}, need:5, rewardXp:150},
+  {id:'q_spring5',    title:'春の使者',       desc:'3〜5月に5種 記録', group:'季節', metric:'species', match:{months:[3,4,5]}, need:5, rewardXp:150},
+  {id:'q_summer4',    title:'夏の虫・かえる', desc:'7〜8月に昆虫・両生類を4種', group:'季節', metric:'species', match:{months:[7,8],cls:['昆虫','両生類']}, need:4, rewardXp:140},
+  {id:'q_migrate3',   title:'渡り鳥ウォッチ', desc:'渡りをする鳥を3種', group:'季節', metric:'species', match:{cls:['鳥類'],migratory:true}, need:3, rewardXp:160, badge:'migration'},
+  {id:'q_threatened', title:'絶滅危惧を知る', desc:'絶滅危惧(VU以上)を1種', group:'保全', metric:'species', match:{rarityMin:3}, need:1, rewardXp:100, badge:'conserv'},
+  {id:'q_rare2',      title:'レアハンター',   desc:'超レア(EN以上)を2種', group:'レア', metric:'species', match:{rarityMin:4}, need:2, rewardXp:200, badge:'rare'},
+];
+function matchSighting(s,m){
+  const a=ANIMALS.find(x=>x.id===s.id);
+  if(m.cls && (!a||!m.cls.includes(clsOf(a)))) return false;
+  if(m.biome && (!a||!m.biome.includes(a.biome))) return false;
+  if(m.rarityMin && (!a||rarityTier(a.status)<m.rarityMin)) return false;
+  if(m.migratory && (!a||!MIGRATION[a.id])) return false;
+  if(m.photo && !(s.photo||s.confidence==='photo')) return false;
+  if(m.months && m.months.indexOf(new Date(s.at).getMonth()+1)<0) return false;
+  if(m.radiusKm){ const h=(typeof getLastLoc==='function')?getLastLoc():null;
+    if(!h||s.lat==null||s.lng==null||kmBetween(h.lat,h.lng,s.lat,s.lng)>m.radiusKm) return false; }
+  return true;
+}
+function evalQuest(q){
+  if(q.metric==='streak'){ const p=USER.streak(); return {progress:Math.min(p,q.need),need:q.need,done:p>=q.need}; }
+  const seen=new Set(); for(const s of USER.all()){ if(matchSighting(s,q.match)) seen.add(s.id); }   // distinct な種数を数える
+  return {progress:Math.min(seen.size,q.need),need:q.need,done:seen.size>=q.need};
+}
+function questXp(){ return QUESTS.reduce((x,q)=>x+(QDONE.has(q.id)?q.rewardXp:0),0); }   // 達成クエストのボーナスXP合計
+// sightings/streak が変わったら呼ぶ＝新たに達成したクエストにXP/バッジ/演出を一度だけ付与
+function checkQuests(){
+  const newly=[];
+  for(const q of QUESTS){ if(QDONE.has(q.id)) continue; if(evalQuest(q).done){ QDONE.add(q.id); if(q.badge) BADGES.add('q_'+q.badge); newly.push(q); } }
+  if(newly.length){ saveQuests(); if(typeof saveBadges==='function') saveBadges();
+    const xp=newly.reduce((s,q)=>s+q.rewardXp,0);
+    const msg=newly.length===1?`クエスト達成！「${newly[0].title}」 +${newly[0].rewardXp}XP`:`クエスト${newly.length}個達成！ +${xp}XP`;
+    setTimeout(()=>{ toast('🏅',msg,3400); if(typeof confetti==='function') confetti(); }, 1400);   // 記録toastの後に見せる
+  }
+  return newly.length;
+}
 const filterState = {biome:null, q:'', facet:''};   // 環境/検索/分類傾向の絞り込みを一元管理
 let gbifYear=null;   // GBIF分布の年代フィルタ（&year=...）。null=全期間。動物を切り替えても保持
 const YEAR_STOPS=[
@@ -1871,6 +1939,7 @@ function renderFigNear(){
         <div class="ndja">${esc(dispJa)}</div>
         <div class="ndsci">${esc(sci)}</div>
         <div class="ndtags">${cls?`<span class="ndtag">${cls}</span>`:''}<span class="ndtag">この範囲で ${fmtN(cnt)}件</span><span id="ndstatus"></span></div>
+        ${nearFig.hit?`<button class="nbtn wide seenbtn" id="seenBtn" onclick="openSeen('${nearFig.hit.id}')">${seenBtnLabel(nearFig.hit.id)}</button>`:''}
         <div class="ndsec"><div class="ndsech">📅 観察が多い月（出会いやすさの目安）</div><div id="seasonwrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
         <div class="ndsec"><div class="ndsech">🕐 観察が多い時間帯（朝・昼・夕の目安）</div><div id="timewrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
         ${(v.id && vocalizes(v.ic) && v.exact!==false)?`<div class="ndsec" id="ndsound"><button class="nbtn wide" onclick="playNearSound(${v.id},this)">🔊 鳴き声を聞く</button></div>`:''}
