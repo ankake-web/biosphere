@@ -1040,33 +1040,43 @@ function renderAnimalCard(a, head){
       <div class="row1"><span class="tax">🧬 ${a.taxon}</span><span class="tax">${BIOMES[a.biome].e} ${a.biome}</span><button class="tax pshare" onclick="shareFigureCard('${a.id}',this)">🔗 共有</button></div>
       <button class="nbtn wide seenbtn" id="seenBtn" onclick="openSeen('${a.id}')">${seenBtnLabel(a.id)}</button>
       ${head?`<button class="nbtn wide${figGbifOn?' on':''}" id="figDistBtn" onclick="toggleFigDist(this)">${figGbifOn?'🛰️ 分布メッシュを消す':'🛰️ この地点の分布メッシュを表示'}</button>`:''}
-      ${!head?`<button class="nbtn wide${gbifOn?' on':''}" id="cardDistBtn" onclick="toggleAnimalDist(this)">${gbifOn?'🛰️ 実観測メッシュを消す':'🛰️ 実観測（GBIF）を表示'}</button>`:''}
-      <div class="rare" style="background:${hexA(r.color,.1)}">
-        <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
-        <span class="gem" style="color:${r.color}">${r.gem}</span>
-        <span class="popwrap"><span class="poplabel">推定生息数（野生）</span><span class="popline"><span class="popval" style="color:${r.color}">${popOf(a)}</span><span class="trend" style="color:${tm.c}">${tm.a} ${tm.t}</span></span><span class="popsrc">出典 <a href="${iucnURL(a)}" target="_blank" rel="noopener">IUCN ↗</a><a href="${gbifURL(a)}" target="_blank" rel="noopener">GBIF ↗</a></span></span>
-        <button type="button" class="iucn" onclick="openRedlist('${a.status}','${a.id}')" title="保全状況（IUCNレッドリスト）の意味を見る"><span class="code" style="background:${r.color}">${a.status}<span class="qm">?</span></span><span class="jp">${r.jp}・${r.band}</span></button>
-      </div>
-      <div class="stats">
-        <div class="stat"><div class="k">📏 大きさ</div><div class="v">${st.size}</div></div>
-        <div class="stat"><div class="k">⚖️ 体重</div><div class="v">${st.weight}</div></div>
-        <div class="stat"><div class="k">🍖 食性</div><div class="v">${st.diet}</div></div>
-        <div class="stat"><div class="k">⏳ 寿命</div><div class="v">${st.life}</div></div>
-      </div>
       <div class="flavor2" data-fid="${esc(a.id)}"></div>
       <div class="ndsec" id="figsound" style="margin:2px 0 10px"><button class="nbtn wide" onclick="playFigureSound('${a.id}',this)">🔊 鳴き声を聞く</button></div>
-      ${['CR','EN','VU','NT','DD'].includes(a.status)?`<div class="conserv">
-        <div class="cvhead">🛡 おもな脅威と保全 <span class="cvst" style="color:${r.color}">${r.jp}（${a.status}）</span></div>
-        <div class="cvtags">${threatsOf(a).map(t=>`<span class="cvtag">${t}</span>`).join('')}</div>
-        <div class="cvlinks">${conservLinks(a).map(x=>`<a href="${x.u}" target="_blank" rel="noopener">${x.l} ↗</a>`).join('')}<button type="button" class="cvmore" onclick="openRedlist('${a.status}','${a.id}')">保全状況とは？</button></div>
-      </div>`:''}
       <div class="seclab">生息地 — ${a.range.length}地域（タップで寄る） <span class="ln"></span></div>
       <div class="geos">${a.range.map(c=>`<button class="geo" onclick="flyCountry('${c}')"><span class="fl">${ccFlag(c)}</span>${ccName(c)}</button>`).join('')}</div>
-      <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝GBIFの実観測地点（${a.nameSci}）。<b>ズームするほど分布が細かく</b>見えます。だれかが実際にこの生きものを見た場所です。</div>
-      ${MIGRATION[a.id]?`<div class="gbifnote mignote">🧭 <b>季節移動</b>：${MIGRATION[a.id].note}。地図に<span style="color:#ffd45e;font-weight:700">繁殖↔越冬の経路</span>（模式）を表示中。</div>`:''}
+      <button class="nbtn wide moretoggle" id="cardMoreBtn" aria-expanded="false" aria-controls="cardMore" onclick="toggleCardMore(this)">▾ もっと詳しく（学名・大きさ・保全・実観測…）</button>
+      <div class="moredetails" id="cardMore" hidden>
+        ${!head?`<button class="nbtn wide${gbifOn?' on':''}" id="cardDistBtn" onclick="toggleAnimalDist(this)">${gbifOn?'🛰️ 実観測メッシュを消す':'🛰️ 実観測（GBIF）を表示'}</button>`:''}
+        <div class="rare" style="background:${hexA(r.color,.1)}">
+          <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
+          <span class="gem" style="color:${r.color}">${r.gem}</span>
+          <span class="popwrap"><span class="poplabel">推定生息数（野生）</span><span class="popline"><span class="popval" style="color:${r.color}">${popOf(a)}</span><span class="trend" style="color:${tm.c}">${tm.a} ${tm.t}</span></span><span class="popsrc">出典 <a href="${iucnURL(a)}" target="_blank" rel="noopener">IUCN ↗</a><a href="${gbifURL(a)}" target="_blank" rel="noopener">GBIF ↗</a></span></span>
+          <button type="button" class="iucn" onclick="openRedlist('${a.status}','${a.id}')" title="保全状況（IUCNレッドリスト）の意味を見る"><span class="code" style="background:${r.color}">${a.status}<span class="qm">?</span></span><span class="jp">${r.jp}・${r.band}</span></button>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="k">📏 大きさ</div><div class="v">${st.size}</div></div>
+          <div class="stat"><div class="k">⚖️ 体重</div><div class="v">${st.weight}</div></div>
+          <div class="stat"><div class="k">🍖 食性</div><div class="v">${st.diet}</div></div>
+          <div class="stat"><div class="k">⏳ 寿命</div><div class="v">${st.life}</div></div>
+        </div>
+        ${['CR','EN','VU','NT','DD'].includes(a.status)?`<div class="conserv">
+          <div class="cvhead">🛡 おもな脅威と保全 <span class="cvst" style="color:${r.color}">${r.jp}（${a.status}）</span></div>
+          <div class="cvtags">${threatsOf(a).map(t=>`<span class="cvtag">${t}</span>`).join('')}</div>
+          <div class="cvlinks">${conservLinks(a).map(x=>`<a href="${x.u}" target="_blank" rel="noopener">${x.l} ↗</a>`).join('')}<button type="button" class="cvmore" onclick="openRedlist('${a.status}','${a.id}')">保全状況とは？</button></div>
+        </div>`:''}
+        <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝GBIFの実観測地点（${a.nameSci}）。上の「🛰️ 実観測（GBIF）」で表示でき、<b>ズームするほど分布が細かく</b>見えます。</div>
+        ${MIGRATION[a.id]?`<div class="gbifnote mignote">🧭 <b>季節移動</b>：${MIGRATION[a.id].note}。地図に<span style="color:#ffd45e;font-weight:700">繁殖↔越冬の経路</span>（模式）を表示中。</div>`:''}
+      </div>
     </div>`;
   panelSheet(false); openPanel();
   fillFlavor(a);
+}
+// 図鑑カードの「▾ もっと詳しく」＝二次情報（学名/stats/推定生息数/保全/出典/🛰️実観測トグル）を開閉。
+// ★写真・名前・👀見た！・3フレーバー・生息地は常に表示（docs/design/11・"こだわり"の3フレーバーは隠さない）。
+function toggleCardMore(btn){
+  const d=document.getElementById('cardMore'); if(!d) return;
+  if(d.hasAttribute('hidden')){ d.removeAttribute('hidden'); btn.setAttribute('aria-expanded','true'); btn.innerHTML='▴ 詳細をとじる'; }
+  else{ d.setAttribute('hidden',''); btn.setAttribute('aria-expanded','false'); btn.innerHTML='▾ もっと詳しく（学名・大きさ・保全・実観測…）'; }
 }
 /* ---------- フレーバー2本立て（🌿生態 / 👤人との関わり） ---------- */
 // curated種（species.jsonにeco/humanを静的保持）は即表示。非curated種はまずdescを🌿に出し、
@@ -2459,4 +2469,4 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, toggleAnimalDist })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, toggleAnimalDist, toggleCardMore })
