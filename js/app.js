@@ -204,7 +204,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;'
 // インラインonclick等に学名を埋める用：学名として妥当な文字だけ許可（引用符/不等号/バックスラッシュを排除＝注入不可）。
 function sciKey(s){ return String(s==null?'':s).replace(/[^A-Za-z0-9 .×·'\-]/g,'').replace(/'/g,''); }
 let CODE_PROP='ADM0_A3', countryGeo=null, mapReady=false, spinning=true, A3toA2={};
-let gbifOn=true, currentAnimal=null, currentMode={type:'overview'};
+let gbifOn=false, currentAnimal=null, currentMode={type:'overview'};   // 分布メッシュ(GBIF実観測)は既定OFF＝第一印象は「きれいな地図＋生息地＋カード」。カード内トグルでopt-in（docs/design/11）
 let atlasOn=false;   // アトラス表示（地形relief）のON/OFF。スタイルは入れ替えず重畳トグル
 let dist3D=false;    // 分布の3D（立体）表示。GBIF MVTヘックス＋fill-extrusion（試験的）
 // 低モーション/通信節約：自動回転を止めて電力・CPU・通信を節約（モバイル配慮＋アクセシビリティ）
@@ -666,6 +666,16 @@ function paintAnimal(a){
   showMigration(a);
   if(typeof renderLegend==='function') renderLegend('status');
 }
+// 動物カード内の「🛰️ 実観測（GBIF）」トグル＝押した場所で戻せる（docs/design/11・C）。グローバル gbifOn と moregroupの🛰️に同期。
+function toggleAnimalDist(btn){
+  if(!currentAnimal) return;
+  gbifOn=!gbifOn;
+  const gb=$('#gbifBtn'); if(gb) gb.setAttribute('aria-pressed',String(gbifOn));
+  paintAnimal(currentAnimal);
+  setMode(animalModeText(currentAnimal));
+  showYearbar(gbifOn && currentMode.type==='animal');
+  if(btn){ btn.classList.toggle('on',gbifOn); btn.innerHTML=gbifOn?'🛰️ 実観測メッシュを消す':'🛰️ 実観測（GBIF）を表示'; }
+}
 /* ---------- 季節移動の経路（キュレーション） ---------- */
 let migMarkers=[];
 function removeMigration(){ migMarkers.forEach(m=>m.remove()); migMarkers=[];
@@ -1028,6 +1038,7 @@ function renderAnimalCard(a, head){
       <div class="row1"><span class="tax">🧬 ${a.taxon}</span><span class="tax">${BIOMES[a.biome].e} ${a.biome}</span><button class="tax pshare" onclick="shareFigureCard('${a.id}',this)">🔗 共有</button></div>
       <button class="nbtn wide seenbtn" id="seenBtn" onclick="openSeen('${a.id}')">${seenBtnLabel(a.id)}</button>
       ${head?`<button class="nbtn wide${figGbifOn?' on':''}" id="figDistBtn" onclick="toggleFigDist(this)">${figGbifOn?'🛰️ 分布メッシュを消す':'🛰️ この地点の分布メッシュを表示'}</button>`:''}
+      ${!head?`<button class="nbtn wide${gbifOn?' on':''}" id="cardDistBtn" onclick="toggleAnimalDist(this)">${gbifOn?'🛰️ 実観測メッシュを消す':'🛰️ 実観測（GBIF）を表示'}</button>`:''}
       <div class="rare" style="background:${hexA(r.color,.1)}">
         <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
         <span class="gem" style="color:${r.color}">${r.gem}</span>
@@ -2445,4 +2456,4 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, toggleAnimalDist })
