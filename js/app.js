@@ -895,8 +895,8 @@ function explore(){
 
 /* ---------- パネル ---------- */
 const panelEl=$('#panel');
-function openPanel(){ panelEl.classList.add('open'); }
-function closePanel(){ panelEl.classList.remove('open'); }
+function openPanel(){ panelEl.classList.add('open'); document.body.classList.add('panel-open'); }   // panel-open＝モバイルで下部シート表示中→ドックを隠して被り防止
+function closePanel(){ panelEl.classList.remove('open'); document.body.classList.remove('panel-open'); }
 // モバイルのシート高さ：近くの一覧/詳細は中間（地図＋生き物を上に見せる）、種/国カードは通常（full）。
 function panelSheet(mid){ panelEl.classList.toggle('sheet-mid', !!mid); }
 // head を渡すと（近くの生き物→📖図鑑タブ経由）上部にタブ＋分布メッシュトグルを差し込む。通常の種選択では head 無し＝従来どおり。
@@ -1203,10 +1203,12 @@ const NEAR_CLASSES=[['','すべて'],['Aves','🐦鳥'],['Mammalia','🦫哺乳'
 const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_', LS_IUCN='biosphere_iucn_', LS_CRT='biosphere_crt_';
 const THREAT_CATS=new Set(['VU','EN','CR']);   // 絶滅危惧（Threatened）
 // 地図に「ふわっと」出す生き物マーカー（ポケGO風）。GBIF実観測点に種マーカーを配置し、観測点へ広く散らす。
-// ① マーカー上限は半径連動＝近くは控えめ、広域ほど多く出して「広い範囲にいろんな動物」を演出（パン負荷とのバランス）。
-const CREATURE_CAP_BY_R={1:12,3:14,5:16,10:18,30:22,50:26,100:30,300:34,500:38,1000:40};
-function creatureCap(r){ return CREATURE_CAP_BY_R[r]||16; }
-const CREATURE_POOL=44;  // ③ 地点キャッシュに貯める候補プール上限（表示上限より多め＝再訪ごとに重み付きランダムで別の顔ぶれ・広域cap30に対応）
+// ① 表示数はユーザー可変（アイコン／一覧 共通の上限）。旧・半径連動値は参考として残す。
+const CREATURE_CAP_BY_R={1:12,3:14,5:16,10:18,30:22,50:26,100:30,300:34,500:38,1000:40};   // 参考（旧デフォルト）
+const NEARCAP_MIN=8, NEARCAP_MAX=44, NEARCAP_DEF=24;
+let nearCap=Math.max(NEARCAP_MIN,Math.min(NEARCAP_MAX,+(localStorage.getItem('biosphere_nearcap'))||NEARCAP_DEF));   // 近くモードの表示数（アイコン＋一覧・8〜44・localStorage保存）
+function creatureCap(r){ return nearCap; }   // ★表示数コントロールで可変（半径連動から変更）
+const CREATURE_POOL=48;  // ③ 候補プール上限（表示上限44より多め＝再訪ごとに重み付きランダムで別の顔ぶれ）
 // ② 広く散らす：farthest-point sampling。候補点のうち既存マーカーから最も遠い点を返す（円内をまんべんなく埋める）。
 function distSq(a,b){ const dx=a[0]-b[0], dy=a[1]-b[1]; return dx*dx+dy*dy; }
 function spreadPoint(pts, placed){ if(!pts||!pts.length) return null; if(!placed||!placed.length) return pts[0];
@@ -1308,6 +1310,12 @@ function nearSortRows(){
   else nearRows.sort((a,b)=>b.count-a.count);   // count＝記録の多い順（既定）
 }
 function setNearSort(v){ nearSort=v; if(v!=='count') resolveRemainingRows(); renderNearList(); }   // 名前/分類/絶滅危機は解決データが要る＝残りも解決
+// 表示数（アイコン＋一覧の上限）をユーザーが変更。localStorage保存＋一覧/マーカーを取り直し。
+function setNearCap(n){ n=Math.max(NEARCAP_MIN,Math.min(NEARCAP_MAX,Math.round(+n)||NEARCAP_DEF));
+  if(n===nearCap){ return; } nearCap=n; try{ localStorage.setItem('biosphere_nearcap',n); }catch(e){}
+  if(nearState){ queryNear(); loadNearCreatures(nearState.lat,nearState.lng,nearState.radius,true); } else renderNearList&&nearRows&&renderNearList(); }
+// スライダードラッグ中の即時ラベル更新（refetchはonchangeのsetNearCapで）。
+function capLive(n){ const el=document.querySelector('.capnum b'); if(el) el.textContent=Math.round(+n); }
 let creatureMarkers=[], creatureTimer=null, creaturesKey=null, threatToastShown=false, creatureGen=0, queryGen=0;   // Gen=単調増加の世代トークン（同一丸め座標への素早い出戻りA→B→Aでも古いin-flightバッチを確実に破棄）
 function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
@@ -1465,7 +1473,7 @@ function queryNear(immediate){
         const key=c.name.toLowerCase(); if(seen.has(key)) continue; seen.add(key);
         let obj=rowObj.get(key); if(!obj){ obj={name:c.name,count:c.count,gcls:c.gcls}; rowObj.set(key,obj); } else obj.count=Math.max(obj.count,c.count);
         merged.push(obj); }
-      return merged.slice(0,45);
+      return merged.slice(0,nearCap);   // 一覧件数は表示数コントロール連動
     };
     groups.forEach((g,gi)=>{
       const isFish=g.c==='Fish';   // ① 魚グループは GBIF facet ＋ OBIS checklist を併合（外洋の魚も一覧に）
@@ -1475,7 +1483,7 @@ function queryNear(immediate){
         : gbifFacetNear(lat,lng,radius,g.keys,flim,y1,y2,true);
       fp
         .then(rows=>{ if(stale()) return;
-          groupRows[gi]=rows.slice(0,g.cap).map(c=>({name:c.name,count:c.count,gcls:g.c}));
+          groupRows[gi]=rows.slice(0,Math.max(g.cap,nearCap)).map(c=>({name:c.name,count:c.count,gcls:g.c}));   // 単一クラス時も表示数まで拾えるよう g.cap と nearCap の大きい方
           if(!firstPainted){ const merged=rebuild(); if(merged.length){ nearRows=merged; renderNearList(); firstPainted=true; } }   // 最速クラスで一覧を即出す
         })
         .catch(()=>{})
@@ -1577,10 +1585,18 @@ function nearControlsHTML(){
   // 並びはプルダウンでなくチップ式（半径/種別と操作感を統一）。
   const schips=[['count','記録の多い順'],['name','名前順'],['cls','分類ごと'],['threat','絶滅危機順']]
     .map(([v,l])=>`<button class="cchip${nearSort===v?' on':''}" onclick="setNearSort('${v}')">${l}</button>`).join('');
+  // 表示数コントロール：PC=スライダー／スマホ=チップ。右に「いま表示中／上限」を表示。
+  const found=(nearRows&&nearRows.length)||0;
+  const capchips=[['少なめ',12],['標準',24],['多め',40]].map(([l,n])=>`<button class="cchip${nearCap===n?' on':''}" onclick="setNearCap(${n})">${l}</button>`).join('');
   return `<div class="nearctl">
     <div class="ctlrow"><span class="ctll">半径</span><div class="rchips">${rchips}</div></div>
     <div class="ctlrow"><span class="ctll">種別</span><div class="cchips">${cchips}</div></div>
     <div class="ctlrow"><span class="ctll">並び</span><div class="cchips">${schips}</div></div>
+    <div class="ctlrow"><span class="ctll">表示数</span><div class="capctl">
+      <input class="caprange pc-only" type="range" min="${NEARCAP_MIN}" max="${NEARCAP_MAX}" step="2" value="${nearCap}" oninput="capLive(this.value)" onchange="setNearCap(this.value)" aria-label="近くの表示数（アイコンと一覧の上限）">
+      <div class="capchips mob-only">${capchips}</div>
+      <span class="capnum" title="いま表示中 / 表示上限">🐾 ${found}<span class="capsep">/</span><b>${nearCap}</b></span>
+    </div></div>
     <div class="ctlrow ctlbtns"><button class="nbtn" onclick="openAddrSearch()">🔍 住所で移動</button><button class="nbtn" onclick="recenterCurrent()">📍 現在地</button><button class="nbtn" onclick="armNearPick()">📌 タップで移動</button><button class="nbtn" onclick="shareNearCard(this)">📤 シェア</button></div>
   </div>`;
 }
@@ -2319,4 +2335,4 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat })

@@ -428,6 +428,31 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .nbtn:hover{background:rgba(52,216,198,.2);}
 .nbtn.wide{display:block;width:calc(100% - 32px);margin:10px 16px 2px;text-align:center;padding:9px;}
 .nbtn.on{background:rgba(255,176,46,.16);border-color:rgba(255,176,46,.5);color:#ffd089;}
+/* 表示数コントロール（近くのアイコン＋一覧の上限）。PC=スライダー / スマホ=チップ。右に「いま表示中／上限」。 */
+.capctl{display:flex;align-items:center;gap:9px;flex:1;min-width:0;}
+.caprange{flex:1;min-width:80px;accent-color:#34d8c6;cursor:pointer;height:20px;}
+.capchips{display:flex;gap:5px;flex-wrap:wrap;flex:1;}
+.capnum{flex:0 0 auto;font-size:11px;color:var(--muted);white-space:nowrap;}
+.capnum b{color:#34d8c6;font-size:12.5px;}
+.capsep{opacity:.5;margin:0 2px;}
+.mob-only{display:none;}                 /* スマホ専用（チップ）はPCで隠す＝スライダー表示 */
+@media(max-width:860px){
+  .pc-only{display:none;} .mob-only{display:flex;}   /* スマホ＝スライダー隠しチップ表示 */
+  /* ドックを畳んでハンドル化＝タブレット幅でも図鑑の占有を減らし地図を広く／近くパネルとの被りも解消 */
+  .dock{padding:8px 12px calc(10px + env(safe-area-inset-bottom));gap:8px;}
+  .dockhandle{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    background:var(--glass-strong);border:1px solid var(--line);border-radius:13px;color:var(--ink);
+    font-weight:700;font-size:14px;padding:13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);}
+  .dockhandle .ar{font-size:11px;color:var(--muted);transition:transform .25s;}
+  .dock.open .dockhandle .ar{transform:rotate(180deg);}
+  .dockbody{display:none;}
+  .dock.open .dockbody{display:flex;}
+  /* 近くの下部シート表示中はドックを隠す＝並び替え(sortSel)等との被りを根絶 */
+  body.panel-open .dock{display:none;}
+  /* 近くの操作チップをややコンパクトに（地図を広く） */
+  .nearctl{padding:0 13px 7px;gap:6px;}
+  .rchip,.cchip{font-size:11px;padding:4px 8px;}
+}
 /* 住所・地名で移動モーダル（body直下・パネル再描画の影響を受けない） */
 .addrmodal{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;}
 .addrmodal[hidden]{display:none;}
