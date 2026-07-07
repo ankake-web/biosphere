@@ -1491,7 +1491,7 @@ function queryNear(immediate){
 /* ---- 住所・地名で移動（Nominatim forward geocoding）----
    パネルの再描画に巻き込まれないよう body直下のモーダルで実装。検索→候補一覧→タップで setNearPin。 */
 let addrModal=null;
-function openAddrSearch(){
+function openAddrSearch(prefill){
   if(!addrModal){
     addrModal=document.createElement('div'); addrModal.className='addrmodal'; addrModal.hidden=true;
     addrModal.innerHTML=`<div class="addrbg" onclick="closeAddrSearch()"></div>
@@ -1509,8 +1509,9 @@ function openAddrSearch(){
     addrModal.addEventListener('keydown',e=>{ if(e.key==='Escape' && !addrModal.hidden){ e.stopPropagation(); closeAddrSearch(); } });
   }
   addrModal.hidden=false;
-  const inp=addrModal.querySelector('#addrInput'); inp.value=''; addrModal.querySelector('#addrResults').innerHTML='';
+  const inp=addrModal.querySelector('#addrInput'); inp.value=(prefill||''); addrModal.querySelector('#addrResults').innerHTML='';
   setTimeout(()=>inp.focus(),30);
+  if(prefill) searchNearAddr();   // 図鑑検索窓からの事前入力は即検索して候補を出す
 }
 function closeAddrSearch(){ if(addrModal) addrModal.hidden=true; }
 async function searchNearAddr(ev){
@@ -1536,6 +1537,38 @@ function pickAddr(btn){
   if(!(la>=-90&&la<=90&&lo>=-180&&lo<=180)) return;
   closeAddrSearch(); stopSpin();
   setNearPin(la,lo,nm,(nearState&&nearState.radius)||NEAR_DEFAULT_R);   // 検索地点を近くの中心に（半径は現状維持）
+}
+// 図鑑検索窓（#search / #dockSearch）からも住所・地名で地図移動できるようにする。
+// 種の絞り込み（filterState.q）はそのまま。入力2文字以上で窓の直下に「📍 地図で探す」候補を出し、押すと住所検索モーダルへ引き継ぐ。
+let _mapSug=null, _mapSugQ='';
+function ensureMapSug(){
+  if(_mapSug) return _mapSug;
+  _mapSug=document.createElement('button');
+  _mapSug.type='button'; _mapSug.className='mapsug'; _mapSug.hidden=true;
+  _mapSug.addEventListener('mousedown',e=>e.preventDefault());   // 入力のblurより先に発火させない＝クリックを確実に拾う
+  _mapSug.addEventListener('click',()=>{ const q=_mapSugQ; hideMapSug(); if(q) openAddrSearch(q); });   // 既存の住所検索モーダルを事前入力＋即検索で開く
+  document.body.appendChild(_mapSug);
+  // ページ本体のスクロール/リサイズで位置ズレするので閉じる。※capture無し＝scrollはバブルしないため地図内部スクロールでは発火しない（誤閉じ防止）。
+  addEventListener('scroll',()=>hideMapSug());
+  addEventListener('resize',()=>hideMapSug());
+  return _mapSug;
+}
+function updateMapSug(input){
+  const q=(input&&input.value||'').trim();
+  if(q.length<2){ hideMapSug(); return; }
+  const el=ensureMapSug(); _mapSugQ=q;
+  el.innerHTML='<span class="msmain">📍 「'+esc(q)+'」を地図で探す</span><span class="ms2">住所・地名・施設</span>';
+  const r=input.getBoundingClientRect();
+  el.style.left=Math.round(r.left)+'px'; el.style.top=Math.round(r.bottom+4)+'px'; el.style.minWidth=Math.round(r.width)+'px';
+  el.hidden=false;
+}
+function hideMapSug(){ if(_mapSug) _mapSug.hidden=true; }
+// 図鑑検索窓に「地図で探す」候補を配線（種の絞り込みハンドラは既存のまま・これは追加配線）。
+function wireMapSug(input){
+  if(!input) return;
+  input.addEventListener('input',()=>updateMapSug(input));
+  input.addEventListener('blur',()=>setTimeout(hideMapSug,150));   // 候補クリックの猶予を残して閉じる
+  input.addEventListener('keydown',e=>{ if(e.key==='Escape') hideMapSug(); });
 }
 function nearControlsHTML(){
   const rchips=NEAR_RADII.map(r=>`<button class="rchip${nearState.radius===r?' on':''}" onclick="setNearRadius(${r})">${r}km</button>`).join('');
@@ -2069,7 +2102,7 @@ function showWelcome(){
   __speciesReady.then(()=>{ if(currentMode && currentMode.type!=='near' && currentMode.type!=='animal') drawOverview(); });
   renderNearShell('ようこそ',
     `<div class="wcm">
-      <p class="wcm-lead">世界の生きもの <b>5,348種</b> の分布を、地図で旅する図鑑。</p>
+      <p class="wcm-lead">世界の生きもの <b>6,300種</b> の分布を、地図で旅する図鑑。</p>
       <p class="wcm-sub">まずは<b>あなたの近所</b>にどんな生き物がいるか見てみませんか？（GBIFの実観測記録）</p>
       <button class="wcm-cta" onclick="requestLocalGeo()">📍 近所の生き物を見る</button>
       <button class="wcm-alt" onclick="resetAll()">🌐 世界地図（地球儀）で旅する</button>
@@ -2215,8 +2248,9 @@ async function shareFigureCard(id, btn){
 /* ---------- ツール ---------- */
 $('#nearBtn').addEventListener('click',openNearby);
 $('#search').addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); scheduleFilter(); });
+wireMapSug($('#search'));   // 検索窓から住所・地名でも地図移動できるように（種の絞り込みは維持）
 // モバイル：図鑑ドック内の検索窓（上部バーの検索は≤640pxで非表示）。既存 filterState.q/applyFilters に配線。
-{ const ds=$('#dockSearch'); if(ds) ds.addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); scheduleFilter(); }); }
+{ const ds=$('#dockSearch'); if(ds){ ds.addEventListener('input',(e)=>{ filterState.q=e.target.value.trim().toLowerCase(); scheduleFilter(); }); wireMapSug(ds); } }
 let isGlobe=true;
 function syncGlobeBtn(){ const g=$('#globeBtn'); if(g){ g.setAttribute('aria-pressed',String(isGlobe)); g.textContent=isGlobe?'🌐':'🗺️'; } }
 $('#globeBtn').addEventListener('click',()=>{
