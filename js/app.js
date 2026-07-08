@@ -293,6 +293,7 @@ function submitSeen(id){
   toast(gotPhoto?'📸':'👀', `${a.nameJa} を${first?'はじめて':''}記録！ +${first?50:5}XP${gotPhoto?' +10📷':''}`, 2600);
   if(first && ['CR','EN','VU','NT'].includes(a.status) && typeof confetti==='function') confetti();   // レアな種＝ちょい演出
   checkQuests();   // この記録で達成したクエストがあればXP/バッジ/演出（記録toastの後に出る）
+  if(onboarding) welcomeCelebrate();   // 初回オンボ中の最初の記録＝祝福ステップへ（ずかん1マスの快感→次のCTA）
 }
 // 📔 Myずかん（自分が見た記録・レベル・連続記録）
 function openMyDex(){
@@ -2390,7 +2391,7 @@ function startLocalBoot(){
 }
 // 現在地を取得して近所で開く（Googleマップ式）。監視タイマーで無反応でも必ずフォールバック（ヘッドレス検証も固まらない）。
 function requestLocalGeo(){
-  ANALYTICS.track('near_opened');
+  ANALYTICS.track('near_opened'); onboarding=false;   // 近所へ進んだらオンボ終了（この後の記録は通常フロー）
   if(!('geolocation' in navigator)){ bootFallback('お使いの環境では現在地を取得できません。'); return; }
   renderNearShell('近くの生き物','<div class="nearsum">現在地を確認しています…<br><span style="color:#9fb0bd">ブラウザの確認ダイアログで「許可」を選ぶと、近所の生き物が見られます。</span></div>'); openPanel();
   let settled=false;
@@ -2401,17 +2402,54 @@ function requestLocalGeo(){
     {enableHighAccuracy:false,timeout:8000,maximumAge:300000});
   setTimeout(()=>finish(()=>bootFallback('現在地の確認に時間がかかっています。')),9000);
 }
-// 初回ウェルカム（一度きり）。価値を一言＋2択。背景に世界ヒートマップを敷き、閉じても迷子にならない。
+// ===== 初回オンボーディング（60秒で最初の"見た！"／docs/design/02.4・08 §8.3⑥）=====
+// ねらい＝一見さんに「情報過多」で萎えさせず、身近な1種をタップ→記録→"ずかんが1マス埋まる快感"を即体験。
+// 既存挙動は不変：表示は一度きり（LS_WELCOMED）、2回目以降・前回地点あり・ディープリンクは従来どおり自動。
+let onboarding=false;   // オンボ中フラグ（この間の「見た！」だけ祝福ステップに分岐＝通常のカード記録は不変）
+// 身近で誰でも見かけやすい種（分類をばらけさせる＝鳥/虫/両生/哺乳）。存在するIDだけ描く（データ変更に強い）。
+const ONBOARD_SPECIES=['corvusmacrorhynchos','spotbilledduck','whitewagtail','monshirocho','sevenspotladybird','japanesebeetle','japanesetreefrog','ieneko'];
 function showWelcome(){
   try{ localStorage.setItem(LS_WELCOMED,'1'); }catch(e){}   // 表示は一度きり＝次回からは自動（従来挙動）
-  __speciesReady.then(()=>{ if(currentMode && currentMode.type!=='near' && currentMode.type!=='animal') drawOverview(); });
+  ANALYTICS.track('welcome_shown'); onboarding=true;
+  __speciesReady.then(()=>{ if(currentMode && currentMode.type!=='near' && currentMode.type!=='animal') drawOverview(); fillOnboardSpecies(); });   // 種到着で身近な種カードを流し込む
   renderNearShell('ようこそ',
     `<div class="wcm">
-      <p class="wcm-lead">世界の生きもの <b>6,300種</b> の分布を、地図で旅する図鑑。</p>
-      <p class="wcm-sub">まずは<b>あなたの近所</b>にどんな生き物がいるか見てみませんか？（GBIFの実観測記録）</p>
+      <p class="wcm-lead">世界の生きもの <b>6,300種</b> を、地図で旅する図鑑。</p>
+      <p class="wcm-sub">まずは<b>1種</b>だけ、"見た！"してみよう。最近見かけた生きものはいる？<span class="wcm-dim">（無ければ好きな1種でOK）</span></p>
+      <div class="wcm-species" id="wcmSpecies"><div class="wcm-loading">読み込み中…</div></div>
+      <div class="wcm-or">または、まず眺めてみる</div>
       <button class="wcm-cta" onclick="requestLocalGeo()">📍 近所の生き物を見る</button>
-      <button class="wcm-alt" onclick="resetAll()">🌐 世界地図（地球儀）で旅する</button>
+      <button class="wcm-alt" onclick="onboardWorld()">🌐 世界地図（地球儀）で旅する</button>
       <p class="wcm-note">位置情報は周辺の生き物を探すためだけに使い、保存・第三者送信はしません（約1kmに丸めて使用）。</p>
+    </div>`);
+  openPanel();
+}
+// 身近な種カードを描く（種データ到着後）。写真は小サムネ＝原寸を丸ごと読まない。存在しないIDはスキップ。
+function fillOnboardSpecies(){
+  const box=document.getElementById('wcmSpecies'); if(!box)return;
+  const picks=ONBOARD_SPECIES.map(id=>ANIMALS.find(a=>a.id===id)).filter(Boolean).slice(0,8);
+  box.innerHTML=picks.length?picks.map(a=>`<button class="wcm-sp" onclick="onboardSeen('${a.id}')">
+      <span class="wcm-sp-ph"><span class="wcm-sp-em">${a.emoji}</span>${a.photo?`<img src="${thumbURL(a.photo,96)}" alt="" loading="lazy" onload="this.classList.add('on')" onerror="this.remove()">`:''}</span>
+      <span class="wcm-sp-nm">${esc(a.nameJa)}</span></button>`).join(''):'';
+}
+function onboardSeen(id){ ANALYTICS.track('onboard_species_tap'); openSeen(id); }   // タップ→記録モーダル（submitSeenでオンボ祝福へ分岐）
+function onboardWorld(){ onboarding=false; resetAll(); }
+// 最初の"見た！"を祝う＝ずかんが1マス埋まる快感。次の一歩（近所/Myずかん）へ誘導。祝福は一度だけ。
+function welcomeCelebrate(){
+  onboarding=false; ANALYTICS.track('onboard_first_seen');
+  if(typeof confetti==='function') confetti();
+  const lv=USER.level(), sc=USER.speciesCount();
+  renderNearShell('はじめの一歩',
+    `<div class="wcm">
+      <p class="wcm-lead">🎉 ずかんに <b>1マス</b> 埋まった！</p>
+      <div class="myd-stats" style="margin:8px 0 14px">
+        <div class="myd-st"><b>Lv.${lv}</b><span>レベル</span></div>
+        <div class="myd-st"><b>${sc}</b><span>見た種</span></div>
+      </div>
+      <p class="wcm-sub">この調子で、現実で出会った生きものを"見た！"して集めよう。まずは<b>近所</b>を探検！</p>
+      <button class="wcm-cta" onclick="requestLocalGeo()">📍 近所の生き物を探す</button>
+      <button class="wcm-alt" onclick="openMyDex()">📔 Myずかんを見る</button>
+      <button class="wcm-alt" style="margin-top:10px" onclick="onboardWorld()">🌐 世界地図で旅する</button>
     </div>`);
   openPanel();
 }
@@ -2627,4 +2665,4 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, openStats, closeStats, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, openStats, closeStats, onboardSeen, onboardWorld, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters })
