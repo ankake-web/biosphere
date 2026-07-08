@@ -289,6 +289,7 @@ function submitSeen(id){
   if(!res.ok){ toast('⚠️','端末の保存容量がいっぱいで記録できませんでした。写真を減らすかMyずかんを整理してね', 3200); return; }   // 永続失敗＝巻き戻し済み。偽の成功表示を出さない
   updateSeenBtn(id);
   const gotPhoto=!!rec.photo;   // 容量超過で写真が捨てられた場合は false＝toast/XP と実保存を一致させる
+  ANALYTICS.track('sighting'); if(first)ANALYTICS.track('sighting_first'); if(gotPhoto)ANALYTICS.track('sighting_photo');   // 端末内解析：北極星の元イベント
   toast(gotPhoto?'📸':'👀', `${a.nameJa} を${first?'はじめて':''}記録！ +${first?50:5}XP${gotPhoto?' +10📷':''}`, 2600);
   if(first && ['CR','EN','VU','NT'].includes(a.status) && typeof confetti==='function') confetti();   // レアな種＝ちょい演出
   checkQuests();   // この記録で達成したクエストがあればXP/バッジ/演出（記録toastの後に出る）
@@ -296,6 +297,7 @@ function submitSeen(id){
 // 📔 Myずかん（自分が見た記録・レベル・連続記録）
 function openMyDex(){
   closeMyDex();
+  ANALYTICS.track('mydex_opened');
   checkQuests();   // 開いた時点で達成済み（連続記録/期間系など）があれば付与してから描画
   const base=USER.xp(), qx=questXp(), xp=base+qx;   // 総XP＝記録XP＋クエストボーナス
   const lv=Math.floor(Math.sqrt(xp/50))+1, sc=USER.speciesCount(), st=USER.streak();
@@ -381,13 +383,76 @@ function questXp(){ return QUESTS.reduce((x,q)=>x+(QDONE.has(q.id)?q.rewardXp:0)
 function checkQuests(){
   const newly=[];
   for(const q of QUESTS){ if(QDONE.has(q.id)) continue; if(evalQuest(q).done){ QDONE.add(q.id); if(q.badge) BADGES.add('q_'+q.badge); newly.push(q); } }
-  if(newly.length){ saveQuests(); if(typeof saveBadges==='function') saveBadges();
+  if(newly.length){ saveQuests(); if(typeof saveBadges==='function') saveBadges(); newly.forEach(()=>ANALYTICS.track('quest_done'));
     const xp=newly.reduce((s,q)=>s+q.rewardXp,0);
     const msg=newly.length===1?`クエスト達成！「${newly[0].title}」 +${newly[0].rewardXp}XP`:`クエスト${newly.length}個達成！ +${xp}XP`;
     setTimeout(()=>{ toast('🏅',msg,3400); if(typeof confetti==='function') confetti(); }, 1400);   // 記録toastの後に見せる
   }
   return newly.length;
 }
+// ===== 軽量アクセス解析（端末内だけ・外部送信なし・プライバシー配慮／docs/design/08 §8.3⑦）=====
+// 北極星指標＝「週1回以上"見た！"する人」。バックエンド無しの Stage1a では"この端末"の週次アクティブとファネルをローカル集計＝
+// 自分のドッグフーディング（毎日/毎週使うか）を測る。track() は将来 Stage1b で Supabase/解析基盤へPOSTできる seam（今は localStorage のみ）。
+// ★保存するのはイベント名・回数・時刻・日付だけ＝個人情報も座標も一切保存しない。
+const ANALYTICS = (()=>{
+  const LS='biosphere_analytics';
+  let d; try{ d=JSON.parse(localStorage.getItem(LS)||'{}'); }catch(e){ d={}; }
+  d.ev=d.ev||{};         // イベント名→回数
+  d.first=d.first||{};   // イベント名→初回時刻(ms)
+  d.last=d.last||{};     // イベント名→最終時刻(ms)
+  d.days=Array.isArray(d.days)?d.days:[];   // 開いた日(YYYY-MM-DD)のユニーク集合
+  const save=()=>{ try{ localStorage.setItem(LS,JSON.stringify(d)); }catch(e){} };
+  const dstr=t=>{ const x=new Date(t); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
+  // ISO週キー（"見た！"の週次アクティブ判定用）＝木曜基準の標準アルゴリズム
+  const weekKey=t=>{ const x=new Date(t); x.setHours(0,0,0,0); x.setDate(x.getDate()+3-((x.getDay()+6)%7));
+    const wk1=new Date(x.getFullYear(),0,4); const wn=1+Math.round(((x-wk1)/86400000-3+((wk1.getDay()+6)%7))/7);
+    return x.getFullYear()+'-W'+String(wn).padStart(2,'0'); };
+  return {
+    track(ev){ if(!ev)return; d.ev[ev]=(d.ev[ev]||0)+1; const now=Date.now(); if(!d.first[ev])d.first[ev]=now; d.last[ev]=now; save(); },
+    markDay(){ const t=dstr(Date.now()); if(!d.days.includes(t)){ d.days.push(t); if(d.days.length>400)d.days=d.days.slice(-400); save(); } },
+    daysActive(){ return d.days.length; },
+    // 北極星：この端末が「今週"見た！"した」か＝週次アクティブ・レコーダー。連続週数・記録のあった週数も返す。
+    northStar(){
+      const weeks=new Set((USER.all()||[]).map(s=>weekKey(s.at)));
+      const now=Date.now(), thisW=weekKey(now), lastW=weekKey(now-7*86400000);
+      const activeThisWeek=weeks.has(thisW);
+      let anchor=activeThisWeek?now:(weeks.has(lastW)?now-7*86400000:null), streak=0;   // 今週(無ければ先週から猶予)を起点に遡る
+      while(anchor!=null && weeks.has(weekKey(anchor))){ streak++; anchor-=7*86400000; }
+      return { activeThisWeek, weekStreak:streak, weeksWithSighting:weeks.size };
+    },
+    dump(){ return { ev:d.ev, first:d.first, last:d.last, days:d.days.slice() }; },
+  };
+})();
+// #stats（隠しパネル・自分用ドッグフーディング指標）。外部送信なし＝表示するのはこの端末に貯めた自分のデータだけ。
+function openStats(){
+  closeStats();
+  const ns=ANALYTICS.northStar(), du=ANALYTICS.dump();
+  const nSight=(USER.all()||[]).length, nSpec=USER.speciesCount(), lv=USER.level(), days=ANALYTICS.daysActive();
+  const order=['visit','welcome_shown','onboard_species_tap','onboard_first_seen','near_opened','world_opened','sighting','sighting_first','sighting_photo','quest_done','mydex_opened'];
+  const keys=[...order.filter(k=>k in du.ev), ...Object.keys(du.ev).filter(k=>!order.includes(k)).sort()];
+  const evRows=keys.map(k=>`<tr><td>${esc(k)}</td><td>${du.ev[k]}</td><td>${du.first[k]?new Date(du.first[k]).toLocaleDateString('ja-JP'):'—'}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">まだイベントがありません</td></tr>';
+  const m=document.createElement('div'); m.className='modal'; m.id='statsModal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
+  m.innerHTML=`<div class="modal-bg" onclick="closeStats()"></div>
+    <div class="modal-card stats-card">
+      <button class="pclose" onclick="closeStats()" aria-label="閉じる">✕</button>
+      <h2>📊 解析（この端末・自分用）</h2>
+      <p class="stats-note">外部送信なし。表示はこの端末に貯めた自分のデータだけ。北極星＝<b>週1回以上"見た！"</b>する習慣がつくか（ドッグフーディング）。</p>
+      <div class="stats-hero${ns.activeThisWeek?' on':''}">
+        <b>${ns.activeThisWeek?'✅ 今週アクティブ':'— 今週まだ"見た！"なし'}</b>
+        <span>北極星：週1回以上"見た！" ・ 連続 ${ns.weekStreak} 週 ・ 記録のあった週 ${ns.weeksWithSighting}</span>
+      </div>
+      <div class="myd-stats">
+        <div class="myd-st"><b>${days}</b><span>開いた日数</span></div>
+        <div class="myd-st"><b>${nSight}</b><span>総記録</span></div>
+        <div class="myd-st"><b>${nSpec}</b><span>見た種</span></div>
+        <div class="myd-st"><b>Lv.${lv}</b><span>レベル</span></div>
+      </div>
+      <h3>ファネル / イベント</h3>
+      <div class="stats-tblwrap"><table class="stats-tbl"><thead><tr><th>イベント</th><th>回数</th><th>初回</th></tr></thead><tbody>${evRows}</tbody></table></div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function closeStats(){ const m=document.getElementById('statsModal'); if(m)m.remove(); }
 const filterState = {biome:null, q:'', facet:''};   // 環境/検索/分類傾向の絞り込みを一元管理
 let gbifYear=null;   // GBIF分布の年代フィルタ（&year=...）。null=全期間。動物を切り替えても保持
 const YEAR_STOPS=[
@@ -1071,7 +1136,7 @@ function fetchLocalSpecies(code){
   },250);
 }
 function fmtN(n){ return n>=1000? (n/1000).toFixed(n>=10000?0:1)+'k' : String(n); }
-function resetAll(){ pressChip(null); pressBiome(null); removeNearbyVisuals();
+function resetAll(){ ANALYTICS.track('world_opened'); pressChip(null); pressBiome(null); removeNearbyVisuals();
   filterState.biome=null; filterState.facet=''; filterState.q='';
   const ss=$('#sortSel'),fs=$('#facetSel'),sr=$('#search'); if(fs)fs.value=''; if(sr)sr.value=''; if(ss)ss.value='no';
   sortChips('no'); closePanel(); drawOverview();   // sortChips が窓を先頭から描き直す（フィルタ解除済み＝全種の先頭CHIP_BASE枚）
@@ -2296,7 +2361,9 @@ const LS_LASTLOC='biosphere_lastloc', LS_LOCALHINT='biosphere_localhint', LS_WEL
 function saveLastLoc(lat,lng,radius){ try{ localStorage.setItem(LS_LASTLOC,JSON.stringify({lat,lng,radius})); }catch(e){} }
 function getLastLoc(){ try{ const o=JSON.parse(localStorage.getItem(LS_LASTLOC)||'null'); return (o&&typeof o.lat==='number'&&typeof o.lng==='number')?o:null; }catch(e){ return null; } }
 function bootInitialView(){
+  ANALYTICS.markDay(); ANALYTICS.track('visit');   // 端末内解析：訪問（外部送信なし）
   const h=location.hash.replace('#','');
+  if(h==='stats'){ startLocalBoot(); openStats(); return; }   // #stats＝自分用の解析パネル（通常起動の上に重ねる）
   // 地点ディープリンク：#@lat,lng[,radius]（例 #@35.68,139.76 や #@35.68,139.76,5）
   const m=h.match(/^@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)(?:,(\d+))?$/);
   if(m){ const la=+m[1], lo=+m[2];   // 共有/改ざんリンクの不正座標はローカル起動へフォールバック（flyToへ流さない）
@@ -2323,6 +2390,7 @@ function startLocalBoot(){
 }
 // 現在地を取得して近所で開く（Googleマップ式）。監視タイマーで無反応でも必ずフォールバック（ヘッドレス検証も固まらない）。
 function requestLocalGeo(){
+  ANALYTICS.track('near_opened');
   if(!('geolocation' in navigator)){ bootFallback('お使いの環境では現在地を取得できません。'); return; }
   renderNearShell('近くの生き物','<div class="nearsum">現在地を確認しています…<br><span style="color:#9fb0bd">ブラウザの確認ダイアログで「許可」を選ぶと、近所の生き物が見られます。</span></div>'); openPanel();
   let settled=false;
@@ -2559,4 +2627,4 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, openStats, closeStats, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters })

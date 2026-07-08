@@ -418,6 +418,19 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .wcm-alt{display:block;width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#e7eef2;font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;}
 .wcm-alt:hover{background:rgba(255,255,255,.11);}
 .wcm-note{font-size:11px;color:var(--muted-2);line-height:1.5;margin:14px 2px 0;}
+/* ---- #stats 解析パネル（自分用・端末内だけ・docs/design/08 §8.3⑦） ---- */
+.stats-card .pclose{position:absolute;top:12px;right:12px;}
+.stats-note{font-size:11.5px;color:var(--muted-2);line-height:1.6;margin:2px 0 12px;}.stats-note b{color:#fff;}
+.stats-hero{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin-bottom:10px;}
+.stats-hero.on{background:rgba(52,216,198,.12);border-color:rgba(52,216,198,.4);}
+.stats-hero b{display:block;font-size:15px;color:#e8f2f0;margin-bottom:3px;}.stats-hero.on b{color:var(--teal);}
+.stats-hero span{font-size:11.5px;color:var(--muted-2);}
+.stats-tblwrap{max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px;}
+.stats-tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.stats-tbl th{position:sticky;top:0;background:#12252c;color:var(--muted-2);font-weight:600;text-align:left;padding:7px 10px;font-size:10.5px;letter-spacing:.04em;}
+.stats-tbl td{padding:6px 10px;border-top:1px solid rgba(255,255,255,.05);color:#dbe6ea;}
+.stats-tbl td:nth-child(2){text-align:right;color:var(--teal);font-weight:700;width:56px;}
+.stats-tbl td:nth-child(3){text-align:right;color:var(--muted-2);width:84px;}
 .nd{padding:0 16px 18px;}
 .ndimg{width:100%;height:200px;object-fit:cover;border-radius:12px;background:rgba(255,255,255,.05);}
 .ndnoimg{display:grid;place-items:center;font-size:42px;}
