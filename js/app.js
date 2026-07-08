@@ -271,11 +271,12 @@ function openSeen(id){
     </div>`;
   document.body.appendChild(m);
 }
-function closeSeen(){ const m=document.getElementById('seenModal'); if(m)m.remove(); }
+function closeSeen(){ onboardPendingSeen=false; const m=document.getElementById('seenModal'); if(m)m.remove(); }   // 記録せず閉じたら祝福の印もクリア（submitSeenは事前にローカル退避済み）
 function seenPreview(inp){ const f=inp.files&&inp.files[0]; const p=document.getElementById('seenPrev'); if(!f||!p)return;
   downscalePhoto(f,420).then(u=>{ if(u){ p.hidden=false; p.dataset.url=u; const im=p.querySelector('img'); if(im)im.src=u; } }); }
 function submitSeen(id){
   const a=ANIMALS.find(x=>x.id===id); if(!a)return;
+  const fromOnboard=onboardPendingSeen; onboardPendingSeen=false;   // closeSeen前に退避＝オンボの身近な種タップ由来の記録か
   const noteEl=document.getElementById('seenNote'); const note=(noteEl&&noteEl.value||'').trim();
   const maybe=!!(document.getElementById('seenMaybe')&&document.getElementById('seenMaybe').checked);
   const prev=document.getElementById('seenPrev'); const photo=(prev&&!prev.hidden&&prev.dataset.url)||null;
@@ -293,7 +294,7 @@ function submitSeen(id){
   toast(gotPhoto?'📸':'👀', `${a.nameJa} を${first?'はじめて':''}記録！ +${first?50:5}XP${gotPhoto?' +10📷':''}`, 2600);
   if(first && ['CR','EN','VU','NT'].includes(a.status) && typeof confetti==='function') confetti();   // レアな種＝ちょい演出
   checkQuests();   // この記録で達成したクエストがあればXP/バッジ/演出（記録toastの後に出る）
-  if(onboarding) welcomeCelebrate();   // 初回オンボ中の最初の記録＝祝福ステップへ（ずかん1マスの快感→次のCTA）
+  if(onboarding && fromOnboard) welcomeCelebrate();   // オンボの身近な種タップ由来の記録だけ祝福（通常のカード/近く記録は不変・誤発火しない）
 }
 // 📔 Myずかん（自分が見た記録・レベル・連続記録）
 function openMyDex(){
@@ -415,10 +416,11 @@ const ANALYTICS = (()=>{
     // 北極星：この端末が「今週"見た！"した」か＝週次アクティブ・レコーダー。連続週数・記録のあった週数も返す。
     northStar(){
       const weeks=new Set((USER.all()||[]).map(s=>weekKey(s.at)));
-      const now=Date.now(), thisW=weekKey(now), lastW=weekKey(now-7*86400000);
-      const activeThisWeek=weeks.has(thisW);
-      let anchor=activeThisWeek?now:(weeks.has(lastW)?now-7*86400000:null), streak=0;   // 今週(無ければ先週から猶予)を起点に遡る
-      while(anchor!=null && weeks.has(weekKey(anchor))){ streak++; anchor-=7*86400000; }
+      const now=new Date(), lastWk=new Date(now); lastWk.setDate(lastWk.getDate()-7);
+      const activeThisWeek=weeks.has(weekKey(now.getTime()));
+      // 連続週：今週(無ければ先週から猶予)を起点に、カレンダー日で7日ずつ遡る（setDateはDST安全＝USER.streakと同じ流儀。ms減算だとDST/深夜起点で週を取りこぼす）
+      let cur=activeThisWeek?new Date(now):(weeks.has(weekKey(lastWk.getTime()))?lastWk:null), streak=0;
+      while(cur && weeks.has(weekKey(cur.getTime()))){ streak++; cur.setDate(cur.getDate()-7); }
       return { activeThisWeek, weekStreak:streak, weeksWithSighting:weeks.size };
     },
     dump(){ return { ev:d.ev, first:d.first, last:d.last, days:d.days.slice() }; },
@@ -2405,7 +2407,8 @@ function requestLocalGeo(){
 // ===== 初回オンボーディング（60秒で最初の"見た！"／docs/design/02.4・08 §8.3⑥）=====
 // ねらい＝一見さんに「情報過多」で萎えさせず、身近な1種をタップ→記録→"ずかんが1マス埋まる快感"を即体験。
 // 既存挙動は不変：表示は一度きり（LS_WELCOMED）、2回目以降・前回地点あり・ディープリンクは従来どおり自動。
-let onboarding=false;   // オンボ中フラグ（この間の「見た！」だけ祝福ステップに分岐＝通常のカード記録は不変）
+let onboarding=false;         // オンボ中フラグ（初回ウェルカム表示中）
+let onboardPendingSeen=false; // ★祝福は「身近な種タップ→openSeen→submitSeen」の一連の時だけ。✕でウェルカムを閉じたり地図/ドックで別モードへ離脱してフラグが残っても、通常記録では祝福を出さない（敵対レビュー確定）
 // 身近で誰でも見かけやすい種（分類をばらけさせる＝鳥/虫/両生/哺乳）。存在するIDだけ描く（データ変更に強い）。
 const ONBOARD_SPECIES=['corvusmacrorhynchos','spotbilledduck','whitewagtail','monshirocho','sevenspotladybird','japanesebeetle','japanesetreefrog','ieneko'];
 function showWelcome(){
@@ -2432,7 +2435,7 @@ function fillOnboardSpecies(){
       <span class="wcm-sp-ph"><span class="wcm-sp-em">${a.emoji}</span>${a.photo?`<img src="${thumbURL(a.photo,96)}" alt="" loading="lazy" onload="this.classList.add('on')" onerror="this.remove()">`:''}</span>
       <span class="wcm-sp-nm">${esc(a.nameJa)}</span></button>`).join(''):'';
 }
-function onboardSeen(id){ ANALYTICS.track('onboard_species_tap'); openSeen(id); }   // タップ→記録モーダル（submitSeenでオンボ祝福へ分岐）
+function onboardSeen(id){ ANALYTICS.track('onboard_species_tap'); openSeen(id); onboardPendingSeen=true; }   // ★印はopenSeenの後で立てる（openSeen冒頭のcloseSeenがフラグを消すため）＝この記録だけ祝福
 function onboardWorld(){ onboarding=false; resetAll(); }
 // 最初の"見た！"を祝う＝ずかんが1マス埋まる快感。次の一歩（近所/Myずかん）へ誘導。祝福は一度だけ。
 function welcomeCelebrate(){
