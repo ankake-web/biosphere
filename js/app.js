@@ -160,8 +160,13 @@ function photoURL(p){
 }
 // 復元済みフルURL(a.photo)から小サムネURLを作る。小さいアイコン(世界の浮遊アイコン等)で原寸/960px画像を丸ごと読まないため。
 // thumb URLは幅を差し替え、直リンク原寸(Commons)はthumb経路へ組み替え、SVG/非Commonsはそのまま。
+/* Wikimedia は任意幅のサムネを作ってくれない。許可サイズ以外を要求すると HTTP 400 を返し、
+   ブラウザは画像として拒否する（Chrome では net::ERR_BLOCKED_BY_ORB）＝写真が黙って出なくなる。
+   実測で 200 を返すのは下記のみ（96px・160px・320px などは全滅）。要求幅以上で最小のものに丸める。 */
+const WM_THUMB_SIZES=[120,250,500,960,1280,1920];
+function wmThumbSize(w){ for(const s of WM_THUMB_SIZES) if(s>=w) return s; return WM_THUMB_SIZES[WM_THUMB_SIZES.length-1]; }
 function thumbURL(u, w){
-  if(typeof u!=='string' || !u) return u||''; w=w||160;
+  if(typeof u!=='string' || !u) return u||''; w=wmThumbSize(w||120);
   const T='/wikipedia/commons/thumb/', C='/wikipedia/commons/';
   if(u.indexOf(T)>=0) return u.replace(/\/(\d+)px-([^/]+)$/, '/'+w+'px-$2');   // 既にthumb＝幅だけ差し替え
   const ci=u.indexOf(C);
@@ -2266,7 +2271,7 @@ function spawnCreatureIcons(list, n){
     el.addEventListener('click',(e)=>{ e.stopPropagation(); selectAnimal(a.id); });
     let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(a.focus.c).addTo(map); }catch(e){ return; }
     worldCreatureMarkers.push(mk);
-    if(a.photo && !bub.querySelector('img')){ const img=document.createElement('img'); img.src=thumbURL(a.photo,160); img.alt=''; img.loading='lazy'; img.onload=()=>img.classList.add('on'); img.onerror=()=>{try{img.remove();}catch(e){}}; bub.appendChild(img); }   // 図鑑写真を小サムネ(160px)で（原寸を丸ごと読まない）
+    if(a.photo && !bub.querySelector('img')){ const img=document.createElement('img'); img.src=thumbURL(a.photo,120); img.alt=''; img.loading='lazy'; img.onload=()=>img.classList.add('on'); img.onerror=()=>{try{img.remove();}catch(e){}}; bub.appendChild(img); }   // 図鑑写真を小サムネで（.cmk は40px表示＝120pxで高DPIも足りる。原寸を丸ごと読まない）
     const rr=RARITY[a.status]; if(rr && THREAT_CATS.has(a.status)){ bub.classList.add('threat'); bub.style.setProperty('--tc',rr.color); lab.classList.add('th'); }   // 絶滅危惧は発光
   });
 }
@@ -2482,7 +2487,7 @@ function fillOnboardSpecies(){
   const box=document.getElementById('wcmSpecies'); if(!box)return;
   const picks=ONBOARD_SPECIES.map(id=>ANIMALS.find(a=>a.id===id)).filter(Boolean).slice(0,8);
   box.innerHTML=picks.length?picks.map(a=>`<button class="wcm-sp" onclick="onboardSeen('${a.id}')">
-      <span class="wcm-sp-ph"><span class="wcm-sp-em">${a.emoji}</span>${a.photo?`<img src="${thumbURL(a.photo,96)}" alt="" loading="lazy" onload="this.classList.add('on')" onerror="this.remove()">`:''}</span>
+      <span class="wcm-sp-ph"><span class="wcm-sp-em">${a.emoji}</span>${a.photo?`<img src="${thumbURL(a.photo,120)}" alt="" loading="lazy" onload="this.classList.add('on')" onerror="this.remove()">`:''}</span>
       <span class="wcm-sp-nm">${esc(a.nameJa)}</span></button>`).join(''):'';
 }
 function onboardSeen(id){ ANALYTICS.track('onboard_species_tap'); openSeen(id); onboardPendingSeen=true; }   // ★印はopenSeenの後で立てる（openSeen冒頭のcloseSeenがフラグを消すため）＝この記録だけ祝福
