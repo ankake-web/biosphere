@@ -1585,16 +1585,19 @@ async function obisOcc(lat,lng,radius,limit){   // 座標付き occurrence（マ
   }catch(e){ await new Promise(s=>setTimeout(s,500)); } }
   return [];
 }
-async function obisChecklist(lat,lng,radius){   // 種＋記録数（一覧用・[{name,count}]）
+// 種＋記録数（一覧用・[{name,count,ocls}]）。OBIS_TAXA はクジラ類(2688)も含むので魚グループに併合しても
+// 「魚とは限らない」。実クラス(ocls)を持ち帰り、basisの広げ方(wide)だけはクジラを魚扱いしないようにする。
+async function obisChecklist(lat,lng,radius){
   const url=`https://api.obis.org/v3/checklist?geometry=${encodeURIComponent(obisBbox(lat,lng,radius))}&taxonid=${OBIS_TAXA}`;
   for(let i=0;i<3;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1000*(i+1))); continue; }
     if(!r.ok){ await new Promise(s=>setTimeout(s,400)); continue; } const d=await r.json();
-    return (d.results||[]).filter(o=>o.taxonRank==='Species'&&o.scientificName).map(o=>({name:o.scientificName,count:o.records||0}));
+    return (d.results||[]).filter(o=>o.taxonRank==='Species'&&o.scientificName).map(o=>({name:o.scientificName,count:o.records||0,ocls:o.class||''}));
   }catch(e){ await new Promise(s=>setTimeout(s,500)); } }
   return [];
 }
-function mergeCounts(...lists){ const m=new Map();   // 複数の[{name,count}]を二名キーで統合（最大値・降順）
-  for(const l of lists) for(const r of (l||[])){ const k=(r.name||'').toLowerCase(); if(!k) continue; const e=m.get(k); if(e) e.count=Math.max(e.count,r.count); else m.set(k,{name:r.name,count:r.count}); }
+function mergeCounts(...lists){ const m=new Map();   // 複数の[{name,count,ocls?}]を二名キーで統合（最大値・降順）
+  for(const l of lists) for(const r of (l||[])){ const k=(r.name||'').toLowerCase(); if(!k) continue; const e=m.get(k);
+    if(e){ e.count=Math.max(e.count,r.count); if(!e.ocls&&r.ocls) e.ocls=r.ocls; } else m.set(k,{name:r.name,count:r.count,ocls:r.ocls||''}); }
   return [...m.values()].sort((a,b)=>b.count-a.count);
 }
 let nearState=null;                 // {lat,lng,radius,label}
@@ -1754,7 +1757,7 @@ function recenterCurrent(){
 // 未選択＝脊椎5クラスを段階描画／種別を選ぶと選択クラス群（1つでも複数でも）を同じ段階描画ロジックで取得。
 function queryNear(immediate){
   const {lat,lng,radius}=nearState, clsKey=nearClsKey(), k=nearKey(lat,lng,radius)+'|'+clsKey, cached=nearCacheGet(k), gen=++queryGen;
-  if(cached&&cached.length){ nearRows=cached.map(c=>({name:c.name,count:c.count,gcls:c.gcls})); renderNearList(); }
+  if(cached&&cached.length){ nearRows=cached.map(c=>({name:c.name,count:c.count,gcls:c.gcls,ocls:c.ocls||''})); renderNearList(); }
   else { nearRows=[]; renderNearList('<div class="nearsum">🛰️ 周辺の記録を集めています…</div>'); }
   clearTimeout(nearTimer);
   const run=()=>{
@@ -1771,7 +1774,7 @@ function queryNear(immediate){
       const merged=[], seen=new Set(), maxLen=Math.max(0,...groupRows.map(r=>r?r.length:0));
       for(let i=0;i<maxLen;i++) for(let gi=0;gi<groupRows.length;gi++){ const rr=groupRows[gi], c=rr&&rr[i]; if(!c) continue;
         const key=c.name.toLowerCase(); if(seen.has(key)) continue; seen.add(key);
-        let obj=rowObj.get(key); if(!obj){ obj={name:c.name,count:c.count,gcls:c.gcls}; rowObj.set(key,obj); } else obj.count=Math.max(obj.count,c.count);
+        let obj=rowObj.get(key); if(!obj){ obj={name:c.name,count:c.count,gcls:c.gcls,ocls:c.ocls||''}; rowObj.set(key,obj); } else obj.count=Math.max(obj.count,c.count);
         merged.push(obj); }
       return merged.slice(0,nearCap);   // 一覧件数は表示数コントロール連動
     };
@@ -1783,14 +1786,14 @@ function queryNear(immediate){
         : gbifFacetNear(lat,lng,radius,g.keys,flim,y1,y2,true);
       fp
         .then(rows=>{ if(stale()) return;
-          groupRows[gi]=rows.slice(0,Math.max(g.cap,nearCap)).map(c=>({name:c.name,count:c.count,gcls:g.c}));   // 単一クラス時も表示数まで拾えるよう g.cap と nearCap の大きい方
+          groupRows[gi]=rows.slice(0,Math.max(g.cap,nearCap)).map(c=>({name:c.name,count:c.count,gcls:g.c,ocls:c.ocls||''}));   // 単一クラス時も表示数まで拾えるよう g.cap と nearCap の大きい方。ocls=OBIS由来の実クラス（クジラを魚扱いしない）
           if(!firstPainted){ const merged=rebuild(); if(merged.length){ nearRows=merged; renderNearList(); firstPainted=true; } }   // 最速クラスで一覧を即出す
         })
         .catch(()=>{})
         .finally(()=>{ settled++; if(settled!==groups.length || stale()) return;   // 全クラス出そろい＝確定描画＋キャッシュ
           const merged=rebuild();
           if(!merged.length){ noneMsg(); }
-          else { nearCacheSet(k,merged.map(c=>({name:c.name,count:c.count,gcls:c.gcls}))); nearRows=merged; renderNearList(); }
+          else { nearCacheSet(k,merged.map(c=>({name:c.name,count:c.count,gcls:c.gcls,ocls:c.ocls||''}))); nearRows=merged; renderNearList(); }
         });
     });
   };
@@ -1924,7 +1927,7 @@ function renderNearList(overrideInner){
       <span class="cnt2">${fmtN(c.count)}件</span></button>`;}).join('');
   renderNearShell(nearState.label+'の近く',
     controls+
-    `<div class="nearsum" id="nearsum">この範囲で記録の多い脊椎動物 <b>${nearRows.length}種</b><br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIF実観測（タップで詳細／📖は図鑑収録）</span></div>
+    `<div class="nearsum" id="nearsum">この範囲で記録の多い脊椎動物 <b>${nearRows.length}種</b><br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIFの記録（タップで詳細／📖は図鑑収録）</span></div>
      <div class="locsp" id="nearlist">${rows}</div>`);
   openPanel(); resolveAllRows();
 }
@@ -1975,7 +1978,7 @@ function applyNearFilter(){
   if(nearThreatOnly) head=`この範囲の<b>絶滅危惧</b> <b>${vis}種</b>`;
   else if(nearClasses.length){ head=`<b>${nearClassLabel()}</b>でしぼり込み <b>${vis}種</b>`; }
   else head=`この範囲で記録の多い脊椎動物 <b>${nearRows.length}種</b>`;
-  sum.innerHTML=`${head}<br>${thChip}<br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIF実観測（タップで詳細／📖は図鑑収録）</span>`;
+  sum.innerHTML=`${head}<br>${thChip}<br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIFの記録（タップで詳細／📖は図鑑収録）</span>`;
 }
 /* ==== 近くの生き物 詳細（上部タブ：📍近く / 📖図鑑）====
    近くのアイコン/一覧から開く詳細パネル。図鑑収録種は上部タブで「近く情報」と
@@ -1997,11 +2000,18 @@ function openNearDetail(btn){
 }
 // 近くモードのグループキー／GBIFクラス名のうち「魚」に当たるもの（＝季節・観測点・メッシュを WILD 条件で引く）
 const FISH_GCLS=new Set(['Fish','Actinopterygii','Chondrichthyes','Elasmobranchii','Teleostei']);
+// OBIS の魚グループに混ざりうる非魚（OBIS_TAXA はクジラ類 2688 を含む）。この実クラスなら魚扱いしない。
+const NON_FISH_OCLS=new Set(['Mammalia','Aves','Reptilia']);
 // 生き物アイコン/一覧行からの詳細を開く共通入口。図鑑収録種は hit を持たせタブを出す。地図は動かさない。
 function openFigDetail(sci, cnt, i, cls){
   const hit=ANIMALS.find(a=>(a.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===String(sci).toLowerCase());
   const row=nearRows[i];   // i=-1（一覧に無い＝マーカー由来）なら undefined
-  const wide=hit?isWideBasis(hit):(FISH_GCLS.has(cls||'')||!!(row&&FISH_GCLS.has(row.gcls||'')));   // 魚は一覧/マーカーと同じ母集団で引く
+  // 魚は一覧/マーカーと同じ広い basis で引く。ただし OBIS併合行は魚グループでも実体がクジラのことがある
+  // （OBIS_TAXA にクジラ類を含むため）ので、実クラス(ocls)が哺乳類なら魚扱いしない。
+  // ocls が未知の魚クラス（ギンザメ Holocephali 等）でも従来どおり gcls='Fish' で wide になる。
+  const wide=hit ? isWideBasis(hit)
+    : (row&&NON_FISH_OCLS.has(row.ocls||'')) ? false
+    : (FISH_GCLS.has(cls||'')||!!(row&&FISH_GCLS.has(row.gcls||'')));
   nearFig={sci, cnt, i, hit, wide, tab:'near'};
   figGbifOn=false; removeGbif();
   renderFigNear();
@@ -2085,8 +2095,9 @@ async function loadSeason(sci, wide){
   };
   try{
     let counts=await monthCounts(GBIF_HUMAN_Q);                 // まず人の目撃だけ＝旬の純度を保つ
+    if(document.getElementById('seasonwrap')!==wrap)return;     // 待機中にパネルが差し替わっていたら、2本目を投げずに破棄
     if(!counts.length && wide) counts=await monthCounts(GBIF_WILD_Q);   // 目撃ゼロの魚だけ標本にフォールバック
-    if(document.getElementById('seasonwrap')!==wrap)return;     // 待機中にパネルが差し替わっていたら破棄
+    if(document.getElementById('seasonwrap')!==wrap)return;
     if(!counts.length){ wrap.innerHTML='<span class="muted">この範囲では月別の記録が十分ありません。</span>'; return; }
     const months=Array(12).fill(0); counts.forEach(c=>{const m=+c.name; if(m>=1&&m<=12)months[m-1]=c.count;});
     wrap.innerHTML=renderSeasonBars(months);
@@ -2644,7 +2655,8 @@ $('#globeBtn').addEventListener('click',()=>{
   isGlobe=!isGlobe; try{ map.setProjection({type:isGlobe?'globe':'mercator'}); }catch(e){}
   syncGlobeBtn(); toast(isGlobe?'🌐':'🗺️',isGlobe?'地球儀表示':'平面表示',1500);});
 $('#gbifBtn').addEventListener('click',()=>{ gbifOn=!gbifOn;
-  toast('🛰️', gbifOn?'GBIF実観測データ：ON':'実観測データ：OFF（手描き分布）',1900);
+  const w=isWideBasis(currentAnimal);   // 魚は標本・調査記録も描くので「実観測」と言わない（カード内ボタンと文言を揃える）
+  toast('🛰️', gbifOn?(w?'GBIFの記録：ON':'GBIF実観測データ：ON'):(w?'GBIFの記録：OFF（手描き分布）':'実観測データ：OFF（手描き分布）'),1900);
   if(currentAnimal) paintAnimal(currentAnimal); else removeGbif();
   if(currentAnimal) setMode(animalModeText(currentAnimal));
   showYearbar(gbifOn && currentMode.type==='animal');
