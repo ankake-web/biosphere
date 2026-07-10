@@ -8,15 +8,44 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execFileSync } from 'child_process';   // sitemap の lastmod 初期値（種データの最終変更日）を git から引く
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const SITE = 'https://ankake-web.github.io/biosphere';
-// sitemap の lastmod＝このスクリプトを走らせた日。種を触ったら必ず再生成する運用なので「コンテンツの最終更新日」に一致する。
-// 固定文字列にしていると、種を744件足しても全URLが古い日付のままになり、クローラに「更新なし」と伝えてしまう。
-const TODAY = new Date().toISOString().slice(0, 10);
-// サイト全体を表すOGP画像（自前・1200x630）。種ページは「その種の写真」を使うのでこれは使わない。
-// 以前は zukan/about もライオンの写真（Wikimedia・CC BY-SA）を指しており、内容と一致せず帰属も出せなかった。
+// 実行日（ローカル日付）。toISOString() は UTC なので日本の朝9時前だと前日になってしまう。
+const _d = new Date();
+const TODAY = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}-${String(_d.getDate()).padStart(2, '0')}`;
+// サイト全体を表すOGP画像（自前・1200x630）。種ページは「その種の写真」の方が内容と一致するのでこれは使わない。
+// 以前は zukan/about も（代表種でもない）ライオンの写真を指していた。
 const OG_IMAGE = SITE + '/og.jpg';
+
+/* sitemap の lastmod は「そのページの内容が最後に変わった日」でなければ意味がない。
+   全URLに実行日を書くと、種を1件も触らずコードだけ直した再生成でも「6,300種すべて今日更新」と
+   クローラに嘘をつくことになり、Google は当てにならない lastmod を無視するようになる。
+   そこで生成した内容を既存ファイルと比べ、変わったページだけ日付を進める（不変なら前回の値を保つ）。 */
+const prevLastmod = (() => {
+  const p = path.join(ROOT, 'sitemap.xml'), m = new Map();
+  if (!fs.existsSync(p)) return m;
+  for (const x of fs.readFileSync(p, 'utf8').matchAll(/<loc>([^<]+)<\/loc><lastmod>([^<]+)<\/lastmod>/g)) m.set(x[1], x[2]);
+  return m;
+})();
+// 前回の記録が無いURL（初回生成・新しく増えた種）は、種データが最後に変わった日を使う。
+const SPECIES_DATE = (() => {
+  try {
+    const s = execFileSync('git', ['log', '-1', '--format=%cs', '--', 'data/species.json'],
+      { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : TODAY;
+  } catch { return TODAY; }   // git が無い環境では実行日にフォールバック
+})();
+// 内容が同じならファイルを書かない（mtime を動かさない・6,300ファイルの無駄な書き込みを避ける）
+function writeIfChanged(abs, content) {
+  let old = null;
+  try { old = fs.readFileSync(abs, 'utf8'); } catch { /* 未作成 */ }
+  if (old === content) return false;
+  fs.writeFileSync(abs, content);
+  return true;
+}
+const lastmodOf = (url, changed) => changed ? TODAY : (prevLastmod.get(url) || SPECIES_DATE);
 
 // --- 単一ソース：種データ ---
 const species = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/species.json'), 'utf8'));
@@ -235,28 +264,41 @@ footer.site{border-top:1px solid var(--line);padding:20px 18px;color:var(--muted
 .zcard .b{font-size:11px;color:#cdd9df;margin-top:2px;display:block}`;
 
 // ---- 出力 ----
+// 各ページの「変わったか」を記録し、sitemap の lastmod をそれに紐づける。
 const spDir = path.join(ROOT, 'species');
 fs.mkdirSync(spDir, { recursive: true });
+const changed = new Map();   // url -> 内容が変わったか
+let nWritten = 0;
 ANIMALS.forEach((a, i) => {
-  fs.writeFileSync(path.join(spDir, a.id + '.html'), speciesPage(a, ANIMALS[i - 1], ANIMALS[i + 1]));
+  const c = writeIfChanged(path.join(spDir, a.id + '.html'), speciesPage(a, ANIMALS[i - 1], ANIMALS[i + 1]));
+  if (c) nWritten++;
+  changed.set(`${SITE}/species/${a.id}.html`, c);
 });
-fs.writeFileSync(path.join(ROOT, 'static.css'), CSS);
-fs.writeFileSync(path.join(ROOT, 'zukan.html'), zukanPage());
-fs.writeFileSync(path.join(ROOT, 'about.html'), aboutPage());
+writeIfChanged(path.join(ROOT, 'static.css'), CSS);
+changed.set(`${SITE}/zukan.html`, writeIfChanged(path.join(ROOT, 'zukan.html'), zukanPage()));
+changed.set(`${SITE}/about.html`, writeIfChanged(path.join(ROOT, 'about.html'), aboutPage()));
+// トップは手書きの index.html。生成物ではないので git の最終変更日をそのまま lastmod に使う。
+changed.set(`${SITE}/`, false);
+if (!prevLastmod.has(`${SITE}/`)) prevLastmod.set(`${SITE}/`, TODAY);
 
 // sitemap.xml
 const urls = [`${SITE}/`, `${SITE}/zukan.html`, `${SITE}/about.html`, ...ANIMALS.map(a => `${SITE}/species/${a.id}.html`)];
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map(u => `  <url><loc>${u}</loc><lastmod>${TODAY}</lastmod></url>`).join('\n')}
+${urls.map(u => `  <url><loc>${u}</loc><lastmod>${lastmodOf(u, changed.get(u))}</lastmod></url>`).join('\n')}
 </urlset>\n`;
 fs.writeFileSync(path.join(ROOT, 'sitemap.xml'), sitemap);
 
 // robots.txt
+// 注：GitHub Pages のサブパス配信（…/biosphere/）では、クローラが読むのはホスト直下の
+// https://ankake-web.github.io/robots.txt だけで、この robots.txt は参照されない（robots.txt はホスト単位）。
+// つまり下の Sitemap: 行は現状クローラに届かず、sitemap は Search Console から送る必要がある。
+// 独自ドメインに移せばそのまま有効になるので、記述は残す。
 fs.writeFileSync(path.join(ROOT, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
 
 // .nojekyll：GitHub PagesにJekyll処理をスキップさせ、生成済み静的HTMLをそのまま配信させる。
 // （5,000超のページをJekyllが処理するとビルドがタイムアウト/失敗するため必須。全て静的なのでJekyll不要）
 fs.writeFileSync(path.join(ROOT, '.nojekyll'), '');
 
-console.log(`生成完了：species/ ${ANIMALS.length}ページ + zukan.html + about.html + static.css + sitemap.xml + robots.txt + .nojekyll（単一ソース：data/species.json）`);
+console.log(`生成完了：species/ ${ANIMALS.length}ページ（うち内容が変わって書き直したのは ${nWritten}ページ）+ zukan.html + about.html + static.css + sitemap.xml + robots.txt + .nojekyll（単一ソース：data/species.json）`);
+console.log(`sitemap の lastmod：変わったページ=${TODAY} ／ 変わらないページ=前回の値を保持（初出は ${SPECIES_DATE}＝data/species.json の最終変更日）`);
