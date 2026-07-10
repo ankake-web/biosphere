@@ -186,14 +186,28 @@ const MockDataSource = {
 };
 const DATA = MockDataSource;   // ← 将来：GbifDataSource 等に差し替え
 
+/* GBIF basisOfRecord（記録の種別）の共通条件。
+   陸の生きものは人の目撃(HUMAN_OBSERVATION)だけで十分な密度があり、標本ノイズも避けられる＝従来どおり。
+   一方 魚は人の目撃が極端に乏しい。図鑑収録魚90種の実測で HUMAN だけだと 6.7%がメッシュ完全に空・15.6%が50件未満
+   （ブリ=6件／ハタハタ=16件。鳥・哺乳は空0%）。そこで魚だけ標本・調査記録まで採用する＝WILD。
+   GBIFに「除外」パラメータは無いので採用する値を列挙してORにする（v1 search / v2 map density とも複数指定可）。
+   落とすのは FOSSIL_SPECIMEN（化石＝現生でない）／LIVING_SPECIMEN（動物園・栽培＝その土地の野生分布でない）／
+   MATERIAL_CITATION（実測すると PBDB＝古生物データベース由来の化石文献が大半）。 */
+const GBIF_WILD_BASIS=['HUMAN_OBSERVATION','MACHINE_OBSERVATION','OBSERVATION','PRESERVED_SPECIMEN','MATERIAL_SAMPLE','OCCURRENCE'];
+const GBIF_WILD_Q=GBIF_WILD_BASIS.map(b=>'&basisOfRecord='+b).join('');
+const GBIF_HUMAN_Q='&basisOfRecord=HUMAN_OBSERVATION';
+function gbifBasisQ(wide){ return wide?GBIF_WILD_Q:GBIF_HUMAN_Q; }
+// 図鑑種が「魚」か＝分布メッシュ/季節/観測点を近くモードのマーカー・一覧と同じ母集団（WILD）で引くか
+function isWideBasis(a){ return !!a && clsOf(a)==='魚類'; }
+
 /* 実データ層（GBIF）：学名→taxonKeyは取得済み。
    観測密度タイル（ヘックスビン）を重ねる。ヘックスはズーム階層ごとに再計算され、
    寄るほど細かいビンになる＝国全体ベタ塗りではない「詳細分布」。 */
-function gbifTileURL(taxonKey, year){
+function gbifTileURL(taxonKey, year, wide){
   return 'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png'
        + '?srs=EPSG:3857&taxonKey=' + taxonKey
        + '&bin=hex&hexPerTile=71&style=classic-noborder.poly'
-       + '&basisOfRecord=HUMAN_OBSERVATION'    // 野外目撃中心（標本ノイズ抑制）。ヘックスはズーム階層ごとに細密化
+       + gbifBasisQ(wide)                      // 陸=人の目撃のみ／魚=標本・調査記録も（化石は除外）
        + (year ? ('&year=' + year) : '');      // 時系列スライダー：年代で観測を絞る
 }
 
@@ -689,22 +703,22 @@ function removeGbif(){ if(!mapReady)return;
   if(map.getLayer('gbif'))map.removeLayer('gbif'); if(map.getLayer('gbif-glow'))map.removeLayer('gbif-glow');
   if(map.getLayer('gbif3d'))map.removeLayer('gbif3d'); if(map.getSource('gbif3d'))map.removeSource('gbif3d');
   if(map.getSource('gbif'))map.removeSource('gbif'); gbifLoading(false); }
-function addGbif(key){
+function addGbif(key, wide){
   if(!mapReady)return; removeGbif(); gbifLoading(true);
-  if(dist3D){ addGbif3D(key); return; }                              // 3D（立体）モードのときは押し出しレイヤーへ
-  map.addSource('gbif',{type:'raster',tiles:[gbifTileURL(key, gbifYear)],tileSize:512,attribution:'観測点: GBIF.org'});
+  if(dist3D){ addGbif3D(key, wide); return; }                        // 3D（立体）モードのときは押し出しレイヤーへ
+  map.addSource('gbif',{type:'raster',tiles:[gbifTileURL(key, gbifYear, wide)],tileSize:512,attribution:'観測点: GBIF.org'});
   // 下層：にじみグロー（線形リサンプルでぼかし、密度の高い所がぼうっと発光＝立体感。低密度も視認しやすく）
   map.addLayer({id:'gbif-glow',type:'raster',source:'gbif',paint:{'raster-opacity':.5,'raster-resampling':'linear','raster-saturation':.25,'raster-fade-duration':260}},'c-glow');
   // 上層：くっきりヘックス＋彩度/コントラストを上げ「色の濃さ」を強調
   map.addLayer({id:'gbif',type:'raster',source:'gbif',paint:{'raster-opacity':.98,'raster-resampling':'nearest','raster-saturation':.35,'raster-contrast':.18}},'c-glow');
 }
 // 3D（立体）分布：GBIFのMVTヘックス（プロパティ total=観測数）を fill-extrusion で高さ表現。試験的トグル。
-function gbif3dURL(key){
+function gbif3dURL(key, wide){
   return 'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}.mvt?srs=EPSG:3857&taxonKey='+key
-       +'&bin=hex&hexPerTile=45&basisOfRecord=HUMAN_OBSERVATION'+(gbifYear?('&year='+gbifYear):'');
+       +'&bin=hex&hexPerTile=45'+gbifBasisQ(wide)+(gbifYear?('&year='+gbifYear):'');
 }
-function addGbif3D(key){
-  map.addSource('gbif3d',{type:'vector',tiles:[gbif3dURL(key)],minzoom:0,maxzoom:14,attribution:'観測点: GBIF.org'});
+function addGbif3D(key, wide){
+  map.addSource('gbif3d',{type:'vector',tiles:[gbif3dURL(key, wide)],minzoom:0,maxzoom:14,attribution:'観測点: GBIF.org'});
   map.addLayer({id:'gbif3d',type:'fill-extrusion',source:'gbif3d','source-layer':'occurrence',paint:{
     'fill-extrusion-color':['interpolate',['linear'],['get','total'],1,'#1fb6a6',8,'#7CFC55',40,'#ffd54a',180,'#ff8c1a',900,'#ff3322'],
     'fill-extrusion-height':['interpolate',['linear'],['get','total'],1,30000,40,180000,400,500000,4000,1400000],
@@ -728,7 +742,7 @@ function applyYear(idx){
     setMode(animalModeText(currentAnimal));                        // ラベル/モードは即時更新（操作感）
     updateYearCount();                                             // 「この年代の記録数」を更新＝昔はたくさんいた/少ない を体感化
     clearTimeout(yearTileTimer);                                   // タイル再取得はデバウンス（ドラッグ中の連続リクエストを抑制）
-    yearTileTimer=setTimeout(()=>{ if(currentAnimal&&gbifOn&&currentAnimal.gbif) addGbif(currentAnimal.gbif); },180);
+    yearTileTimer=setTimeout(()=>{ if(currentAnimal&&gbifOn&&currentAnimal.gbif) addGbif(currentAnimal.gbif, isWideBasis(currentAnimal)); },180);
   }
 }
 // 年代別の観測数（GBIF件数）。年代を変えると数が変わり「昔はたくさんいた/まだ記録が少ない」が感覚的に伝わる。確定時に取得・キャッシュ。
@@ -800,7 +814,7 @@ function paintAnimal(a){
   const fillA = gbifOn ? .16 : .7;   // GBIF表示時は国塗りを控えめにして実データ(詳細メッシュ)を主役に
   setFill(['case',['in',['get',CODE_PROP],['literal',a.range]],hexA(col,fillA),'rgba(0,0,0,0)']);
   setActive(a.range,col);
-  if(gbifOn && a.gbif) addGbif(a.gbif); else removeGbif();
+  if(gbifOn && a.gbif) addGbif(a.gbif, isWideBasis(a)); else removeGbif();
   showMigration(a);
   if(typeof renderLegend==='function') renderLegend('status');
 }
@@ -1204,7 +1218,7 @@ function renderAnimalCard(a, head){
           <div class="cvtags">${threatsOf(a).map(t=>`<span class="cvtag">${t}</span>`).join('')}</div>
           <div class="cvlinks">${conservLinks(a).map(x=>`<a href="${x.u}" target="_blank" rel="noopener">${x.l} ↗</a>`).join('')}<button type="button" class="cvmore" onclick="openRedlist('${a.status}','${a.id}')">保全状況とは？</button></div>
         </div>`:''}
-        <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝GBIFの実観測地点（${a.nameSci}）。上の「🛰️ 実観測（GBIF）」で表示でき、<b>ズームするほど分布が細かく</b>見えます。</div>
+        <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝GBIFの実観測地点（${a.nameSci}）。上の「🛰️ 実観測（GBIF）」で表示でき、<b>ズームするほど分布が細かく</b>見えます。${isWideBasis(a)?'<br>🐟 海や川の生きものは人の目撃記録が少ないため、<b>研究者の標本・調査記録も含めて</b>表示しています（化石は除く）。':''}</div>
         ${MIGRATION[a.id]?`<div class="gbifnote mignote">🧭 <b>季節移動</b>：${MIGRATION[a.id].note}。地図に<span style="color:#ffd45e;font-weight:700">繁殖↔越冬の経路</span>（模式）を表示中。</div>`:''}
       </div>
     </div>`;
@@ -1530,7 +1544,7 @@ function nearClassLabel(){ return nearClasses.map(c=>(NEAR_CLASSES.find(x=>x[0]=
 // クラス別 facet 取得（429リトライ）。scientificName を二名へ正規化して返す。
 async function gbifFacetNear(lat,lng,radius,keys,facetLimit,y1,y2,human){
   const kp=keys.map(x=>'&taxonKey='+x).join('');
-  const basis=(human===false)?'':'&basisOfRecord=HUMAN_OBSERVATION';   // 魚は海洋データが人観測に乏しいので縛りを外し標本/機械観測も拾う
+  const basis=gbifBasisQ(human===false);   // 魚は人観測に乏しいので標本/機械観測も拾う（化石・動物園は除外）
   const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km${kp}&hasCoordinate=true${basis}&year=${y1},${y2}&limit=0&facet=scientificName&facetLimit=${facetLimit}`;
   for(let i=0;i<3;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1200*(i+1))); continue; }
     if(!r.ok) return []; const d=await r.json(); return mergeBinomials((d.facets&&d.facets[0]&&d.facets[0].counts)||[]);
@@ -1540,7 +1554,7 @@ async function gbifFacetNear(lat,lng,radius,keys,facetLimit,y1,y2,human){
 // クラス別 occurrence 取得（座標付き＝マーカー用）
 async function gbifOccByGroup(lat,lng,radius,keys,limit,y1,y2,human){
   const kp=keys.map(x=>'&taxonKey='+x).join('');
-  const basis=(human===false)?'':'&basisOfRecord=HUMAN_OBSERVATION';   // 魚だけ縛りを外す（海洋の記録を拾う）
+  const basis=gbifBasisQ(human===false);   // 魚だけ標本/機械観測も拾う（化石・動物園は除外）
   const url=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km${kp}&hasCoordinate=true${basis}&year=${y1},${y2}&limit=${limit}`;
   for(let i=0;i<3;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1000*(i+1))); continue; }
     if(!r.ok){ await new Promise(s=>setTimeout(s,400)); continue; } const d=await r.json(); return d.results||[];
@@ -1553,11 +1567,12 @@ const OBIS_TAXA='10194,10193,2688';
 function obisBbox(lat,lng,radius){ const dLat=radius/111, dLng=radius/(111*Math.max(0.18,Math.cos(lat*Math.PI/180)));
   const x0=(lng-dLng).toFixed(4), x1=(lng+dLng).toFixed(4), y0=Math.max(-89.9,lat-dLat).toFixed(4), y1=Math.min(89.9,lat+dLat).toFixed(4);
   return `POLYGON((${x0} ${y0},${x1} ${y0},${x1} ${y1},${x0} ${y1},${x0} ${y0}))`; }
+const OBIS_SKIP_BASIS=/fossil|living/i;   // OBISはDarwin Core表記（FossilSpecimen/LivingSpecimen）。GBIF側と同じく化石・飼育個体は「近くの生き物」に出さない
 async function obisOcc(lat,lng,radius,limit){   // 座標付き occurrence（マーカー用・GBIFと同形で返す）
   const url=`https://api.obis.org/v3/occurrence?geometry=${encodeURIComponent(obisBbox(lat,lng,radius))}&taxonid=${OBIS_TAXA}&size=${limit}`;
   for(let i=0;i<3;i++){ try{ const r=await fetch(url); if(r.status===429){ await new Promise(s=>setTimeout(s,1000*(i+1))); continue; }
     if(!r.ok){ await new Promise(s=>setTimeout(s,400)); continue; } const d=await r.json();
-    return (d.results||[]).filter(o=>o.decimalLatitude!=null&&o.decimalLongitude!=null).map(o=>({
+    return (d.results||[]).filter(o=>o.decimalLatitude!=null&&o.decimalLongitude!=null&&!OBIS_SKIP_BASIS.test(o.basisOfRecord||'')).map(o=>({
       species:o.species||'', scientificName:o.scientificName||o.species||'', class:o.class||'Actinopterygii',
       decimalLatitude:o.decimalLatitude, decimalLongitude:o.decimalLongitude }));
   }catch(e){ await new Promise(s=>setTimeout(s,500)); } }
@@ -1973,10 +1988,14 @@ function openNearDetail(btn){
   const c=nearRows[i]||{name:btn.dataset.sci,count:+btn.dataset.cnt};
   openFigDetail(c.name, c.count, i);
 }
+// 近くモードのグループキー／GBIFクラス名のうち「魚」に当たるもの（＝季節・観測点・メッシュを WILD 条件で引く）
+const FISH_GCLS=new Set(['Fish','Actinopterygii','Chondrichthyes','Elasmobranchii','Teleostei']);
 // 生き物アイコン/一覧行からの詳細を開く共通入口。図鑑収録種は hit を持たせタブを出す。地図は動かさない。
-function openFigDetail(sci, cnt, i){
+function openFigDetail(sci, cnt, i, cls){
   const hit=ANIMALS.find(a=>(a.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===String(sci).toLowerCase());
-  nearFig={sci, cnt, i, hit, tab:'near'};
+  const row=nearRows[i];   // i=-1（一覧に無い＝マーカー由来）なら undefined
+  const wide=hit?isWideBasis(hit):(FISH_GCLS.has(cls||'')||!!(row&&FISH_GCLS.has(row.gcls||'')));   // 魚は一覧/マーカーと同じ母集団で引く
+  nearFig={sci, cnt, i, hit, wide, tab:'near'};
   figGbifOn=false; removeGbif();
   renderFigNear();
 }
@@ -2011,13 +2030,13 @@ function renderFigNear(){
         <div class="ndsec"><div class="ndsech">📅 観察が多い月（出会いやすさの目安）</div><div id="seasonwrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
         <div class="ndsec"><div class="ndsech">🕐 観察が多い時間帯（朝・昼・夕の目安）</div><div id="timewrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
         ${(v.id && vocalizes(v.ic) && v.exact!==false)?`<div class="ndsec" id="ndsound"><button class="nbtn wide" onclick="playNearSound(${v.id},this)">🔊 鳴き声を聞く</button></div>`:''}
-        <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sciKey(sci)}',this)">📍 観測スポットを地図に表示</button>
+        <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sciKey(sci)}',this,${nearFig.wide?1:0})">📍 観測スポットを地図に表示</button>
         ${nearFig.hit?'':`<button class="nbtn wide" onclick="shareSpeciesCard('${sciKey(sci)}',this)">📤 この種をシェア</button>`}
         <p class="ndnote">あなたの範囲（半径${nearState?nearState.radius:''}km）でGBIFに記録された生き物です。出会えるかは季節・時間帯によります。写真は iNaturalist（CC）。${nearFig.hit?'<br>📖<b>図鑑</b>タブで詳しい図鑑カードと分布メッシュが見られます。':''}</p>
         <a class="cta" target="_blank" rel="noopener" href="https://www.inaturalist.org/taxa/search?q=${encodeURIComponent(sci)}">iNaturalistで詳しく見る ↗</a><br>
         <a class="ndlink" target="_blank" rel="noopener" href="https://www.gbif.org/species/search?q=${encodeURIComponent(sci)}">GBIFで記録を見る ↗</a>
       </div>`;
-    openPanel(); loadSeason(sci); loadTimeOfDay(v.id);   // 鳴き声はボタン（playNearSound）でオンデマンド取得＝自動fetchしない
+    openPanel(); loadSeason(sci, nearFig.wide); loadTimeOfDay(v.id);   // 鳴き声はボタン（playNearSound）でオンデマンド取得＝自動fetchしない
     resolveIucn(sci).then(code=>{ const el=document.getElementById('ndstatus'); if(!el||!code||!RARITY[code])return;
       const th=THREAT_CATS.has(code), r=RARITY[code];
       el.outerHTML=`<span class="ndtag" style="background:${r.color};color:#06231f;border-color:${r.color}">${th?'⚠ ':''}保全：${r.jp}（${code}）</span>`;
@@ -2038,17 +2057,17 @@ function toggleFigDist(btn){
   const hit=nearFig&&nearFig.hit;
   if(!hit||!hit.gbif){ toast('🛰️','この種の分布データがありません',1800); return; }
   figGbifOn=!figGbifOn;
-  if(figGbifOn){ addGbif(hit.gbif); btn.classList.add('on'); btn.textContent='🛰️ 分布メッシュを消す'; }
+  if(figGbifOn){ addGbif(hit.gbif, isWideBasis(hit)); btn.classList.add('on'); btn.textContent='🛰️ 分布メッシュを消す'; }
   else { removeGbif(); btn.classList.remove('on'); btn.textContent='🛰️ この地点の分布メッシュを表示'; }
 }
 function backToNear(){ removeNearPoints(); removeGbif(); figGbifOn=false; nearFig=null; if(nearState) renderNearList(); }
 // 季節性：その種の月別記録数（geoDistance内）を取得して棒グラフ
-async function loadSeason(sci){
+async function loadSeason(sci, wide){
   const wrap=document.getElementById('seasonwrap'); if(!wrap||!nearState)return;
   const key=await resolveSpeciesKey(sci); const {lat,lng,radius}=nearState;
   if(!key){ wrap.innerHTML='<span class="muted">季節データを取得できませんでした。</span>'; return; }
   try{
-    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true&basisOfRecord=HUMAN_OBSERVATION&limit=0&facet=month&facetLimit=12`;
+    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true${gbifBasisQ(wide)}&limit=0&facet=month&facetLimit=12`;
     const d=await (await fetch(u)).json();
     if(document.getElementById('seasonwrap')!==wrap)return;
     const counts=(d.facets&&d.facets[0]&&d.facets[0].counts)||[];
@@ -2167,13 +2186,13 @@ function addNearPoints(feats){
   map.addLayer({id:'nearpts-pt',type:'circle',source:'nearpts',filter:['!',['has','point_count']],paint:{'circle-color':'#ff7a1a','circle-radius':5,'circle-stroke-color':'#fff','circle-stroke-width':1,'circle-opacity':.9}},before);
 }
 function removeNearPoints(){ if(!mapReady){nearPtsOn=false;return;} ['nearpts-cl','nearpts-pt'].forEach(l=>{if(map.getLayer(l))map.removeLayer(l);}); if(map.getSource('nearpts'))map.removeSource('nearpts'); nearPtsOn=false; }
-async function toggleNearPoints(sci,btn){
+async function toggleNearPoints(sci,btn,wide){
   if(nearPtsOn){ removeNearPoints(); btn.textContent='📍 観測スポットを地図に表示'; btn.classList.remove('on'); return; }
   if(!nearState)return; btn.textContent='読み込み中…';
   const key=await resolveSpeciesKey(sci); const {lat,lng,radius}=nearState;
   if(!key){ btn.textContent='📍 観測スポットを地図に表示'; toast('📍','観測点を取得できませんでした',2000); return; }
   try{
-    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true&basisOfRecord=HUMAN_OBSERVATION&limit=300`;
+    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true${gbifBasisQ(wide)}&limit=300`;
     const d=await (await fetch(u)).json();
     const feats=(d.results||[]).filter(o=>o.decimalLatitude!=null&&o.decimalLongitude!=null).map(o=>({type:'Feature',geometry:{type:'Point',coordinates:[o.decimalLongitude,o.decimalLatitude]},properties:{}}));
     if(!feats.length){ btn.textContent='📍 観測スポットを地図に表示'; toast('📍','この範囲の観測点は見つかりませんでした',2200); return; }
@@ -2320,7 +2339,7 @@ function spawnCreatures(list,append,gen){
     const bub=document.createElement('div'); bub.className='cmk'; bub.textContent=classEmoji(it.cls);
     const lab=document.createElement('div'); lab.className='cmk-lab'; lab.innerHTML=cja?`<b>${esc(cja)}</b>`:`<i>${esc(it.sci)}</i>`;   // 出現時に数秒ピーク表示＋ホバーで和名/分類/保全
     el.appendChild(bub); el.appendChild(lab);
-    el.addEventListener('click',(e)=>{ e.stopPropagation(); openCreature(it.sci,it.n); });
+    el.addEventListener('click',(e)=>{ e.stopPropagation(); openCreature(it.sci,it.n,it.cls); });
     let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(it.c).addTo(map); }catch(e){ return; }
     creatureMarkers.push(mk);
     // 写真サムネに差し替え＆ホバーラベル更新（iNat・キャッシュ/throttle 共有）。鮮度ガード＝古い世代/撤去済みは何もしない。
@@ -2334,9 +2353,9 @@ function spawnCreatures(list,append,gen){
       if(!threatToastShown){ threatToastShown=true; const nm=inatGet(it.sci); toast('⚠','近所に絶滅危惧種！ '+((nm&&nm.ja)||it.sci)+'（'+code+'）',3800); } } });   // 「近所にコレ!?」の感情ピークを1地点1回だけ拾う
   });
 }
-function openCreature(sci,cnt){
+function openCreature(sci,cnt,cls){
   const i=nearRows.findIndex(r=>(r.name||'').toLowerCase()===String(sci).toLowerCase());
-  openFigDetail(sci, cnt, i);   // 詳細パネル（図鑑収録種は上部タブで📖図鑑カードに切替可）
+  openFigDetail(sci, cnt, i, cls);   // 詳細パネル（図鑑収録種は上部タブで📖図鑑カードに切替可）
 }
 function removeNearbyVisuals(){
   nearPick=false; nearClasses=[];
@@ -2641,7 +2660,7 @@ function setDist3D(on){ dist3D=on; const b=$('#d3dBtn'); if(b)b.setAttribute('ar
     if(on){ isGlobe=false; map.setProjection({type:'mercator'}); syncGlobeBtn(); map.easeTo({pitch:55, duration:700}); }
     else  { map.easeTo({pitch:0, duration:500}); isGlobe=true; map.setProjection({type:'globe'}); syncGlobeBtn(); }
   }catch(e){}
-  if(currentAnimal && gbifOn && currentAnimal.gbif) addGbif(currentAnimal.gbif); }
+  if(currentAnimal && gbifOn && currentAnimal.gbif) addGbif(currentAnimal.gbif, isWideBasis(currentAnimal)); }
 { const b3d=$('#d3dBtn'); if(b3d) b3d.addEventListener('click',()=>{   // シンプル化②：🧊はUIから外した（コード残置）。ボタン不在でもクラッシュしないよう配線をガード
   if(!currentAnimal && !dist3D){ toast('🧊','まず動物を選ぶと、その分布を3D（立体）で見られます',2400); return; }
   setDist3D(!dist3D);
