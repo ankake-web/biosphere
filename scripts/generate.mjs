@@ -11,7 +11,12 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const SITE = 'https://ankake-web.github.io/biosphere';
-const TODAY = '2026-06-30';
+// sitemap の lastmod＝このスクリプトを走らせた日。種を触ったら必ず再生成する運用なので「コンテンツの最終更新日」に一致する。
+// 固定文字列にしていると、種を744件足しても全URLが古い日付のままになり、クローラに「更新なし」と伝えてしまう。
+const TODAY = new Date().toISOString().slice(0, 10);
+// サイト全体を表すOGP画像（自前・1200x630）。種ページは「その種の写真」を使うのでこれは使わない。
+// 以前は zukan/about もライオンの写真（Wikimedia・CC BY-SA）を指しており、内容と一致せず帰属も出せなかった。
+const OG_IMAGE = SITE + '/og.jpg';
 
 // --- 単一ソース：種データ ---
 const species = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/species.json'), 'utf8'));
@@ -164,7 +169,7 @@ function zukanPage() {
     });
     body += '</div>';
   });
-  return HEAD(title, desc, SITE + '/zukan.html', ANIMALS[0].photo) + SITEHEAD('./') + `<main class="wrap">
+  return HEAD(title, desc, SITE + '/zukan.html', OG_IMAGE) + SITEHEAD('./') + `<main class="wrap">
 <h1>図鑑インデックス<span class="sci">世界のいきもの ${ANIMALS.length}種</span></h1>
 <p>各種をクリックすると分布・生態・保全状況の詳細ページへ。<a href="./">3D地球儀アトラス</a>では実際の観測分布を地球儀で旅できます。</p>
 ${body}
@@ -175,7 +180,7 @@ ${body}
 function aboutPage() {
   const title = 'このサイトについて・データ出典 | BIOSPHERE';
   const desc = 'BIOSPHERE（世界いきもの分布アトラス）のデータ出典。分布=GBIF、保全状況=IUCN、写真=Wikimedia Commons、地図=CARTO/OpenStreetMap/Esri/Natural Earth、MapLibre。';
-  return HEAD(title, desc, SITE + '/about.html', ANIMALS[0].photo) + SITEHEAD('./') + `<main class="wrap">
+  return HEAD(title, desc, SITE + '/about.html', OG_IMAGE) + SITEHEAD('./') + `<main class="wrap">
 <h1>BIOSPHERE について</h1>
 <p>世界のいきものの分布を3D地球儀で旅する図鑑です。分布・写真・地図はすべて実在のオープンソースに基づいています。</p>
 <h2>データ・地図の出典</h2>

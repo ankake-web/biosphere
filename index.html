@@ -5,14 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>BIOSPHERE — 世界いきもの分布アトラス</title>
 <meta name="description" content="世界の生きものの分布を地球儀で旅する。GBIFの実観測データで本物の分布を、図鑑で詳細を。" />
+<link rel="canonical" href="https://ankake-web.github.io/biosphere/" />
 <meta property="og:title" content="BIOSPHERE — 世界いきもの分布アトラス" />
 <meta property="og:description" content="地球儀でGBIFの実観測データの動物分布を旅する。6,300種の図鑑、ズームで細密化する詳細分布。" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://ankake-web.github.io/biosphere/" />
-<meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg/1200px-020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg" />
+<!-- OGP画像は自前（1200x630）。以前は Wikimedia の写真を直リンクしていたが、
+     Wikimedia は許可外の幅（1200px）のサムネを作らず HTTP 400 を返すため画像が出ていなかった。
+     加えてその写真は CC BY-SA で帰属表示が必須＝SNSカードでは表示できない。 -->
+<meta property="og:image" content="https://ankake-web.github.io/biosphere/og.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="BIOSPHERE — 世界いきもの分布アトラス。3D地球儀に生きものの観測密度メッシュ" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="BIOSPHERE — 世界いきもの分布アトラス" />
 <meta name="twitter:description" content="地球儀でGBIFの実観測データの動物分布を旅する。6,300種の図鑑。" />
+<meta name="twitter:image" content="https://ankake-web.github.io/biosphere/og.jpg" />
 
 <!-- MapLibre GL JS 5.6.0（CDN依存を避けるため vendor/ に同梱＝同一オリジン配信） -->
 <link href="vendor/maplibre-gl.css" rel="stylesheet" />
