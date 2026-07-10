@@ -197,7 +197,9 @@ const GBIF_WILD_BASIS=['HUMAN_OBSERVATION','MACHINE_OBSERVATION','OBSERVATION','
 const GBIF_WILD_Q=GBIF_WILD_BASIS.map(b=>'&basisOfRecord='+b).join('');
 const GBIF_HUMAN_Q='&basisOfRecord=HUMAN_OBSERVATION';
 function gbifBasisQ(wide){ return wide?GBIF_WILD_Q:GBIF_HUMAN_Q; }
-// 図鑑種が「魚」か＝分布メッシュ/季節/観測点を近くモードのマーカー・一覧と同じ母集団（WILD）で引くか
+// 図鑑種が「魚」か＝メッシュ/観測点を WILD で引くか。近くモードのマーカー・一覧と basis を揃えて
+// 魚の過少表示（人の目撃だけだと空/極薄）を緩和する。※期間はメッシュ=全期間・マーカー=直近10年で
+// 元から別（「アイコン位置≠メッシュ」は既定の仕様）なので、母集団が完全に一致するわけではない。
 function isWideBasis(a){ return !!a && clsOf(a)==='魚類'; }
 
 /* 実データ層（GBIF）：学名→taxonKeyは取得済み。
@@ -818,10 +820,15 @@ function paintAnimal(a){
   showMigration(a);
   if(typeof renderLegend==='function') renderLegend('status');
 }
+// メッシュのトグル文言。魚は標本・調査記録も含むので「実観測」とは呼べない（正直さ＝敵対レビュー確定）。陸生は人の目撃のみ＝実観測。
+function distName(a){ return isWideBasis(a)?'実際の記録（GBIF）':'実観測（GBIF）'; }
+function distBtnLabel(a, on){ const w=isWideBasis(a);
+  return on ? (w?'🛰️ 記録メッシュを消す':'🛰️ 実観測メッシュを消す')
+            : ('🛰️ '+distName(a)+'を表示'); }
 // gbifOn を切り替える2経路（カード内 #cardDistBtn ／ ツールバー #gbifBtn）のラベル・状態を常に一致させる＝どちらから操作しても誤誘導しない（敵対レビュー確定・双方向同期）。
 function syncDistBtns(){
   const gb=$('#gbifBtn'); if(gb) gb.setAttribute('aria-pressed',String(gbifOn));
-  const cb=$('#cardDistBtn'); if(cb){ cb.classList.toggle('on',gbifOn); cb.innerHTML=gbifOn?'🛰️ 実観測メッシュを消す':'🛰️ 実観測（GBIF）を表示'; }
+  const cb=$('#cardDistBtn'); if(cb){ cb.classList.toggle('on',gbifOn); cb.innerHTML=distBtnLabel(currentAnimal,gbifOn); }
 }
 // 動物カード内の「🛰️ 実観測（GBIF）」トグル＝押した場所で戻せる（docs/design/11・C）。グローバル gbifOn と moregroupの🛰️に同期。
 function toggleAnimalDist(btn){
@@ -1200,7 +1207,7 @@ function renderAnimalCard(a, head){
       <div class="geos">${a.range.map(c=>`<button class="geo" onclick="flyCountry('${c}')"><span class="fl">${ccFlag(c)}</span>${ccName(c)}</button>`).join('')}</div>
       <button class="nbtn wide moretoggle" id="cardMoreBtn" aria-expanded="false" aria-controls="cardMore" onclick="toggleCardMore(this)">▾ もっと詳しく（学名・大きさ・保全・実観測…）</button>
       <div class="moredetails" id="cardMore" hidden>
-        ${!head?`<button class="nbtn wide${gbifOn?' on':''}" id="cardDistBtn" onclick="toggleAnimalDist(this)">${gbifOn?'🛰️ 実観測メッシュを消す':'🛰️ 実観測（GBIF）を表示'}</button>`:''}
+        ${!head?`<button class="nbtn wide${gbifOn?' on':''}" id="cardDistBtn" onclick="toggleAnimalDist(this)">${distBtnLabel(a,gbifOn)}</button>`:''}
         <div class="rare" style="background:${hexA(r.color,.1)}">
           <span class="glowbar" style="background:${r.color};box-shadow:0 0 14px ${r.color}"></span>
           <span class="gem" style="color:${r.color}">${r.gem}</span>
@@ -1218,7 +1225,7 @@ function renderAnimalCard(a, head){
           <div class="cvtags">${threatsOf(a).map(t=>`<span class="cvtag">${t}</span>`).join('')}</div>
           <div class="cvlinks">${conservLinks(a).map(x=>`<a href="${x.u}" target="_blank" rel="noopener">${x.l} ↗</a>`).join('')}<button type="button" class="cvmore" onclick="openRedlist('${a.status}','${a.id}')">保全状況とは？</button></div>
         </div>`:''}
-        <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝GBIFの実観測地点（${a.nameSci}）。上の「🛰️ 実観測（GBIF）」で表示でき、<b>ズームするほど分布が細かく</b>見えます。${isWideBasis(a)?'<br>🐟 海や川の生きものは人の目撃記録が少ないため、<b>研究者の標本・調査記録も含めて</b>表示しています（化石は除く）。':''}</div>
+        <div class="gbifnote">🛰️ 地図の<b>メッシュ</b>＝${isWideBasis(a)?'GBIFに記録された地点':'GBIFの実観測地点'}（${a.nameSci}）。上の「🛰️ ${distName(a)}」で表示でき、<b>ズームするほど分布が細かく</b>見えます。${isWideBasis(a)?'<br>🐟 海や川の生きものは人の目撃記録が少ないため、<b>研究者の標本・調査記録も含めて</b>表示しています（化石は除く）。':''}</div>
         ${MIGRATION[a.id]?`<div class="gbifnote mignote">🧭 <b>季節移動</b>：${MIGRATION[a.id].note}。地図に<span style="color:#ffd45e;font-weight:700">繁殖↔越冬の経路</span>（模式）を表示中。</div>`:''}
       </div>
     </div>`;
@@ -2030,7 +2037,7 @@ function renderFigNear(){
         <div class="ndsec"><div class="ndsech">📅 観察が多い月（出会いやすさの目安）</div><div id="seasonwrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
         <div class="ndsec"><div class="ndsech">🕐 観察が多い時間帯（朝・昼・夕の目安）</div><div id="timewrap" class="seasonwrap"><span class="muted">読み込み中…</span></div></div>
         ${(v.id && vocalizes(v.ic) && v.exact!==false)?`<div class="ndsec" id="ndsound"><button class="nbtn wide" onclick="playNearSound(${v.id},this)">🔊 鳴き声を聞く</button></div>`:''}
-        <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sciKey(sci)}',this,${nearFig.wide?1:0})">📍 観測スポットを地図に表示</button>
+        <button class="nbtn wide" id="ptsBtn" onclick="toggleNearPoints('${sciKey(sci)}',this,${nearFig.wide?1:0})">${ptsBtnLabel(nearFig.wide)}</button>
         ${nearFig.hit?'':`<button class="nbtn wide" onclick="shareSpeciesCard('${sciKey(sci)}',this)">📤 この種をシェア</button>`}
         <p class="ndnote">あなたの範囲（半径${nearState?nearState.radius:''}km）でGBIFに記録された生き物です。出会えるかは季節・時間帯によります。写真は iNaturalist（CC）。${nearFig.hit?'<br>📖<b>図鑑</b>タブで詳しい図鑑カードと分布メッシュが見られます。':''}</p>
         <a class="cta" target="_blank" rel="noopener" href="https://www.inaturalist.org/taxa/search?q=${encodeURIComponent(sci)}">iNaturalistで詳しく見る ↗</a><br>
@@ -2061,16 +2068,25 @@ function toggleFigDist(btn){
   else { removeGbif(); btn.classList.remove('on'); btn.textContent='🛰️ この地点の分布メッシュを表示'; }
 }
 function backToNear(){ removeNearPoints(); removeGbif(); figGbifOn=false; nearFig=null; if(nearState) renderNearList(); }
-// 季節性：その種の月別記録数（geoDistance内）を取得して棒グラフ
+// 季節性：その種の月別記録数（geoDistance内）を取得して棒グラフ。
+// ここが問うのは「いつ会いやすいか」＝人が目撃した月なので、標本は混ぜない。
+// 標本の採集月は「その月に調査に出た」という採集努力の偏りで、出会いやすさとは別物
+// （実測：相模湾のマダイは人の目撃だけだとピーク5月・標本を混ぜると10月へ動く）。
+// ただし魚は目撃が0件になりがちなので、その場合だけ標本・調査記録に頼って空表示を避ける
+// （実測：ブリは相模湾で人の目撃0件・標本4件）。
 async function loadSeason(sci, wide){
   const wrap=document.getElementById('seasonwrap'); if(!wrap||!nearState)return;
   const key=await resolveSpeciesKey(sci); const {lat,lng,radius}=nearState;
   if(!key){ wrap.innerHTML='<span class="muted">季節データを取得できませんでした。</span>'; return; }
-  try{
-    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true${gbifBasisQ(wide)}&limit=0&facet=month&facetLimit=12`;
+  const monthCounts=async(basis)=>{
+    const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true${basis}&limit=0&facet=month&facetLimit=12`;
     const d=await (await fetch(u)).json();
-    if(document.getElementById('seasonwrap')!==wrap)return;
-    const counts=(d.facets&&d.facets[0]&&d.facets[0].counts)||[];
+    return (d.facets&&d.facets[0]&&d.facets[0].counts)||[];
+  };
+  try{
+    let counts=await monthCounts(GBIF_HUMAN_Q);                 // まず人の目撃だけ＝旬の純度を保つ
+    if(!counts.length && wide) counts=await monthCounts(GBIF_WILD_Q);   // 目撃ゼロの魚だけ標本にフォールバック
+    if(document.getElementById('seasonwrap')!==wrap)return;     // 待機中にパネルが差し替わっていたら破棄
     if(!counts.length){ wrap.innerHTML='<span class="muted">この範囲では月別の記録が十分ありません。</span>'; return; }
     const months=Array(12).fill(0); counts.forEach(c=>{const m=+c.name; if(m>=1&&m<=12)months[m-1]=c.count;});
     wrap.innerHTML=renderSeasonBars(months);
@@ -2177,6 +2193,8 @@ function drawNearVisuals(lat,lng,km){
     nearMarker.on('dragend',()=>{ const ll=nearMarker.getLngLat(); setNearPin(ll.lat,ll.lng,'指定地点',nearState?nearState.radius:NEAR_DEFAULT_R); });
   }catch(e){}
 }
+// 観測スポットのボタン文言（魚は標本・調査記録の地点も含むため「記録スポット」と呼ぶ＝正直さ）
+function ptsBtnLabel(wide){ return wide?'📍 記録スポットを地図に表示':'📍 観測スポットを地図に表示'; }
 // 観測点（観察スポット）：その種の実観測点をクラスタで重畳＝「どこで見られるか」
 function addNearPoints(feats){
   if(!mapReady)return; removeNearPoints();
@@ -2187,18 +2205,20 @@ function addNearPoints(feats){
 }
 function removeNearPoints(){ if(!mapReady){nearPtsOn=false;return;} ['nearpts-cl','nearpts-pt'].forEach(l=>{if(map.getLayer(l))map.removeLayer(l);}); if(map.getSource('nearpts'))map.removeSource('nearpts'); nearPtsOn=false; }
 async function toggleNearPoints(sci,btn,wide){
-  if(nearPtsOn){ removeNearPoints(); btn.textContent='📍 観測スポットを地図に表示'; btn.classList.remove('on'); return; }
+  const off=ptsBtnLabel(wide);                       // 魚は標本地点も含むので「観測」と言い切らない
+  if(nearPtsOn){ removeNearPoints(); btn.textContent=off; btn.classList.remove('on'); return; }
   if(!nearState)return; btn.textContent='読み込み中…';
   const key=await resolveSpeciesKey(sci); const {lat,lng,radius}=nearState;
-  if(!key){ btn.textContent='📍 観測スポットを地図に表示'; toast('📍','観測点を取得できませんでした',2000); return; }
+  if(!key){ btn.textContent=off; toast('📍','観測点を取得できませんでした',2000); return; }
   try{
     const u=`https://api.gbif.org/v1/occurrence/search?geoDistance=${lat},${lng},${radius}km&taxonKey=${key}&hasCoordinate=true${gbifBasisQ(wide)}&limit=300`;
     const d=await (await fetch(u)).json();
     const feats=(d.results||[]).filter(o=>o.decimalLatitude!=null&&o.decimalLongitude!=null).map(o=>({type:'Feature',geometry:{type:'Point',coordinates:[o.decimalLongitude,o.decimalLatitude]},properties:{}}));
-    if(!feats.length){ btn.textContent='📍 観測スポットを地図に表示'; toast('📍','この範囲の観測点は見つかりませんでした',2200); return; }
-    addNearPoints(feats); nearPtsOn=true; btn.textContent='✓ 観測スポット表示中（タップで消す）'; btn.classList.add('on');
-    toast('📍',feats.length+'件の観測スポットを地図に表示しました',2400);
-  }catch(e){ btn.textContent='📍 観測スポットを地図に表示'; toast('📍','観測点の取得に失敗しました',2000); }
+    const w=wide?'記録':'観測';
+    if(!feats.length){ btn.textContent=off; toast('📍',`この範囲の${w}点は見つかりませんでした`,2200); return; }
+    addNearPoints(feats); nearPtsOn=true; btn.textContent=`✓ ${w}スポット表示中（タップで消す）`; btn.classList.add('on');
+    toast('📍',`${feats.length}件の${w}スポットを地図に表示しました`,2400);
+  }catch(e){ btn.textContent=off; toast('📍','観測点の取得に失敗しました',2000); }
 }
 /* ---------- 近くの生き物マーカー（ポケGO風・地図にふわっと出現）----------
    GBIFの実観測点を1回取得→種ごとに代表座標へ集計→頻度順に上限18種だけ配置（多い時の間引き＝1種1マーカー）。
