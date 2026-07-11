@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://ankake-web.github.io/biosphere/sitemap.xml
+Sitemap: https://faunaut.com/sitemap.xml

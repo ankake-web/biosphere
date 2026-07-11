@@ -1,4 +1,4 @@
-/* BIOSPHERE 静的SEOページ生成（ESM・ビルド不要・実行時の本体 index.html は不変）
+/* Faunaut 静的SEOページ生成（ESM・ビルド不要・実行時の本体 index.html は不変）
    データの単一ソース＝ data/species.json（種カタログ animals ＋写真クレジット photoCred）。
    小辞書（RARITY・BIOMES・CC・POP・TREND_UP/DOWN・CLASS・clsOrder・THREAT_OVR）は index.html から抽出。
    生成物：species/<id>.html（全種）・zukan.html・about.html・static.css・sitemap.xml・robots.txt。
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';   // sitemap の lastmod 初期値（種データの最終変更日）を git から引く
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const SITE = 'https://ankake-web.github.io/biosphere';
+const SITE = 'https://faunaut.com';
 // 実行日（ローカル日付）。toISOString() は UTC なので日本の朝9時前だと前日になってしまう。
 const _d = new Date();
 const TODAY = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}-${String(_d.getDate()).padStart(2, '0')}`;
@@ -137,7 +137,7 @@ const HEAD = (title, desc, canon, img, extra = '') => `<!doctype html><html lang
 ${extra}<link rel="stylesheet" href="${canon.includes('/species/') ? '../static.css' : 'static.css'}">
 </head><body>`;
 
-const SITEHEAD = base => `<header class="site"><a href="${base}"><b>🐾 BIOSPHERE</b></a> <span style="color:#8497a7;font-size:13px">いきもの分布アトラス</span></header>`;
+const SITEHEAD = base => `<header class="site"><a href="${base}"><b>🐾 Faunaut</b></a> <span style="color:#8497a7;font-size:13px">いきもの分布アトラス</span></header>`;
 const SITEFOOT = base => `<footer class="site">
 データ出典：分布=<a href="https://www.gbif.org/">GBIF</a>／保全状況・生息数=<a href="https://www.iucnredlist.org/">IUCN レッドリスト</a>等を参考に編集（数値は推定）／写真=<a href="https://commons.wikimedia.org/">Wikimedia Commons</a>（各写真の撮影者・ライセンスは表記）／地図=<a href="https://carto.com/attributions">CARTO</a>・<a href="https://www.naturalearthdata.com/">Natural Earth</a>・<a href="https://www.esri.com/">Esri</a>／<a href="https://maplibre.org/">MapLibre</a>。
 <br><a href="${base}">3D地球儀アトラス</a> ・ <a href="${base}zukan.html">図鑑インデックス</a> ・ <a href="${base}about.html">このサイトについて</a>
@@ -146,7 +146,7 @@ const SITEFOOT = base => `<footer class="site">
 // ---- 種ページ ----
 function speciesPage(a, prev, next) {
   const r = RARITY[a.status]; const cls = classOf(a);
-  const title = `${a.nameJa}（${a.nameSci}）の分布・生態 | BIOSPHERE`;
+  const title = `${a.nameJa}（${a.nameSci}）の分布・生態 | Faunaut`;
   const descShort = a.desc.length > 70 ? a.desc.slice(0, 68) + '…' : a.desc;
   const desc = `${a.nameJa}（${a.nameSci}）の分布・生態。分類は${cls}/${a.taxon}、生息環境は${a.biome}、保全状況は${r.jp}(${a.status})、推定生息数は${popOf(a)}。${descShort} GBIFの実観測データを3D地球儀で。`;
   const canon = `${SITE}/species/${a.id}.html`;
@@ -157,7 +157,7 @@ function speciesPage(a, prev, next) {
     next ? `<a href="${next.id}.html">${esc(next.nameJa)} →</a>` : '<span></span>',
   ].join('');
   const ld = `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "BIOSPHERE", "item": SITE + "/" },
+    { "@type": "ListItem", "position": 1, "name": "Faunaut", "item": SITE + "/" },
     { "@type": "ListItem", "position": 2, "name": "図鑑インデックス", "item": SITE + "/zukan.html" },
     { "@type": "ListItem", "position": 3, "name": a.nameJa, "item": canon }] })}</script>\n`;
   return HEAD(title, desc, canon, a.photo, ld) + SITEHEAD('../') + `<main class="wrap">
@@ -186,7 +186,7 @@ ${(a.eco || a.human || a.cook) ? `<h2>🌿 生態</h2><p class="desc">${esc(a.ec
 
 // ---- 図鑑インデックス ----
 function zukanPage() {
-  const title = '図鑑インデックス（全' + ANIMALS.length + '種）｜ BIOSPHERE 世界いきもの分布アトラス';
+  const title = '図鑑インデックス（全' + ANIMALS.length + '種）｜ Faunaut 世界いきもの分布アトラス';
   const desc = 'ライオン・トラ・ユキヒョウからセコイア・ラフレシアまで、世界の生きもの' + ANIMALS.length + '種の分布・生態・保全状況を一覧。GBIFの実観測データを3D地球儀で旅する図鑑。';
   let body = '';
   clsOrder.forEach(cls => {
@@ -207,10 +207,10 @@ ${body}
 
 // ---- About ----
 function aboutPage() {
-  const title = 'このサイトについて・データ出典 | BIOSPHERE';
-  const desc = 'BIOSPHERE（世界いきもの分布アトラス）のデータ出典。分布=GBIF、保全状況=IUCN、写真=Wikimedia Commons、地図=CARTO/OpenStreetMap/Esri/Natural Earth、MapLibre。';
+  const title = 'このサイトについて・データ出典 | Faunaut';
+  const desc = 'Faunaut（ファウノート／世界いきもの分布アトラス）のデータ出典。分布=GBIF、保全状況=IUCN、写真=Wikimedia Commons、地図=CARTO/OpenStreetMap/Esri/Natural Earth、MapLibre。';
   return HEAD(title, desc, SITE + '/about.html', OG_IMAGE) + SITEHEAD('./') + `<main class="wrap">
-<h1>BIOSPHERE について</h1>
+<h1>Faunaut について</h1>
 <p>世界のいきものの分布を3D地球儀で旅する図鑑です。分布・写真・地図はすべて実在のオープンソースに基づいています。</p>
 <h2>データ・地図の出典</h2>
 <ul style="line-height:1.9">
@@ -290,15 +290,19 @@ ${urls.map(u => `  <url><loc>${u}</loc><lastmod>${lastmodOf(u, changed.get(u))}<
 fs.writeFileSync(path.join(ROOT, 'sitemap.xml'), sitemap);
 
 // robots.txt
-// 注：GitHub Pages のサブパス配信（…/biosphere/）では、クローラが読むのはホスト直下の
-// https://ankake-web.github.io/robots.txt だけで、この robots.txt は参照されない（robots.txt はホスト単位）。
-// つまり下の Sitemap: 行は現状クローラに届かず、sitemap は Search Console から送る必要がある。
-// 独自ドメインに移せばそのまま有効になるので、記述は残す。
+// faunaut.com は独自ドメインの直下配信なので、これはホスト直下 https://faunaut.com/robots.txt として
+// 配信され、クローラに読まれる（robots.txt はホスト単位）。下の Sitemap: 行もそのまま有効。
+// （旧 …github.io/biosphere/ のサブパス時代はホスト直下に置けず無効だった＝ドメイン移行で解消。
+//   なお Search Console からの sitemap 送信も別途おこなうと発見が速い。）
 fs.writeFileSync(path.join(ROOT, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
 
 // .nojekyll：GitHub PagesにJekyll処理をスキップさせ、生成済み静的HTMLをそのまま配信させる。
 // （5,000超のページをJekyllが処理するとビルドがタイムアウト/失敗するため必須。全て静的なのでJekyll不要）
 fs.writeFileSync(path.join(ROOT, '.nojekyll'), '');
 
-console.log(`生成完了：species/ ${ANIMALS.length}ページ（うち内容が変わって書き直したのは ${nWritten}ページ）+ zukan.html + about.html + static.css + sitemap.xml + robots.txt + .nojekyll（単一ソース：data/species.json）`);
+// CNAME：独自ドメイン faunaut.com を GitHub Pages に紐付ける設定ファイル。
+// GitHub の Pages 設定でも作られるが、再生成のたびに書き出して確実に残す（消えるとカスタムドメインが外れる）。
+fs.writeFileSync(path.join(ROOT, 'CNAME'), 'faunaut.com\n');
+
+console.log(`生成完了：species/ ${ANIMALS.length}ページ（うち内容が変わって書き直したのは ${nWritten}ページ）+ zukan.html + about.html + static.css + sitemap.xml + robots.txt + .nojekyll + CNAME（単一ソース：data/species.json）`);
 console.log(`sitemap の lastmod：変わったページ=${TODAY} ／ 変わらないページ=前回の値を保持（初出は ${SPECIES_DATE}＝data/species.json の最終変更日）`);

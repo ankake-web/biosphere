@@ -1,5 +1,5 @@
 // ==========================================================================
-// BIOSPHERE 単一ESモジュール。js/{data,map,ui,nearby,share,app}.js を元順で連結。
+// Faunaut 単一ESモジュール。js/{data,map,ui,nearby,share,app}.js を元順で連結。
 // type="module" で読み込む＝モジュールスコープ（strict・グローバル汚染なし）。
 // インラインハンドラ(onclick等)から呼ぶ関数だけを末尾で window に公開している。
 // 各セクションは元ファイル単位。編集は該当セクションを直接触ってよい。
@@ -7,7 +7,7 @@
 
 // ┌───────────────────────────────────────── data.js ─────────────────────────────────────────┐
 /* =====================================================================
-   BIOSPHERE — 世界いきもの分布アトラス
+   Faunaut — 世界いきもの分布アトラス
    UIは AnimalDataSource(=DATA) だけに依存（seam）。
    v1 = MockDataSource（28種ベタ書き）。
    実データ層：GBIF — 学名→taxonKey を解決し、実観測タイルを地図に重ねる。
@@ -1351,7 +1351,7 @@ function renderCountryCard(code,animals){
 }
 function shareAnimal(id){
   const url = location.origin + location.pathname + '#' + id;
-  if(navigator.share){ navigator.share({title:'BIOSPHERE — いきもの分布アトラス', url}).catch(()=>{}); }
+  if(navigator.share){ navigator.share({title:'Faunaut — いきもの分布アトラス', url}).catch(()=>{}); }
   else if(navigator.clipboard){ navigator.clipboard.writeText(url).then(()=>toast('🔗','リンクをコピーしました',1900)).catch(()=>toast('🔗',url,3200)); }
   else { toast('🔗',url,3200); }
 }
@@ -2566,7 +2566,7 @@ async function buildShareCanvas(o){
   const W=1080,H=1080,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
   const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0c1c27');g.addColorStop(1,'#06121a');x.fillStyle=g;x.fillRect(0,0,W,H);
   x.fillStyle='#34d8c6';x.fillRect(0,0,W,12);
-  x.fillStyle='#eaf2f6';x.font='bold 50px sans-serif';x.fillText('🌍 BIOSPHERE',58,100);
+  x.fillStyle='#eaf2f6';x.font='bold 50px sans-serif';x.fillText('🌍 Faunaut',58,100);
   x.fillStyle='#9fb0bd';x.font='27px sans-serif';x.fillText('世界いきもの分布アトラス',60,142);
   x.fillStyle='#34d8c6';x.font='bold 58px sans-serif';
   x.fillText(o.figure ? ('📖 '+clip2(o.figure.biome||'いきもの図鑑',12)) : ('📍 '+clip2(o.place||'この場所',14)),56,232);
@@ -2600,7 +2600,7 @@ async function buildShareCanvas(o){
     }
   }
   x.fillStyle='#132935';x.fillRect(0,H-94,W,94);
-  x.fillStyle='#34d8c6';x.font='bold 33px sans-serif';x.fillText('ankake-web.github.io/biosphere',58,H-38);
+  x.fillStyle='#34d8c6';x.font='bold 33px sans-serif';x.fillText('faunaut.com',58,H-38);
   x.textAlign='right';x.fillStyle='#7f97a3';x.font='23px sans-serif';x.fillText(o.figure?'データ: GBIF ・ 写真: Wikimedia Commons':'データ: GBIF ・ 写真: iNaturalist (CC)',1022,H-38);x.textAlign='left';
   return cv;
 }
@@ -2631,9 +2631,9 @@ async function shareNearCard(btn){
       .map(c=>({ja:c.ja,sci:c.name,ph:c.ph.replace('/square.','/medium.'),count:fmtN(c.count),th:THREAT_CATS.has(c.st2),band:c.st2,bandColor:RARITY[c.st2]?RARITY[c.st2].color:'#888'}));
     const threatened=nearRows.filter(c=>THREAT_CATS.has(c.st2)).length;
     const cv=await buildShareCanvas({place,species:pick,radius:nearState.radius,total:nearRows.length,threatened});
-    const text=`📍${place}の近くにいる脊椎動物 ${nearRows.length}種`+(threatened?`（うち絶滅危惧${threatened}種）`:'')+' #BIOSPHERE';
+    const text=`📍${place}の近くにいる脊椎動物 ${nearRows.length}種`+(threatened?`（うち絶滅危惧${threatened}種）`:'')+' #Faunaut';
     const nurl=location.origin+location.pathname+'#@'+nearState.lat+','+nearState.lng+(nearState.radius?(','+nearState.radius):'');   // 受け手がその場所に着地できる地点ディープリンク
-    doShare(cv,'biosphere-near.png',text,nurl);
+    doShare(cv,'faunaut-near.png',text,nurl);
   }catch(e){ toast('📤','シェアカードを作成できませんでした',2200); }
   if(btn){btn.textContent=t0||'📤 シェア';btn.disabled=false;}
 }
@@ -2645,12 +2645,12 @@ async function shareSpeciesCard(sci,btn){
     const v=await inatResolve(sci), code=await resolveIucn(sci);
     const sp={ja:v.ja,sci,ph:(v.ph||'').replace('/square.','/medium.'),count:fmtN(c.count||0),th:THREAT_CATS.has(code),band:code,bandColor:RARITY[code]?RARITY[code].color:'#ffb02e'};
     const cv=await buildShareCanvas({place,single:true,species:[sp]});
-    const text=`📍${place}の近くで見つけた ${v.ja||sci} #BIOSPHERE`;
+    const text=`📍${place}の近くで見つけた ${v.ja||sci} #Faunaut`;
     // 図鑑収録種は種ページ(#id)へ、未収録は地点(#@)へ着地させる
     const hit=ANIMALS.find(x=>(x.nameSci||'').split(' ').slice(0,2).join(' ').toLowerCase()===String(sci).toLowerCase());
     const surl = hit ? (location.origin+location.pathname+'#'+hit.id)
                      : (location.origin+location.pathname+'#@'+nearState.lat+','+nearState.lng+(nearState.radius?(','+nearState.radius):''));
-    doShare(cv,'biosphere-species.png',text,surl);
+    doShare(cv,'faunaut-species.png',text,surl);
   }catch(e){ toast('📤','シェアカードを作成できませんでした',2200); }
   if(btn){btn.textContent=t0||'📤 この種をシェア';btn.disabled=false;}
 }
@@ -2665,8 +2665,8 @@ async function shareFigureCard(id, btn){
       biome:a.biome, taxon:a.taxon };
     const cv=await buildShareCanvas({figure:fig});
     const url=location.origin+location.pathname+'#'+a.id;
-    const text=`${a.nameJa}（${a.nameSci}）の分布・生態 — BIOSPHERE #いきもの図鑑`;
-    doShare(cv,'biosphere-'+a.id+'.png',text,url);
+    const text=`${a.nameJa}（${a.nameSci}）の分布・生態 — Faunaut #いきもの図鑑`;
+    doShare(cv,'faunaut-'+a.id+'.png',text,url);
   }catch(e){ toast('📤','シェアカードを作成できませんでした',2200); }
   if(btn){btn.textContent=t0||'🔗 共有';btn.disabled=false;}
 }
