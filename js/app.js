@@ -798,16 +798,28 @@ function animalModeText(a){
   return `${a.emoji} ${a.nameJa} の分布（${a.range.length}地域）${gbifOn?' ・GBIF実データ':''}${yl}`;
 }
 
+let overviewMode='count';   // 世界地図の塗り分け：'count'=種の多さ ／ 'conserv'=保全リスク（図鑑の絶滅危惧種の数）
+function setOverviewMode(m){ overviewMode=m; _legendMode='__force';   // 凡例キャッシュを無効化して再描画させる
+  if(currentMode&&currentMode.type==='overview') drawOverview(); }
 function drawOverview(){
   currentMode={type:'overview'}; currentAnimal=null; removeGbif(); removeMigration(); showYearbar(false);
-  const count={}; ANIMALS.forEach(a=>a.range.forEach(c=>count[c]=(count[c]||0)+1));
+  const conserv=overviewMode==='conserv';
+  // conserv=各国の「図鑑の絶滅危惧種(CR/EN/VU)の数」を数える（＝完全な国勢調査でなく"図鑑の収録分"＝正直な指標）／count=図鑑掲載種の数
+  const count={}; ANIMALS.forEach(a=>{ if(conserv && !THREAT_CATS.has(a.status)) return; a.range.forEach(c=>count[c]=(count[c]||0)+1); });
   const max=Math.max(1,...Object.values(count)); const pairs=[];
-  Object.entries(count).forEach(([c,n])=>pairs.push(c,heatColor(n/max)));
+  Object.entries(count).forEach(([c,n])=>pairs.push(c, conserv?threatColor(n/max):heatColor(n/max)));
   // pairs が空（種データ未到着）なら 'match' はペア無しで無効式になるため透明塗りにフォールバック
   setFill(pairs.length ? ['match',['get',CODE_PROP],...pairs,'rgba(0,0,0,0)'] : 'rgba(0,0,0,0)'); clearActive();
-  setMode('世界の生きものマップ（アイコンをタップ）');
-  if(typeof renderLegend==='function') renderLegend('overview');   // 概観＝国塗りは「種の多さ」→凡例もそれに合わせる
+  setMode(conserv?'世界の保全マップ（国の色＝図鑑の絶滅危惧種の多さ）':'世界の生きものマップ（アイコンをタップ）');
+  if(typeof renderLegend==='function') renderLegend('overview');   // 概観の塗り（種の多さ/保全リスク）に凡例を合わせる
   spawnWorldCreatures();   // ③ 世界ビューにランダム浮遊アイコン（毎回ちがう顔ぶれ・タップで種カード）
+}
+function threatColor(t){   // 保全リスク：少ない(緑)→中(琥珀)→多い(赤)
+  const stops=[[0,[40,90,74]],[.5,[240,176,46]],[1,[233,72,72]]];
+  for(let i=0;i<stops.length-1;i++){const [t0,c0]=stops[i],[t1,c1]=stops[i+1];
+    if(t<=t1){const k=(t-t0)/(t1-t0||1);
+      return `rgba(${Math.round(c0[0]+(c1[0]-c0[0])*k)},${Math.round(c0[1]+(c1[1]-c0[1])*k)},${Math.round(c0[2]+(c1[2]-c0[2])*k)},.82)`;}}
+  return 'rgba(233,72,72,.85)';
 }
 function heatColor(t){
   const stops=[[0,[26,74,60]],[.5,[33,170,140]],[1,[242,193,78]]];
@@ -981,11 +993,14 @@ function renderLegend(mode){
   _legendMode=mode;
   let title, body, foot='';
   if(mode==='overview'){
-    title='地図の色 — 種の多さ';
-    body=`<div class="lr"><span class="sw" style="width:64px;height:9px;border-radius:3px;box-shadow:none;background:linear-gradient(90deg,#1a4a3c,#21aa8c,#f2c14e)"></span></div>
+    const conserv=overviewMode==='conserv';
+    title=conserv?'地図の色 — 保全リスク':'地図の色 — 種の多さ';
+    const grad=conserv?'#285a4a,#f0b02e,#e94848':'#1a4a3c,#21aa8c,#f2c14e';
+    body=`<div class="lr"><span class="sw" style="width:64px;height:9px;border-radius:3px;box-shadow:none;background:linear-gradient(90deg,${grad})"></span></div>
       <div class="lr" style="justify-content:space-between;color:var(--muted-2);font-size:10.5px;margin-top:-3px"><span>少ない</span><span>多い</span></div>
-      <div class="lr" style="color:var(--muted-2);font-size:11px">国ごとの図鑑掲載種の数</div>`;
-    foot=`<div class="lf">動物を選ぶと、その生きものが<b>よく見つかる場所</b>を🛰️で表示できます。</div>`;
+      <div class="lr" style="color:var(--muted-2);font-size:11px">${conserv?'図鑑の絶滅危惧種（CR/EN/VU）の数':'国ごとの図鑑掲載種の数'}</div>
+      <button type="button" class="lmode">${conserv?'🐾 種の多さで塗る':'🛡️ 保全リスクで塗る'}</button>`;
+    foot=conserv?`<div class="lf">色は<b>図鑑の</b>絶滅危惧種の数（完全な調査ではありません）。</div>`:`<div class="lf">動物を選ぶと、その生きものが<b>よく見つかる場所</b>を🛰️で表示できます。</div>`;
   } else if(mode==='near'){
     // ★近くモード専用の凡例（従来は「種の多さ」凡例が残り文脈と不一致だった＝敵対監査で指摘）
     title='📍 近くの生きもの';
@@ -1002,6 +1017,7 @@ function renderLegend(mode){
   legendEl.innerHTML=`<div class="lt">${title}</div>${body}${foot}`
     +`<button type="button" class="lhelp">🛟 保全状況（IUCN）とは？</button>`;
   const h=legendEl.querySelector('.lhelp'); if(h) h.onclick=()=>openRedlist();
+  const md=legendEl.querySelector('.lmode'); if(md) md.onclick=()=>setOverviewMode(overviewMode==='conserv'?'count':'conserv');   // 世界地図の塗り分けトグル（種の多さ⇄保全リスク）
 }
 function initCatalog(){
 Object.keys(BIOMES).forEach(bm=>{
@@ -2520,7 +2536,7 @@ function showWelcome(){
   __speciesReady.then(()=>{ if(currentMode && currentMode.type!=='near' && currentMode.type!=='animal') drawOverview(); fillOnboardSpecies(); });   // 種到着で身近な種カードを流し込む
   renderNearShell('ようこそ',
     `<div class="wcm">
-      <p class="wcm-lead">世界の生きもの <b id="wcmCount">9,117種</b> を、地図で旅する図鑑。</p>
+      <p class="wcm-lead">世界の生きもの <b id="wcmCount">10,000種以上</b> を、地図で旅する図鑑。</p>
       <p class="wcm-sub">まずは<b>1種</b>だけ、"見た！"してみよう。最近見かけた生きものはいる？<span class="wcm-dim">（無ければ好きな1種でOK）</span></p>
       <div class="wcm-species" id="wcmSpecies"><div class="wcm-loading">読み込み中…</div></div>
       <div class="wcm-or">または、まず眺めてみる</div>
@@ -2716,6 +2732,15 @@ $('#gbifBtn').addEventListener('click',()=>{ gbifOn=!gbifOn;
   showYearbar(gbifOn && currentMode.type==='animal');
   syncDistBtns(); });   // カード内トグル(#cardDistBtn)とツールバー🛰️の表示を常に一致（誤誘導防止）
 $('#exploreBtn').addEventListener('click',explore);
+// 🛡️ 世界地図を「保全リスク（図鑑の絶滅危惧種の多さ）」で塗る⇄「種の多さ」に戻す。⋯メニュー＝モバイルでも押せる導線（凡例トグルは≤860pxで隠れるため）
+function toggleConservMap(){
+  overviewMode = overviewMode==='conserv'?'count':'conserv';
+  const b=$('#conservBtn'); if(b) b.setAttribute('aria-pressed',String(overviewMode==='conserv'));
+  if(currentMode && currentMode.type==='overview'){ _legendMode='__force'; drawOverview(); }
+  else resetAll();   // 世界地図へ戻る（resetAll→drawOverview が overviewMode を反映）
+  toast('🛡️', overviewMode==='conserv'?'世界の保全マップ：図鑑の絶滅危惧種が多い国ほど赤':'種の多さの地図にもどしました',2600);
+}
+$('#conservBtn').addEventListener('click',toggleConservMap);
 $('#homeBtn').addEventListener('click',resetAll);
 $('#yearSlider').addEventListener('input',(e)=>{ stopYearPlay(); applyYear(+e.target.value); });
 $('#yearPlay').addEventListener('click',()=>{ if(yearPlaying) stopYearPlay(); else startYearPlay(); });

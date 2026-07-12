@@ -7,7 +7,7 @@
 <meta name="description" content="世界の生きものの分布を地球儀で旅する。GBIFの実観測データで本物の分布を、図鑑で詳細を。" />
 <link rel="canonical" href="https://faunaut.com/" />
 <meta property="og:title" content="Faunaut（ファウノート）— 世界いきもの分布アトラス" />
-<meta property="og:description" content="地球儀でGBIFの実観測データの動物分布を旅する。9,117種の図鑑、ズームで細密化する詳細分布。" />
+<meta property="og:description" content="地球儀でGBIFの実観測データの動物分布を旅する。10,000種以上の図鑑、ズームで細密化する詳細分布。" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://faunaut.com/" />
 <!-- OGP画像は自前（1200x630）。以前は Wikimedia の写真を直リンクしていたが、
@@ -19,7 +19,7 @@
 <meta property="og:image:alt" content="Faunaut — 世界いきもの分布アトラス。3D地球儀に生きものの観測密度メッシュ" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Faunaut（ファウノート）— 世界いきもの分布アトラス" />
-<meta name="twitter:description" content="地球儀でGBIFの実観測データの動物分布を旅する。9,117種の図鑑。" />
+<meta name="twitter:description" content="地球儀でGBIFの実観測データの動物分布を旅する。10,000種以上の図鑑。" />
 <meta name="twitter:image" content="https://faunaut.com/og.jpg" />
 
 <!-- MapLibre GL JS 5.6.0（CDN依存を避けるため vendor/ に同梱＝同一オリジン配信） -->
@@ -327,6 +327,8 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .rare button.iucn:hover .jp{color:var(--ink);}
 .legend .lhelp{margin-top:9px;padding-top:8px;border-top:1px solid var(--line);font-size:11px;color:var(--teal);font-weight:700;cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;display:block;width:100%;text-align:left;padding-left:0;}
 .legend .lhelp:hover{text-decoration:underline;}
+.legend .lmode{margin-top:8px;padding:6px 10px;font-size:11.5px;font-weight:700;color:var(--ink);background:var(--glass-strong);border:1px solid var(--line-2);border-radius:9px;cursor:pointer;display:block;width:100%;text-align:center;}
+.legend .lmode:hover{border-color:var(--teal);color:var(--teal);}
 
 .pbody{padding:15px 16px 22px;}
 .row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
@@ -686,8 +688,8 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 <noscript>
   <div style="position:fixed;inset:0;z-index:100;overflow:auto;background:#070b11;color:#eef4f7;padding:26px;line-height:1.8;font-family:system-ui,'Noto Sans JP',sans-serif">
     <h1 style="font-weight:800">🐾 Faunaut — 世界いきもの分布アトラス</h1>
-    <p>3D地球儀で世界のいきもの9,117種の分布を旅する図鑑です（地球儀表示にはJavaScriptが必要です）。テキスト版は以下からご覧ください。</p>
-    <p style="font-size:18px"><a href="zukan.html" style="color:#34d8c6">▶ 図鑑インデックス（全9,117種のテキスト一覧）</a></p>
+    <p>3D地球儀で世界のいきもの10,000種以上の分布を旅する図鑑です（地球儀表示にはJavaScriptが必要です）。テキスト版は以下からご覧ください。</p>
+    <p style="font-size:18px"><a href="zukan.html" style="color:#34d8c6">▶ 図鑑インデックス（全10,000種以上のテキスト一覧）</a></p>
     <p><a href="about.html" style="color:#34d8c6">このサイトについて・データ出典</a></p>
   </div>
 </noscript>
@@ -714,6 +716,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
     <div class="moregroup" id="moregroup">
       <button class="tbtn" id="exploreBtn" aria-label="ランダムに1種へ旅する" title="ランダムに1種へ旅する">🎲</button>
       <button class="tbtn gbif" id="gbifBtn" aria-pressed="false" aria-label="GBIF実観測データの表示切替" title="GBIF実観測データの表示切替">🛰️</button>
+      <button class="tbtn" id="conservBtn" aria-pressed="false" aria-label="世界地図を保全リスクで塗る" title="世界地図を保全リスク（図鑑の絶滅危惧種の多さ）で塗る">🛡️</button>
       <button class="tbtn" id="globeBtn" aria-pressed="true" aria-label="地球儀と平面の切替" title="地球儀 / 平面 切替">🌐</button>
       <button class="tbtn" id="labelBtn" aria-pressed="false" aria-label="本物の地図（街路・地名）に切替" title="本物の地図に切替（街路・鉄道・地名・地形／OpenFreeMap）">🏷️</button>
       <button class="tbtn" id="aboutBtn" aria-label="このサイトについて・出典" title="このサイトについて・出典">ℹ️</button>
@@ -763,7 +766,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
     <button class="pclose" onclick="closeAbout()" aria-label="閉じる">✕</button>
     <h2>🐾 Faunaut について</h2>
     <p>世界のいきものの分布を3D地球儀で旅する図鑑。分布・写真・地図はすべて実在のオープンソースに基づいています。</p>
-    <p><a href="zukan.html" target="_blank" rel="noopener">📖 図鑑インデックス（全9,117種のテキスト版）</a> ・ <a href="about.html" target="_blank" rel="noopener">出典の詳細ページ</a></p>
+    <p><a href="zukan.html" target="_blank" rel="noopener">📖 図鑑インデックス（全10,000種以上のテキスト版）</a> ・ <a href="about.html" target="_blank" rel="noopener">出典の詳細ページ</a></p>
     <h3>データ・地図の出典</h3>
     <ul>
       <li><b>分布データ</b>：<a href="https://www.gbif.org/" target="_blank" rel="noopener">GBIF</a>（Global Biodiversity Information Facility）の実観測データ。各種カードの「GBIF ↗」から種ページへ。</li>
