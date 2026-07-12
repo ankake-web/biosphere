@@ -268,6 +268,10 @@ button{font-family:inherit;cursor:pointer;}
 .seen-prev{margin-top:10px;} .seen-prev img{max-width:100%;max-height:200px;border-radius:10px;border:1px solid var(--line);}
 .seen-chk{display:flex;align-items:center;gap:7px;font-size:12px;color:#cdd9df;margin:12px 0 4px;}
 .seen-row{margin-top:16px;} .seen-go{width:100%;}
+.acct-card{width:min(430px,94vw);} .acct-hi{font-size:15px;margin:2px 0 6px;} .acct-note{font-size:12.5px;color:#cdd9df;line-height:1.7;margin:2px 0 12px;}
+.acct-row{display:flex;gap:8px;align-items:stretch;margin:4px 0 0;} .acct-row .seen-in{flex:1;} .acct-row .nbtn{white-space:nowrap;}
+.acct-or{text-align:center;color:var(--muted-2);font-size:11px;margin:12px 0 10px;} .acct-g{background:#fff;color:#222;font-weight:700;}
+.acct-foot{font-size:11px;color:var(--muted-2);margin-top:14px;border-top:1px solid var(--line);padding-top:10px;}
 .seen-hint{font-size:11px;color:var(--muted-2);margin-top:12px;}
 .myd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 6px;}
 .myd-st{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:11px;padding:10px 4px;text-align:center;}
@@ -723,6 +727,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
       <button class="tbtn" id="conservBtn" aria-pressed="false" aria-label="世界地図を保全リスクで塗る" title="世界地図を保全リスク（図鑑の絶滅危惧種の多さ）で塗る">🛡️</button>
       <button class="tbtn" id="globeBtn" aria-pressed="true" aria-label="地球儀と平面の切替" title="地球儀 / 平面 切替">🌐</button>
       <button class="tbtn" id="labelBtn" aria-pressed="false" aria-label="本物の地図（街路・地名）に切替" title="本物の地図に切替（街路・鉄道・地名・地形／OpenFreeMap）">🏷️</button>
+      <button class="tbtn" id="acctBtn" aria-pressed="false" aria-label="ログイン / アカウント" title="ログイン / 同期（クラウドに保存）" onclick="openAccount()">👤</button>
       <button class="tbtn" id="aboutBtn" aria-label="このサイトについて・出典" title="このサイトについて・出典">ℹ️</button>
     </div>
   </div>

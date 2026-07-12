@@ -447,6 +447,98 @@ const ANALYTICS = (()=>{
     dump(){ return { ev:d.ev, first:d.first, last:d.last, days:d.days.slice() }; },
   };
 })();
+// ===== アカウント / クラウド同期（Stage1b・Supabase）＝seam。ゲストは supabase を一切読み込まない・既存挙動は不変 =====
+// docs/design/05。ログイン操作 or 認証コールバック時だけ vendor/supabase.js を <script> 遅延注入。
+// 認証は PKCE 固定＝戻りは ?code=（クエリ）＝このアプリの #ハッシュルータ(#id/#@/#stats)と衝突しない（既定 implicit の #access_token は衝突するので不可）。
+const SB_URL='https://cgxveuoqgiattlgjwsmq.supabase.co';
+const SB_KEY='sb_publishable_ytnDlifmMGEI5qCbLRPKvQ_OA_5tLZT';   // publishable=公開前提の低権限キー。守りは RLS（自分の行だけ）。secret は絶対に置かない
+const SB_STORAGE_KEY='sb-faunaut-auth';   // セッション保存キー。boot時の「ログイン済み」検出でもこの1キーだけを見る（prefix総当りしない＝ゲスト誤ロード防止）
+let _sbLibP=null, _sbClient=null, authUser=null;   // authUser: null=ゲスト（同期で読める。UIはこれだけ見る）
+function _loadSb(){   // vendor/supabase.js を1回だけ <script> 注入。★ゲストはこの関数を呼ばない＝非ロード
+  if(_sbLibP) return _sbLibP;
+  _sbLibP=new Promise((res,rej)=>{
+    if(window.supabase) return res(window.supabase);
+    const s=document.createElement('script'); s.src='vendor/supabase.js'; s.async=true;
+    s.onload=()=>{ window.supabase?res(window.supabase):rej(new Error('supabase not global')); };
+    s.onerror=()=>rej(new Error('supabase load failed'));
+    document.head.appendChild(s);
+    setTimeout(()=>rej(new Error('supabase load timeout')),12000);
+  });
+  return _sbLibP;
+}
+async function sbClient(){   // クライアントを遅延生成（PKCE固定・detectSessionInUrlで ?code= を交換）
+  if(_sbClient) return _sbClient;
+  const lib=await _loadSb();
+  _sbClient=lib.createClient(SB_URL, SB_KEY, { auth:{
+    flowType:'pkce', detectSessionInUrl:true, persistSession:true, autoRefreshToken:true, storageKey:SB_STORAGE_KEY } });
+  try{ _sbClient.auth.onAuthStateChange((ev,session)=>onAuth(ev,session)); }catch(e){}
+  return _sbClient;
+}
+function accountName(){ const u=authUser; if(!u)return ''; const m=u.user_metadata||{}; return m.full_name||m.name||u.email||''; }
+function onAuth(ev, session){   // ログイン状態が変わったらUIを更新（commit A：データ同期はまだ・C/Dで push/pull/移行をこの seam に足す）
+  const prev=authUser&&authUser.id;
+  authUser=(session&&session.user)||null;
+  updateAuthUI();
+  if(authUser && authUser.id!==prev && ev==='SIGNED_IN') toast('☁️',(esc(accountName())||'アカウント')+' でログインしました',2600);
+  if(ev==='SIGNED_OUT'){ authUser=null; updateAuthUI(); }
+}
+// boot時：認証コールバック(?code=/?error=) または 既存セッション があるときだけ supabase を起動。純ゲストは非ロード＝boot経路は不変。
+function maybeInitAuth(){
+  let hasSession=false; try{ hasSession=!!localStorage.getItem(SB_STORAGE_KEY); }catch(e){}
+  const cb=/[?&](code|error)=/.test(location.search);
+  if(!cb && !hasSession) return;   // ★純ゲスト：supabaseを一切ロードしない
+  sbClient().then(c=>c.auth.getSession()).catch(()=>{});   // createClientのdetectSessionInUrlが?code=を交換／getSessionで復元。失敗してもローカルは無停止
+}
+// ☁️ アカウント／ログイン モーダル（authUser=同期キャッシュだけ見て描画＝開くだけでは supabase を読み込まない）
+function openAccount(){
+  closeAccount();
+  const inA=!!authUser, nm=esc(accountName());
+  const body = inA ? `
+      <p class="acct-hi">こんにちは、<b>${nm||'あなた'}</b> さん</p>
+      <p class="acct-note">「見た！」記録・ずかんがクラウドに同期されます（別の端末でも残ります）。</p>
+      <button class="nbtn wide" onclick="acctSignOut()">ログアウト</button>`
+    : `
+      <p class="acct-note">ログインすると、記録が<b>別の端末でも消えません</b>。ログインしなくても今まで通り全部使えます（この端末に保存）。</p>
+      <label class="seen-lb" for="acctEmail">メールでログイン（ログインリンクが届きます）</label>
+      <div class="acct-row"><input id="acctEmail" class="seen-in" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
+        <button class="nbtn" onclick="acctSendEmail()">送信</button></div>
+      <div class="acct-or">または</div>
+      <button class="nbtn wide acct-g" onclick="acctGoogle()">Googleで続ける</button>`;
+  const m=document.createElement('div'); m.className='modal'; m.id='acctModal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
+  m.innerHTML=`<div class="modal-bg" onclick="closeAccount()"></div>
+    <div class="modal-card acct-card">
+      <button class="pclose" onclick="closeAccount()" aria-label="閉じる">✕</button>
+      <h2>☁️ アカウント / 同期</h2>${body}
+      <p class="acct-foot">クラウド保存は Supabase。RLSで<b>あなたの記録はあなたにしか見えません</b>。</p>
+    </div>`;
+  document.body.appendChild(m);
+}
+function closeAccount(){ const m=document.getElementById('acctModal'); if(m)m.remove(); }
+function acctSendEmail(){
+  const el=document.getElementById('acctEmail'), email=(el&&el.value||'').trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ toast('✉️','メールアドレスを確認してね',2200); return; }
+  toast('✉️','送信中…',1500);
+  sbClient().then(c=>c.auth.signInWithOtp({ email, options:{ emailRedirectTo: location.origin+'/' } }))
+    .then(({error})=>{ if(error){ toast('⚠️','送信に失敗: '+esc(error.message),3400); }
+      else{ closeAccount(); toast('📩','ログインリンクを送りました。メールを開いて『同じブラウザ』でリンクをタップ！',5200); } })
+    .catch(()=>toast('⚠️','ログインを開始できませんでした',3000));
+}
+function acctGoogle(){
+  toast('☁️','Googleへ移動します…',1500);
+  sbClient().then(c=>c.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: location.origin+'/' } }))
+    .then(({error})=>{ if(error) toast('⚠️','Googleログインに失敗: '+esc(error.message),3400); })
+    .catch(()=>toast('⚠️','ログインを開始できませんでした',3000));
+}
+function acctSignOut(){
+  sbClient().then(c=>c.auth.signOut()).then(()=>{ authUser=null; updateAuthUI(); closeAccount(); toast('👋','ログアウトしました（この端末の記録は残ります）',2600); })
+    .catch(()=>toast('⚠️','ログアウトに失敗しました',2600));
+}
+function updateAuthUI(){
+  const b=document.getElementById('acctBtn');
+  if(b){ b.setAttribute('aria-pressed', authUser?'true':'false');
+    b.setAttribute('title', authUser?((accountName()||'アカウント')+'（ログイン中・同期ON）'):'ログイン / 同期（クラウドに保存）'); }
+  if(document.getElementById('acctModal')) openAccount();   // 開いていれば状態を反映して作り直す
+}
 // #stats（隠しパネル・自分用ドッグフーディング指標）。外部送信なし＝表示するのはこの端末に貯めた自分のデータだけ。
 function openStats(){
   closeStats();
@@ -639,6 +731,7 @@ map.on('load', async ()=>{
   spinLoop();
   // ★起動ビューは地図準備でき次第すぐ実行（種データ1.9MBの到着を待たない＝近所の地図と生き物が速く出る）。
   //   近所/地点リンクは ANIMALS 不要で即開始。種ディープリンク(#id)だけ bootInitialView 内で __speciesReady を待つ。
+  maybeInitAuth();   // ログイン済み or 認証コールバック(?code=)のときだけ supabase を起動（純ゲストは非ロード＝boot経路は不変）
   bootInitialView();
   __speciesReady.then(updateDex);   // 種データ到着で図鑑コンプ率（n/総数）を反映
 });
@@ -2838,4 +2931,4 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, openStats, closeStats, onboardSeen, onboardWorld, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, openStats, closeStats, onboardSeen, onboardWorld, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters, openAccount, closeAccount, acctSendEmail, acctGoogle, acctSignOut })
