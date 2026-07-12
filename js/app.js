@@ -805,7 +805,7 @@ function drawOverview(){
   Object.entries(count).forEach(([c,n])=>pairs.push(c,heatColor(n/max)));
   // pairs が空（種データ未到着）なら 'match' はペア無しで無効式になるため透明塗りにフォールバック
   setFill(pairs.length ? ['match',['get',CODE_PROP],...pairs,'rgba(0,0,0,0)'] : 'rgba(0,0,0,0)'); clearActive();
-  setMode('世界ぜんたいの分布ヒートマップ');
+  setMode('世界の生きものマップ（アイコンをタップ）');
   if(typeof renderLegend==='function') renderLegend('overview');   // 概観＝国塗りは「種の多さ」→凡例もそれに合わせる
   spawnWorldCreatures();   // ③ 世界ビューにランダム浮遊アイコン（毎回ちがう顔ぶれ・タップで種カード）
 }
@@ -979,19 +979,27 @@ let _legendMode=null;
 function renderLegend(mode){
   if(!legendEl || _legendMode===mode) return;
   _legendMode=mode;
-  let title, body;
+  let title, body, foot='';
   if(mode==='overview'){
     title='地図の色 — 種の多さ';
     body=`<div class="lr"><span class="sw" style="width:64px;height:9px;border-radius:3px;box-shadow:none;background:linear-gradient(90deg,#1a4a3c,#21aa8c,#f2c14e)"></span></div>
       <div class="lr" style="justify-content:space-between;color:var(--muted-2);font-size:10.5px;margin-top:-3px"><span>少ない</span><span>多い</span></div>
       <div class="lr" style="color:var(--muted-2);font-size:11px">国ごとの図鑑掲載種の数</div>`;
+    foot=`<div class="lf">動物を選ぶと、その生きものが<b>よく見つかる場所</b>を🛰️で表示できます。</div>`;
+  } else if(mode==='near'){
+    // ★近くモード専用の凡例（従来は「種の多さ」凡例が残り文脈と不一致だった＝敵対監査で指摘）
+    title='📍 近くの生きもの';
+    body=`<div class="lr"><span class="sw" style="background:#ff4d6d;box-shadow:none"></span>あなたの場所（中心）</div>
+      <div class="lr"><span class="sw" style="background:transparent;border:1.5px dashed #34d8c6;box-shadow:none"></span>この範囲を探しています</div>
+      <div class="lr" style="color:#ffcf6b"><span class="sw" style="background:#ffb02e;box-shadow:0 0 8px #ffb02e"></span>⚠ 絶滅危惧の生きもの</div>
+      <div class="lr" style="color:var(--muted-2);font-size:11px">アイコンをタップで詳しく見る</div>`;
   } else {
     title='生息数のめやす（IUCN保全状況）';
     const used=[...new Set(ANIMALS.map(a=>a.status))].sort((a,b)=>'LC NT VU EN CR DD NE'.indexOf(a)-'LC NT VU EN CR DD NE'.indexOf(b));
     body=used.map(s=>{const r=RARITY[s]; return `<div class="lr" style="color:${r.color}"><span class="sw" style="background:${r.color}"></span><b>${r.band}</b><span style="margin-left:auto;color:var(--muted-2)">${s}</span></div>`;}).join('');
+    foot=`<div class="lf">🛰️ ボタンで、この生きものが<b>よく見つかる場所</b>を色の濃さで表示できます。</div>`;
   }
-  legendEl.innerHTML=`<div class="lt">${title}</div>${body}`
-    +`<div class="lf">地図の<b>黄〜赤のメッシュ</b>は GBIF の実観測地点。<b>ズームで細かく</b>なります。🛰️で表示切替。</div>`
+  legendEl.innerHTML=`<div class="lt">${title}</div>${body}${foot}`
     +`<button type="button" class="lhelp">🛟 保全状況（IUCN）とは？</button>`;
   const h=legendEl.querySelector('.lhelp'); if(h) h.onclick=()=>openRedlist();
 }
@@ -1399,6 +1407,13 @@ function ensureCatalogVisible(){
   if(typeof buildChips==='function') buildChips(true);   // 保全状況で絞る＝全種必要（デスクトップも全構築）
   if(!matchMedia('(max-width:640px)').matches) return;
   const d=$('#dock'); if(d&&!d.classList.contains('open')){ d.classList.add('open'); const t=$('#dockToggle'); if(t)t.setAttribute('aria-expanded','true'); } }
+// 「図鑑」ピルから図鑑ドックを開いて検索にフォーカス（初見の一覧導線。以前はトーストを出すだけの空振りだった）
+function openDexDock(){
+  if(typeof closePanel==='function') closePanel();   // 近くパネル等が開いていると≤860pxでドックが隠れる＝先に閉じる（敵対レビュー確定）
+  if(typeof buildChips==='function') buildChips();   // チップ構築を保証（モバイルはドック開で構築）
+  const d=$('#dock'); if(d){ d.classList.add('open'); const t=$('#dockToggle'); if(t)t.setAttribute('aria-expanded','true'); if(matchMedia('(max-width:860px)').matches) d.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+  const s=$('#dockSearch'); if(s){ try{ s.focus({preventScroll:true}); }catch(e){ try{ s.focus(); }catch(_){} } }
+}
 function filterStatus(code){ const fs=$('#facetSel'); filterState.facet='status:'+code; if(fs)fs.value='status:'+code; ensureCatalogVisible(); applyFilters(); closeRedlist(); toast('🔎',(RL[code]?RL[code].jp.split('（')[0]:code)+'でしぼりました',1900); }
 function filterThreat(){ const fs=$('#facetSel'); filterState.facet='threat:1'; if(fs)fs.value='threat:1'; ensureCatalogVisible(); applyFilters(); closeRedlist(); toast('⚠','絶滅危惧（CR・EN・VU）でしぼりました',2000); }
 window.closePanel=closePanel; window.showCountry=showCountry; window.selectAnimal=selectAnimal;
@@ -1635,7 +1650,7 @@ function setNearCap(n){ const mx=capMax(nearState?nearState.radius:100); n=Math.
   if(nearState){ queryNear(); loadNearCreatures(nearState.lat,nearState.lng,nearState.radius,true); } else renderNearList&&nearRows&&renderNearList(); }
 // スライダードラッグ中の即時ラベル更新（refetchはonchangeのsetNearCapで）。
 function capLive(n){ const el=document.querySelector('.capnum b'); if(el) el.textContent=Math.round(+n); }
-let creatureMarkers=[], creatureTimer=null, creaturesKey=null, threatToastShown=false, creatureGen=0, queryGen=0;   // Gen=単調増加の世代トークン（同一丸め座標への素早い出戻りA→B→Aでも古いin-flightバッチを確実に破棄）
+let creatureMarkers=[], creatureTimer=null, creaturesKey=null, threatToastShown=false, creatureGen=0, queryGen=0, _placedPts=[];   // Gen=単調増加の世代トークン（同一丸め座標への素早い出戻りA→B→Aでも古いin-flightバッチを確実に破棄）
 function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
 function inatGet(s){ try{const o=JSON.parse(localStorage.getItem(LS_INAT+s)||'null'); if(o&&(Date.now()-o.t)<2592e6)return o.v;}catch(e){} return null; }
@@ -1743,6 +1758,7 @@ function setNearPin(latRaw,lngRaw,label,radius){
   nearCap=Math.min(nearCapWish, capMax(nearState.radius));   // 希望値をこの半径の上限に収める（広い半径へ移れば希望値まで復元）
   currentMode={type:'near',lat,lng};
   setMode('📍 '+nearState.label+'の近くの生き物'); showYearbar(false);
+  if(typeof renderLegend==='function') renderLegend('near');   // 近く専用の凡例に切替（種の多さ凡例の残留を防ぐ）
   removeNearPoints(); nearClasses=[]; nearThreatOnly=false;
   setLocalBasemap(true); localMapAutoOn=true;   // 近く＝本物の地図（OpenFreeMap）を自動ON（離脱時に自動分だけ戻す）
   drawNearVisuals(lat,lng,nearState.radius);
@@ -1944,13 +1960,13 @@ function renderNearList(overrideInner){
   const rows=nearRows.map((c,i)=>{const sci=c.name, e=encodeURIComponent(sci);
     const cat=animalBySci(sci); const nja=(cat&&cat.nameJa)||c.ja||'…';   // ② 図鑑収録種は図鑑の和名で統一（未解決の非図鑑種は「…」）
     return `<button class="locrow nearrow" data-sci="${esc(sci)}" data-cnt="${c.count}" data-i="${i}" onclick="openNearDetail(this)">
-      <span class="locav" data-sci="${e}">🐾</span>
+      <span class="locav" data-sci="${e}">${cat&&cat.photo?`<img src="${thumbURL(cat.photo,120)}" alt="" loading="lazy" onload="this.style.opacity=1" onerror="this.parentNode.textContent='${cat.emoji||'🐾'}'">`:(cat&&cat.emoji||'🐾')}</span>
       <span class="ln2"><b class="nja">${esc(nja)}</b><span class="nsci">${esc(sci)}</span></span>
       ${cat?'<span class="catbadge" title="図鑑に収録">📖</span>':''}
       <span class="cnt2">${fmtN(c.count)}件</span></button>`;}).join('');
   renderNearShell(nearState.label+'の近く',
     controls+
-    `<div class="nearsum" id="nearsum">この範囲で記録の多い脊椎動物 <b>${nearRows.length}種</b><br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIFの記録（タップで詳細／📖は図鑑収録）</span></div>
+    `<div class="nearsum" id="nearsum">このあたりで見つかる生きもの <b>${nearRows.length}種</b><br><span style="color:#9fb0bd">半径${nearState.radius}km・数字は観測された記録の数（多いほど身近）／タップで詳細・📖は図鑑収録</span></div>
      <div class="locsp" id="nearlist">${rows}</div>`);
   openPanel(); resolveAllRows();
 }
@@ -2003,12 +2019,12 @@ function applyNearFilter(){
     row.style.display=show?'':'none'; if(show)vis++;
   });
   const sum=document.getElementById('nearsum'); if(!sum)return;
-  const thChip=`<button class="thsum${nearThreatOnly?' on':''}" onclick="toggleNearThreat()">⚠ 近くの絶滅危惧 <b>${thCount}</b>種${nearThreatOnly?'（解除）':''}</button>`;
+  const thChip=(thCount>0||nearThreatOnly)?`<button class="thsum${nearThreatOnly?' on':''}" onclick="toggleNearThreat()">⚠ 近くの絶滅危惧 <b>${thCount}</b>種${nearThreatOnly?'（解除）':''}</button>`:'';
   let head;
   if(nearThreatOnly) head=`この範囲の<b>絶滅危惧</b> <b>${vis}種</b>`;
   else if(nearClasses.length){ head=`<b>${nearClassLabel()}</b>でしぼり込み <b>${vis}種</b>`; }
-  else head=`この範囲で記録の多い脊椎動物 <b>${nearRows.length}種</b>`;
-  sum.innerHTML=`${head}<br>${thChip}<br><span style="color:#9fb0bd">半径${nearState.radius}km・GBIFの記録（タップで詳細／📖は図鑑収録）</span>`;
+  else head=`このあたりで見つかる生きもの <b>${nearRows.length}種</b>`;
+  sum.innerHTML=`${head}<br>${thChip?thChip+'<br>':''}<span style="color:#9fb0bd">半径${nearState.radius}km・数字は観測された記録の数（多いほど身近）／タップで詳細・📖は図鑑収録</span>`;
 }
 /* ==== 近くの生き物 詳細（上部タブ：📍近く / 📖図鑑）====
    近くのアイコン/一覧から開く詳細パネル。図鑑収録種は上部タブで「近く情報」と
@@ -2265,7 +2281,7 @@ async function toggleNearPoints(sci,btn,wide){
    GBIFの実観測点を1回取得→種ごとに代表座標へ集計→頻度順に上限18種だけ配置（多い時の間引き＝1種1マーカー）。
    絵文字で即出現（有限CSSアニメ）→iNat写真サムネに差し替え／絶滅危惧はレア度カラーで発光。タップで詳細。
    永続rAFは使わない（アニメはCSS有限）。 */
-function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); creatureMarkers=[]; }
+function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); creatureMarkers=[]; _placedPts=[]; }   // ★_placedPtsも必ずクリア＝地点/半径を変えても前の画面座標が残って過剰間引きしない（敵対レビュー確定）
 /* ---------- 世界(概観)ビューのランダム浮遊アイコン（③）----------
    地球儀/世界地図のとき、図鑑の種を毎回ちがう顔ぶれで数体“浮遊”表示＝ぐるっと見て回る楽しさ。
    近くはローカルGBIF依存だが世界は図鑑ANIMALSの focus 座標に配置。タップで種カードへ。永続rAFは使わない。 */
@@ -2291,7 +2307,7 @@ function spawnCreatureIcons(list, n){
   pick.forEach((a,idx)=>{
     const el=document.createElement('div'); el.className='cmk-wrap'; el.style.setProperty('--d',(idx*70)+'ms');
     const bub=document.createElement('div'); bub.className='cmk'; bub.textContent=a.emoji||'🐾';
-    const lab=document.createElement('div'); lab.className='cmk-lab'; lab.innerHTML=`<b>${esc(a.nameJa)}</b>`;
+    const lab=document.createElement('div'); lab.className='cmk-lab'+(idx<6?' peek':''); lab.innerHTML=`<b>${esc(a.nameJa)}</b>`;   // 概観/生息環境の浮遊アイコンも先頭数体は名前を自動ピーク（タッチで名前が出ないデグレを解消・敵対レビュー確定）
     el.appendChild(bub); el.appendChild(lab);
     el.addEventListener('click',(e)=>{ e.stopPropagation(); selectAnimal(a.id); });
     let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(a.focus.c).addTo(map); }catch(e){ return; }
@@ -2393,17 +2409,22 @@ function loadNearCreatures(lat,lng,radius,immediate){
   if(immediate) run(); else creatureTimer=setTimeout(run,260);   // ★初回(地点確定)は即・半径連打はデバウンス
 }
 function spawnCreatures(list,append,gen){
-  if(!mapReady) return; if(!append) removeCreatures();   // append=段階描画で既存を消さず積み増す
+  if(!mapReady) return; if(!append){ removeCreatures(); _placedPts=[]; }   // append=段階描画で既存を消さず積み増す
   const myKey=creaturesKey, myGen=(gen==null?creatureGen:gen);   // この生成バッチの世代。地点/半径/世代を切替えたら古いバッチの後処理はスキップ。
   const base=append?creatureMarkers.length:0;   // append時はstaggerを既存マーカー数から継続（順次出現を維持）
   list.forEach((it,idx)=>{
+    // 画面座標デクラッタ：すでに置いたマーカーと46px未満で重なるものは間引く（近くマップの「団子」を根本から防ぐ）
+    let sp=null; try{ sp=map.project(it.c); }catch(e){}
+    if(sp){ for(const q of _placedPts){ if(Math.abs(sp.x-q.x)<46 && Math.abs(sp.y-q.y)<46) return; } }
     const el=document.createElement('div'); el.className='cmk-wrap'; el.style.setProperty('--d',((base+idx)*60)+'ms');   // 出現stagger＝wrapに置き .cmk pop と .cmk-lab peek の両方に継承させる
     const cja=(animalBySci(it.sci)||{}).nameJa||'';   // ② 図鑑収録種は図鑑の和名を優先（iNat和名との食い違いを解消）
     const bub=document.createElement('div'); bub.className='cmk'; bub.textContent=classEmoji(it.cls);
-    const lab=document.createElement('div'); lab.className='cmk-lab'; lab.innerHTML=cja?`<b>${esc(cja)}</b>`:`<i>${esc(it.sci)}</i>`;   // 出現時に数秒ピーク表示＋ホバーで和名/分類/保全
+    const lab=document.createElement('div'); lab.className='cmk-lab'; lab.innerHTML=cja?`<b>${esc(cja)}</b>`:`<i>${esc(it.sci)}</i>`;   // 名前ラベル（自動ピークは先頭数体だけ＝下のpeek。残りはタップ/ホバーで表示）
+    if(creatureMarkers.length<6) lab.classList.add('peek');   // 全同時ピークをやめ団子を防ぐ
     el.appendChild(bub); el.appendChild(lab);
-    el.addEventListener('click',(e)=>{ e.stopPropagation(); openCreature(it.sci,it.n,it.cls); });
+    el.addEventListener('click',(e)=>{ e.stopPropagation(); document.querySelectorAll('.cmk-wrap.sel').forEach(x=>x.classList.remove('sel')); el.classList.add('sel'); openCreature(it.sci,it.n,it.cls); });
     let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(it.c).addTo(map); }catch(e){ return; }
+    if(sp) _placedPts.push(sp);   // 実際に置けたものだけ記録（次マーカーの重なり判定に使う）
     creatureMarkers.push(mk);
     // 写真サムネに差し替え＆ホバーラベル更新（iNat・キャッシュ/throttle 共有）。鮮度ガード＝古い世代/撤去済みは何もしない。
     inatEnqueue(async()=>{ if(myGen!==creatureGen||creaturesKey!==myKey||!bub.isConnected) return; const v=await inatResolve(it.sci);
@@ -2413,7 +2434,7 @@ function spawnCreatures(list,append,gen){
       if(v&&v.ph&&!bub.querySelector('img')){ const img=document.createElement('img'); img.src=v.ph; img.alt=''; img.onload=()=>img.classList.add('on'); bub.appendChild(img); } });
     // 近くの絶滅危惧種を強調（「近所にコレ!?」）＋ラベルにも保全状況
     resolveIucn(it.sci).then(code=>{ if(myGen!==creatureGen||creaturesKey!==myKey||!bub.isConnected) return; if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); lab.classList.add('th'); lab.insertAdjacentHTML('afterbegin',`<span class="w">⚠${code}</span> `);
-      if(!threatToastShown){ threatToastShown=true; const nm=inatGet(it.sci); toast('⚠','近所に絶滅危惧種！ '+((nm&&nm.ja)||it.sci)+'（'+code+'）',3800); } } });   // 「近所にコレ!?」の感情ピークを1地点1回だけ拾う
+      if(!threatToastShown){ const nm=inatGet(it.sci); const ja=cja||(nm&&nm.ja); if(ja){ threatToastShown=true; toast('⚠','近くに絶滅危惧の「'+esc(ja)+'」がいるかも',3800); } } } });   // 和名はiNat由来＝escでXSS防止／「近所にコレ!?」を1地点1回（敵対レビュー確定）
   });
 }
 function openCreature(sci,cnt,cls){
@@ -2499,7 +2520,7 @@ function showWelcome(){
   __speciesReady.then(()=>{ if(currentMode && currentMode.type!=='near' && currentMode.type!=='animal') drawOverview(); fillOnboardSpecies(); });   // 種到着で身近な種カードを流し込む
   renderNearShell('ようこそ',
     `<div class="wcm">
-      <p class="wcm-lead">世界の生きもの <b id="wcmCount">8,143種</b> を、地図で旅する図鑑。</p>
+      <p class="wcm-lead">世界の生きもの <b id="wcmCount">9,117種</b> を、地図で旅する図鑑。</p>
       <p class="wcm-sub">まずは<b>1種</b>だけ、"見た！"してみよう。最近見かけた生きものはいる？<span class="wcm-dim">（無ければ好きな1種でOK）</span></p>
       <div class="wcm-species" id="wcmSpecies"><div class="wcm-loading">読み込み中…</div></div>
       <div class="wcm-or">または、まず眺めてみる</div>
@@ -2688,8 +2709,8 @@ $('#globeBtn').addEventListener('click',()=>{
   isGlobe=!isGlobe; try{ map.setProjection({type:isGlobe?'globe':'mercator'}); }catch(e){}
   syncGlobeBtn(); toast(isGlobe?'🌐':'🗺️',isGlobe?'地球儀表示':'平面表示',1500);});
 $('#gbifBtn').addEventListener('click',()=>{ gbifOn=!gbifOn;
-  const w=isWideBasis(currentAnimal);   // 魚は標本・調査記録も描くので「実観測」と言わない（カード内ボタンと文言を揃える）
-  toast('🛰️', gbifOn?(w?'GBIFの記録：ON':'GBIF実観測データ：ON'):(w?'GBIFの記録：OFF（手描き分布）':'実観測データ：OFF（手描き分布）'),1900);
+  const w=isWideBasis(currentAnimal);   // 魚は標本・調査記録も含む＝「観測」でなく「記録」に（カード文言と揃える）
+  toast('🛰️', currentAnimal?(gbifOn?(w?'記録の多い場所を色で表示：ON':'観測の多い場所を色で表示：ON'):'色分け：OFF（手描き分布にもどす）'):'動物を選ぶと、よく見つかる場所を表示できます',1900);   // 概観は種未選択＝no-opなのでヒントに（敵対レビュー確定）
   if(currentAnimal) paintAnimal(currentAnimal); else removeGbif();
   if(currentAnimal) setMode(animalModeText(currentAnimal));
   showYearbar(gbifOn && currentMode.type==='animal');
@@ -2730,7 +2751,7 @@ function setDist3D(on){ dist3D=on; const b=$('#d3dBtn'); if(b)b.setAttribute('ar
   if(!currentAnimal && !dist3D){ toast('🧊','まず動物を選ぶと、その分布を3D（立体）で見られます',2400); return; }
   setDist3D(!dist3D);
   toast(dist3D?'🧊':'🌐', dist3D?'分布を3D（立体）で表示：高い柱ほど観測が多い（平面表示）':'地球儀にもどしました',2400); }); }
-$('#dex').addEventListener('click',()=>{ const t=ANIMALS.length,n=SEEN.size; toast(n>=t?'🏆':'🧭', n>=t?'図鑑コンプリート！全種を旅しました':`図鑑 ${n}/${t} 種を発見。🎲で続きを旅しよう`,2600); });
+$('#dex').addEventListener('click',()=>{ openDexDock(); });
 $('#dex').addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#dex').click(); } });
 $('#aboutBtn').addEventListener('click',openAbout);
 // モバイル：⋯「そのほかの操作」メニュー（二次操作はここの奥へ）。項目選択/外側タップで閉じる。

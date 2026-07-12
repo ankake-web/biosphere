@@ -7,7 +7,7 @@
 <meta name="description" content="世界の生きものの分布を地球儀で旅する。GBIFの実観測データで本物の分布を、図鑑で詳細を。" />
 <link rel="canonical" href="https://faunaut.com/" />
 <meta property="og:title" content="Faunaut（ファウノート）— 世界いきもの分布アトラス" />
-<meta property="og:description" content="地球儀でGBIFの実観測データの動物分布を旅する。8,143種の図鑑、ズームで細密化する詳細分布。" />
+<meta property="og:description" content="地球儀でGBIFの実観測データの動物分布を旅する。9,117種の図鑑、ズームで細密化する詳細分布。" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://faunaut.com/" />
 <!-- OGP画像は自前（1200x630）。以前は Wikimedia の写真を直リンクしていたが、
@@ -19,7 +19,7 @@
 <meta property="og:image:alt" content="Faunaut — 世界いきもの分布アトラス。3D地球儀に生きものの観測密度メッシュ" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Faunaut（ファウノート）— 世界いきもの分布アトラス" />
-<meta name="twitter:description" content="地球儀でGBIFの実観測データの動物分布を旅する。8,143種の図鑑。" />
+<meta name="twitter:description" content="地球儀でGBIFの実観測データの動物分布を旅する。9,117種の図鑑。" />
 <meta name="twitter:image" content="https://faunaut.com/og.jpg" />
 
 <!-- MapLibre GL JS 5.6.0（CDN依存を避けるため vendor/ に同梱＝同一オリジン配信） -->
@@ -106,11 +106,18 @@ button{font-family:inherit;cursor:pointer;}
 .tbtn[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#04201d;}
 .tbtn.gbif[aria-pressed="true"]{background:#ffb02e;border-color:#ffb02e;}
 .tbtn.loading::after{content:'';position:absolute;inset:-3px;border-radius:14px;border:2px solid transparent;border-top-color:#fff;animation:spin .8s linear infinite;pointer-events:none;}
+/* 主要ボタンはデスクトップでラベル併記＝初見でも「近く/ずかん/ホーム」が一目でわかる（モバイルはアイコンのみ＝省スペース） */
+.tbtn .tl{display:none;}
+@media(min-width:1000px){   /* ラベル併記は主要バーが余裕を持って収まる広さでのみ（溢れ防止・敵対レビュー確定） */
+  .tbtn.lbl{width:auto;padding:0 13px;display:flex;align-items:center;gap:6px;}
+  .tbtn.lbl .tl{display:inline;font-size:13px;font-weight:600;letter-spacing:.02em;}
+}
 
-.modepill{position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:18;
+.modepill{position:fixed;top:calc(70px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:18;
   display:flex;align-items:center;gap:8px;background:var(--glass);border:1px solid var(--line);
   border-radius:999px;padding:7px 15px;font-size:12.5px;color:var(--muted);backdrop-filter:blur(14px);
-  box-shadow:var(--shadow);max-width:90vw;transition:opacity .3s;}
+  box-shadow:var(--shadow);max-width:90vw;transition:opacity .3s;white-space:nowrap;}
+.modepill #modetext{overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .modepill b{color:var(--ink);font-weight:600;}
 .modepill .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 10px var(--teal);}
 
@@ -120,9 +127,13 @@ button{font-family:inherit;cursor:pointer;}
   display:flex;flex-direction:column;gap:10px;}
 .dockbody{display:flex;flex-direction:column;gap:10px;}
 .dockhandle{display:none;}   /* モバイルのみ表示（図鑑ドックの開閉ハンドル） */
-/* ⋯「そのほかの操作」：デスクトップは横並びインライン、モバイルはポップオーバー */
-.moregroup{display:flex;gap:8px;}
-#moreBtn{display:none;}
+/* ⋯「そのほかの操作」＝上級トグル(🎲🛰️🌐🏷️ℹ️)はデスクトップでもポップオーバー奥へ。主要バーを 📍📔⌂⋯ に絞る＝発見性UP＋上部バーの横幅溢れを防ぐ（敵対レビュー確定） */
+.moregroup{position:fixed;top:calc(70px + env(safe-area-inset-top));right:calc(16px + env(safe-area-inset-right));flex-direction:column;background:var(--glass-strong);
+  border:1px solid var(--line);border-radius:16px;padding:9px;gap:9px;box-shadow:var(--shadow);
+  backdrop-filter:blur(16px);z-index:25;opacity:0;transform:translateY(-8px) scale(.97);
+  visibility:hidden;pointer-events:none;transition:opacity .18s,transform .18s;}
+.moregroup.open{opacity:1;transform:none;visibility:visible;pointer-events:auto;}
+#moreBtn{display:grid;}
 /* 図鑑ドック内の検索（モバイルで上部バー検索窓が消えるため。既存 filterState.q/applyFilters に配線） */
 .docksearch{display:none;width:100%;background:var(--glass);border:1px solid var(--line);color:var(--ink);
   border-radius:11px;padding:10px 14px;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s;}
@@ -466,11 +477,12 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .cmk-wrap{cursor:pointer;}
 /* 出現時に名前を数秒ピーク表示（cmkPeek＝有限CSS・fill無し→終了後はopacity:0へ戻りホバー表示は温存）。
    タッチ端末（近くモードの主戦場）でも名前が読める。ホバーは従来どおり上書き表示。 */
-.cmk-lab{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);white-space:nowrap;max-width:210px;overflow:hidden;text-overflow:ellipsis;
+.cmk-lab{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;
   background:rgba(8,14,20,.95);border:1px solid var(--line-2);border-radius:9px;padding:4px 10px;font-size:11.5px;color:#eaf2f6;
-  pointer-events:none;opacity:0;transition:opacity .14s,transform .14s;transform:translateX(-50%) translateY(3px);box-shadow:0 5px 14px rgba(0,0,0,.55);z-index:3;
-  animation:cmkPeek 3.2s ease var(--d,0ms);}
-.cmk-wrap:hover .cmk-lab{opacity:1;transform:translateX(-50%) translateY(0);}
+  pointer-events:none;opacity:0;transition:opacity .14s,transform .14s;transform:translateX(-50%) translateY(3px);box-shadow:0 5px 14px rgba(0,0,0,.55);z-index:3;}
+/* 出現時の名前ピークは先頭数体だけ（.peek）＝全マーカーが同時にラベルを出す「団子」を防ぐ。ホバー/タップ選択ではいつでも表示。 */
+.cmk-lab.peek{animation:cmkPeek 3.2s ease var(--d,0ms);}
+.cmk-wrap:hover .cmk-lab,.cmk-wrap.sel .cmk-lab{opacity:1;transform:translateX(-50%) translateY(0);z-index:6;}
 @keyframes cmkPeek{0%{opacity:0;transform:translateX(-50%) translateY(3px);}14%{opacity:1;transform:translateX(-50%) translateY(0);}55%{opacity:1;transform:translateX(-50%) translateY(0);}100%{opacity:0;transform:translateX(-50%) translateY(3px);}}
 .cmk-lab b{font-weight:800;}.cmk-lab i{font-style:italic;color:#cdd9df;}
 .cmk-lab .cl{font-size:10px;color:#9fb0bd;margin-left:4px;}.cmk-lab .w{color:#ffb02e;font-weight:800;margin-right:3px;}
@@ -623,7 +635,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 /* アトラス表示の「自然の地理」ラベル（控えめ・分布を埋もれさせない） */
 .natm{pointer-events:none;font-size:10.5px;font-weight:600;letter-spacing:.04em;color:rgba(210,225,235,.62);white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.9),0 0 6px rgba(0,0,0,.7);font-style:italic;}
 
-.toast{position:fixed;top:66px;left:50%;transform:translateX(-50%) translateY(-12px);z-index:40;background:var(--glass-strong);border:1px solid var(--line);border-radius:12px;padding:11px 17px;font-size:13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;display:flex;align-items:center;gap:9px;max-width:88vw;}
+.toast{position:fixed;top:calc(104px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-12px);z-index:40;background:var(--glass-strong);border:1px solid var(--line);border-radius:12px;padding:11px 17px;font-size:13px;backdrop-filter:blur(14px);box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;display:flex;align-items:center;gap:9px;max-width:88vw;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast .e{font-size:16px;}
 .maptip{position:fixed;z-index:12;pointer-events:none;background:rgba(8,12,18,.94);border:1px solid var(--line-2);border-radius:11px;padding:8px 11px;font-size:12.5px;font-weight:600;opacity:0;transform:translateY(4px);transition:opacity .12s;white-space:nowrap;box-shadow:0 10px 24px -6px rgba(0,0,0,.65);max-width:300px;backdrop-filter:blur(8px);}
@@ -647,18 +659,13 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .bootwrap .bs{font-size:11px;color:var(--muted-2);margin-top:8px;}
 
 @media (prefers-reduced-motion: reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important;}}
+@media(max-width:359px){ .dex .lab span{display:none;} }   /* 極狭幅（〜359px）は図鑑ラベルを隠して上部バーの溢れ＝タップ領域圧縮を防ぐ（敵対レビュー確定） */
 @media(max-width:640px){
-  .search{display:none;} .brand .t{display:none;} .dex .lab span{display:none;} .docksearch{display:block;}
+  .search{display:none;} .brand .t{display:none;} .docksearch{display:block;}
   .topbar{gap:8px;padding:max(11px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 11px max(12px,env(safe-area-inset-left));}
   .tools{gap:7px;}
-  .tbtn{width:44px;height:44px;font-size:17px;}                /* タップ領域を大きく */
-  /* ⋯メニュー：二次操作をポップオーバー奥へ（初期は 📍📔⌂⋯ だけ・🎲探検も奥） */
-  #moreBtn{display:grid;}
-  .moregroup{position:fixed;top:calc(64px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));flex-direction:column;background:var(--glass-strong);
-    border:1px solid var(--line);border-radius:16px;padding:9px;gap:9px;box-shadow:var(--shadow);
-    backdrop-filter:blur(16px);z-index:25;opacity:0;transform:translateY(-8px) scale(.97);
-    visibility:hidden;pointer-events:none;transition:opacity .18s,transform .18s;}   /* 折りたたみ時はフォーカス/SR対象から除外 */
-  .moregroup.open{opacity:1;transform:none;visibility:visible;pointer-events:auto;}
+  .tbtn{width:44px;height:44px;font-size:17px;flex:0 0 auto;}   /* タップ領域を大きく＋縮まない（狭幅でも44px死守） */
+  /* ⋯メニュー（ポップオーバー）は上のベースCSSで全幅共通に定義済み */
   /* 図鑑ドックは既定で畳む＝初期画面は「地図＋生き物＋最小操作」。ハンドルで開閉 */
   .dock{padding:8px 12px calc(10px + env(safe-area-inset-bottom));gap:8px;}
   .dockhandle{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
@@ -679,8 +686,8 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 <noscript>
   <div style="position:fixed;inset:0;z-index:100;overflow:auto;background:#070b11;color:#eef4f7;padding:26px;line-height:1.8;font-family:system-ui,'Noto Sans JP',sans-serif">
     <h1 style="font-weight:800">🐾 Faunaut — 世界いきもの分布アトラス</h1>
-    <p>3D地球儀で世界のいきもの8,143種の分布を旅する図鑑です（地球儀表示にはJavaScriptが必要です）。テキスト版は以下からご覧ください。</p>
-    <p style="font-size:18px"><a href="zukan.html" style="color:#34d8c6">▶ 図鑑インデックス（全8,143種のテキスト一覧）</a></p>
+    <p>3D地球儀で世界のいきもの9,117種の分布を旅する図鑑です（地球儀表示にはJavaScriptが必要です）。テキスト版は以下からご覧ください。</p>
+    <p style="font-size:18px"><a href="zukan.html" style="color:#34d8c6">▶ 図鑑インデックス（全9,117種のテキスト一覧）</a></p>
     <p><a href="about.html" style="color:#34d8c6">このサイトについて・データ出典</a></p>
   </div>
 </noscript>
@@ -693,16 +700,16 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   <div class="spacer"></div>
   <div class="dex" id="dex" title="図鑑コンプ率" role="button" tabindex="0" aria-label="図鑑コンプリート率">
     <div class="ring"><i id="dexEmoji">🧭</i></div>
-    <div class="lab"><b id="dexNum">0/92</b><span>図鑑</span></div>
+    <div class="lab"><b id="dexNum">—</b><span>図鑑</span></div>
   </div>
   <div class="search">
     <span class="ic">🔍</span>
     <input id="search" type="search" placeholder="動物・学名・環境で検索…" autocomplete="off" aria-label="動物を検索" />
   </div>
   <div class="tools">
-    <button class="tbtn near" id="nearBtn" aria-label="近くの生き物を探す" title="近くにいる生き物を探す">📍</button>
-    <button class="tbtn" id="myDexBtn" aria-label="Myずかん（見た記録）" title="Myずかん（あなたが見た記録・レベル）">📔</button>
-    <button class="tbtn" id="homeBtn" aria-label="世界全体（地球儀）にもどる" title="世界全体（地球儀）にもどる">⌂</button>
+    <button class="tbtn near lbl" id="nearBtn" aria-label="近くの生き物を探す" title="近くにいる生き物を探す">📍<span class="tl">近く</span></button>
+    <button class="tbtn lbl" id="myDexBtn" aria-label="Myずかん（見た記録）" title="Myずかん（あなたが見た記録・レベル）">📔<span class="tl">ずかん</span></button>
+    <button class="tbtn lbl" id="homeBtn" aria-label="世界全体（地球儀）にもどる" title="世界全体（地球儀）にもどる">⌂<span class="tl">ホーム</span></button>
     <button class="tbtn more" id="moreBtn" aria-label="そのほかの操作" aria-expanded="false" aria-controls="moregroup" title="そのほかの操作">⋯</button>
     <div class="moregroup" id="moregroup">
       <button class="tbtn" id="exploreBtn" aria-label="ランダムに1種へ旅する" title="ランダムに1種へ旅する">🎲</button>
@@ -714,7 +721,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   </div>
 </header>
 
-<div class="modepill" id="modepill" aria-live="polite"><span class="dot"></span><span id="modetext">世界ぜんたいの分布ヒートマップ</span></div>
+<div class="modepill" id="modepill" aria-live="polite"><span class="dot"></span><span id="modetext">世界の生きものマップ（アイコンをタップ）</span></div>
 
 <aside class="legend" id="legend"><div class="lt">生息数のめやす（IUCN保全状況）</div></aside>
 
@@ -756,7 +763,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
     <button class="pclose" onclick="closeAbout()" aria-label="閉じる">✕</button>
     <h2>🐾 Faunaut について</h2>
     <p>世界のいきものの分布を3D地球儀で旅する図鑑。分布・写真・地図はすべて実在のオープンソースに基づいています。</p>
-    <p><a href="zukan.html" target="_blank" rel="noopener">📖 図鑑インデックス（全8,143種のテキスト版）</a> ・ <a href="about.html" target="_blank" rel="noopener">出典の詳細ページ</a></p>
+    <p><a href="zukan.html" target="_blank" rel="noopener">📖 図鑑インデックス（全9,117種のテキスト版）</a> ・ <a href="about.html" target="_blank" rel="noopener">出典の詳細ページ</a></p>
     <h3>データ・地図の出典</h3>
     <ul>
       <li><b>分布データ</b>：<a href="https://www.gbif.org/" target="_blank" rel="noopener">GBIF</a>（Global Biodiversity Information Facility）の実観測データ。各種カードの「GBIF ↗」から種ページへ。</li>
