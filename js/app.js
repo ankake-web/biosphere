@@ -325,6 +325,7 @@ function submitSeen(id){
 }
 // 📔 Myずかん（自分が見た記録・レベル・連続記録）
 function openMyDex(silent){
+  silent=silent===true;   // ★#myDexBtnのclickリスナはMouseEventを渡す→明示的なtrue（refreshAfterSyncの同期由来の再描画）だけをsilent扱いに
   closeMyDex();
   if(!silent){ ANALYTICS.track('mydex_opened'); checkQuests(); }   // ユーザー操作の入口のみ副作用（同期由来の再描画=silentは track/演出を出さない）
   const base=USER.xp(), qx=questXp(), xp=base+qx;   // 総XP＝記録XP＋クエストボーナス
@@ -608,11 +609,12 @@ addEventListener('visibilitychange',()=>{ if(authUser&&document.visibilityState=
 // 他タブでの変更を取り込む（マルチタブ）。★再saveしない（他タブが既にLSへ書いた値を読むだけ）＝ping-pong防止
 addEventListener('storage', e=>{ if(!e.key||e.key.indexOf('biosphere_')!==0) return; try{
   if(e.key==='biosphere_sightings'){ USER.hydrateFromLS(); refreshAfterSync(); }
-  else if(e.key==='biosphere_seen'){ JSON.parse(e.newValue||'[]').forEach(x=>SEEN.add(x)); if(typeof updateDex==='function')updateDex(); }   // grow-only＝union（clearしない＝多タブ同時操作での一時縮小を防ぐ）
-  else if(e.key==='biosphere_quests'){ JSON.parse(e.newValue||'[]').forEach(x=>QDONE.add(x)); }
-  else if(e.key==='biosphere_badges'){ JSON.parse(e.newValue||'[]').forEach(x=>BADGES.add(x)); }
-  else if(e.key==='biosphere_synced'){ JSON.parse(e.newValue||'[]').forEach(x=>SYNCED.add(x)); }   // 他タブの同期済みcidを学ぶ＝冗長な再pushを防ぐ
-  else if(e.key==='biosphere_statesynced'){ JSON.parse(e.newValue||'[]').forEach(x=>STATESYNCED.add(x)); }
+  // grow-only＝通常は union（一時縮小を防ぐ）。ただし空配列[]は isolate/reset の信号なので他タブでも clear して伝播（別アカ切替の隔離をマルチタブに反映）
+  else if(e.key==='biosphere_seen'){ const a=JSON.parse(e.newValue||'[]'); if(!a.length)SEEN.clear(); a.forEach(x=>SEEN.add(x)); if(typeof updateDex==='function')updateDex(); }
+  else if(e.key==='biosphere_quests'){ const a=JSON.parse(e.newValue||'[]'); if(!a.length)QDONE.clear(); a.forEach(x=>QDONE.add(x)); }
+  else if(e.key==='biosphere_badges'){ const a=JSON.parse(e.newValue||'[]'); if(!a.length)BADGES.clear(); a.forEach(x=>BADGES.add(x)); }
+  else if(e.key==='biosphere_synced'){ const a=JSON.parse(e.newValue||'[]'); if(!a.length)SYNCED.clear(); a.forEach(x=>SYNCED.add(x)); }   // 他タブの同期済みcidを学ぶ＝冗長な再pushを防ぐ
+  else if(e.key==='biosphere_statesynced'){ const a=JSON.parse(e.newValue||'[]'); if(!a.length)STATESYNCED.clear(); a.forEach(x=>STATESYNCED.add(x)); }
 }catch(_){} });
 
 // ===== コミットD：pull＋初回移行＋状態union（seen/quests/badges＝grow-only子テーブルで単純union）＋派生値は毎回再計算 =====
