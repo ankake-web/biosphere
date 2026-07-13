@@ -460,7 +460,7 @@ const ANALYTICS = (()=>{
 const SB_URL='https://cgxveuoqgiattlgjwsmq.supabase.co';
 const SB_KEY='sb_publishable_ytnDlifmMGEI5qCbLRPKvQ_OA_5tLZT';   // publishable=公開前提の低権限キー。守りは RLS（自分の行だけ）。secret は絶対に置かない
 const SB_STORAGE_KEY='sb-faunaut-auth';   // セッション保存キー。boot時の「ログイン済み」検出でもこの1キーだけを見る（prefix総当りしない＝ゲスト誤ロード防止）
-const GOOGLE_ENABLED=false;   // Google OAuthプロバイダをSupabaseで設定したら true に（段階投入＝まずマジックリンク疎通→後でGoogle。設定前にボタンを出すとauthorizeへ空リダイレクトするため隠す）
+const GOOGLE_ENABLED=true;   // Google OAuthプロバイダをSupabaseで設定済（external.google=true実測）＝Googleボタンを表示。押すとGoogleのOAuthへ
 let _sbLibP=null, _sbClientP=null, authUser=null;   // authUser: null=ゲスト（同期で読める。UIはこれだけ見る）
 function _loadSb(){   // vendor/supabase.js を1回だけ <script> 注入。★ゲストはこの関数を呼ばない＝非ロード
   if(_sbLibP) return _sbLibP;
