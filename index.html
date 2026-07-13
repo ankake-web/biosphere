@@ -276,6 +276,14 @@ button{font-family:inherit;cursor:pointer;}
 .myd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 6px;}
 .myd-st{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:11px;padding:10px 4px;text-align:center;}
 .myd-st b{display:block;font-size:17px;color:var(--teal);} .myd-st span{font-size:10px;color:var(--muted-2);}
+/* Myずかん先頭のアカウント欄（＝マイページ化：ログイン状態・同期・ログイン/作成） */
+.myd-acct{display:flex;align-items:center;gap:9px;background:rgba(52,216,198,.1);border:1px solid rgba(52,216,198,.32);border-radius:11px;padding:9px 11px;margin:2px 0 12px;}
+.myd-acct-ic{font-size:18px;flex:0 0 auto;}
+.myd-acct-tx{flex:1;min-width:0;font-size:11px;color:#cdd9df;line-height:1.35;}
+.myd-acct-tx b{display:block;color:#eafffb;font-size:12.5px;}
+.myd-acct-s{display:block;color:#9fb0bd;font-size:11px;margin-top:1px;}
+.myd-acct-b{flex:0 0 auto;background:rgba(52,216,198,.2);border:1px solid rgba(52,216,198,.55);color:#eafffb;font-weight:700;font-size:12px;padding:7px 11px;border-radius:9px;cursor:pointer;white-space:nowrap;}
+.myd-acct-b:hover{background:rgba(52,216,198,.32);}
 .myd-list{display:flex;flex-direction:column;gap:6px;}
 .myd-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:7px 9px;cursor:pointer;color:inherit;}
 .myd-row:hover{background:rgba(52,216,198,.09);}
@@ -442,6 +450,13 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .wcm-cta:hover{filter:brightness(1.08);}
 .wcm-alt{display:block;width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#e7eef2;font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;}
 .wcm-alt:hover{background:rgba(255,255,255,.11);}
+/* 初回ようこそ画面のアカウント作成おすすめ（未ログイン時のみ） */
+.wcm-acct{display:flex;align-items:center;gap:10px;background:rgba(52,216,198,.12);border:1px solid rgba(52,216,198,.4);border-radius:12px;padding:10px 12px;margin:0 0 12px;flex-wrap:wrap;}
+.wcm-acct-t{flex:1;min-width:150px;font-size:11.5px;color:#aebdc7;line-height:1.45;}
+.wcm-acct-t b{color:#eafffb;font-size:13px;}
+.wcm-acct-t span{display:block;margin-top:2px;}
+.wcm-acct-b{flex:0 0 auto;background:rgba(52,216,198,.22);border:1px solid rgba(52,216,198,.6);color:#eafffb;font-weight:800;font-size:12.5px;padding:9px 13px;border-radius:10px;cursor:pointer;white-space:nowrap;}
+.wcm-acct-b:hover{background:rgba(52,216,198,.34);}
 .wcm-note{font-size:11px;color:var(--muted-2);line-height:1.5;margin:14px 2px 0;}
 /* ---- 初回オンボの身近な種カード（60秒で最初の"見た！"・docs/design/02.4） ---- */
 .wcm-dim{color:var(--muted-2);font-weight:400;font-size:12px;}

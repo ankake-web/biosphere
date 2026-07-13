@@ -351,6 +351,9 @@ function openMyDex(silent){
     <div class="modal-card myd-card">
       <button class="pclose" onclick="closeMyDex()" aria-label="閉じる">✕</button>
       <h2>📔 Myずかん</h2>
+      <div class="myd-acct${authUser?' in':''}">${authUser
+        ? `<span class="myd-acct-ic">☁️</span><span class="myd-acct-tx"><b>${esc(accountName()||'ログイン中')}</b><span class="myd-acct-s">同期ON・別の端末でも残ります</span></span><button class="myd-acct-b" onclick="closeMyDex();openAccount()">アカウント</button>`
+        : `<span class="myd-acct-ic">☁️</span><span class="myd-acct-tx"><b>ログインで記録を守る</b><span class="myd-acct-s">アカウントを作ると別の端末でも消えません</span></span><button class="myd-acct-b" onclick="closeMyDex();openAccount()">ログイン / 作成</button>`}</div>
       <div class="myd-stats">
         <div class="myd-st"><b>Lv.${lv}</b><span>レベル</span></div>
         <div class="myd-st"><b>${sc}</b><span>見た種</span></div>
@@ -2840,6 +2843,10 @@ function showWelcome(){
   renderNearShell('ようこそ',
     `<div class="wcm">
       <p class="wcm-lead">世界の生きもの <b id="wcmCount">10,000種以上</b> を、地図で旅する図鑑。</p>
+      ${authUser?'':`<div class="wcm-acct">
+        <div class="wcm-acct-t">☁️ <b>アカウント作成がおすすめ</b><span>「見た！」記録・ずかんが<b>別の端末でも消えません</b>（無料・あとででもOK）</span></div>
+        <button class="wcm-acct-b" onclick="openAccount()">アカウントを作る / ログイン</button>
+      </div>`}
       <p class="wcm-sub">まずは<b>1種</b>だけ、"見た！"してみよう。最近見かけた生きものはいる？<span class="wcm-dim">（無ければ好きな1種でOK）</span></p>
       <div class="wcm-species" id="wcmSpecies"><div class="wcm-loading">読み込み中…</div></div>
       <div class="wcm-or">または、まず眺めてみる</div>
