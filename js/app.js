@@ -459,6 +459,7 @@ const ANALYTICS = (()=>{
 const SB_URL='https://cgxveuoqgiattlgjwsmq.supabase.co';
 const SB_KEY='sb_publishable_ytnDlifmMGEI5qCbLRPKvQ_OA_5tLZT';   // publishable=公開前提の低権限キー。守りは RLS（自分の行だけ）。secret は絶対に置かない
 const SB_STORAGE_KEY='sb-faunaut-auth';   // セッション保存キー。boot時の「ログイン済み」検出でもこの1キーだけを見る（prefix総当りしない＝ゲスト誤ロード防止）
+const GOOGLE_ENABLED=false;   // Google OAuthプロバイダをSupabaseで設定したら true に（段階投入＝まずマジックリンク疎通→後でGoogle。設定前にボタンを出すとauthorizeへ空リダイレクトするため隠す）
 let _sbLibP=null, _sbClientP=null, authUser=null;   // authUser: null=ゲスト（同期で読める。UIはこれだけ見る）
 function _loadSb(){   // vendor/supabase.js を1回だけ <script> 注入。★ゲストはこの関数を呼ばない＝非ロード
   if(_sbLibP) return _sbLibP;
@@ -509,7 +510,12 @@ function isolateLocalUserData(){   // 別アカウント切替時：この端末
 // boot時：認証コールバック(?code=/?error=) または 既存セッション があるときだけ supabase を起動。純ゲストは非ロード＝boot経路は不変。
 function maybeInitAuth(){
   let hasSession=false; try{ hasSession=!!localStorage.getItem(SB_STORAGE_KEY); }catch(e){}
-  const cb=/[?&](code|error)=/.test(location.search);
+  if(/[?&]error=/.test(location.search)){   // ログイン失敗（リンク期限切れ/拒否など）＝優しく通知してURLを掃除
+    try{ const p=new URLSearchParams(location.search), d=p.get('error_description')||p.get('error')||'';
+      toast('⚠️','ログインできませんでした'+(d?'（'+esc(decodeURIComponent(d)).slice(0,50)+'）':'。もう一度お試しください'),4200);
+      history.replaceState(null,'',location.pathname+location.hash); }catch(e){}
+  }
+  const cb=/[?&]code=/.test(location.search);
   if(!cb && !hasSession) return;   // ★純ゲスト：supabaseを一切ロードしない
   sbClient().then(c=>c.auth.getSession()).catch(()=>{});   // createClientのdetectSessionInUrlが?code=を交換／getSessionで復元。失敗してもローカルは無停止
 }
@@ -525,9 +531,9 @@ function openAccount(){
       <p class="acct-note">ログインすると、記録が<b>別の端末でも消えません</b>。ログインしなくても今まで通り全部使えます（この端末に保存）。</p>
       <label class="seen-lb" for="acctEmail">メールでログイン（ログインリンクが届きます）</label>
       <div class="acct-row"><input id="acctEmail" class="seen-in" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
-        <button class="nbtn" onclick="acctSendEmail()">送信</button></div>
+        <button class="nbtn" onclick="acctSendEmail()">送信</button></div>${GOOGLE_ENABLED?`
       <div class="acct-or">または</div>
-      <button class="nbtn wide acct-g" onclick="acctGoogle()">Googleで続ける</button>`;
+      <button class="nbtn wide acct-g" onclick="acctGoogle()">Googleで続ける</button>`:''}`;
   const m=document.createElement('div'); m.className='modal'; m.id='acctModal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
   m.innerHTML=`<div class="modal-bg" onclick="closeAccount()"></div>
     <div class="modal-card acct-card">
@@ -547,10 +553,10 @@ function acctSendEmail(){
       else{ closeAccount(); toast('📩','ログインリンクを送りました。メールを開いて『同じブラウザ』でリンクをタップ！',5200); } })
     .catch(()=>toast('⚠️','ログインを開始できませんでした',3000));
 }
-function acctGoogle(){
+function acctGoogle(){   // GOOGLE_ENABLED=true のときだけUIに出る。押すとGoogleのOAuthへリダイレクト（戻りの?error=は maybeInitAuth が通知）
   toast('☁️','Googleへ移動します…',1500);
   sbClient().then(c=>c.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: location.origin+'/' } }))
-    .then(({error})=>{ if(error) toast('⚠️','Googleログインに失敗: '+esc(error.message),3400); })
+    .then(({error})=>{ if(error) toast('⚠️','Googleログインを開始できませんでした',3000); })
     .catch(()=>toast('⚠️','ログインを開始できませんでした',3000));
 }
 function acctSignOut(){
