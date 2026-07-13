@@ -1538,27 +1538,23 @@ const NEAR_CLASSES=[['','すべて'],['Aves','🐦鳥'],['Mammalia','🦫哺乳'
 const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_', LS_IUCN='biosphere_iucn_', LS_CRT='biosphere_crt_';
 const THREAT_CATS=new Set(['VU','EN','CR']);   // 絶滅危惧（Threatened）
 // 地図に「ふわっと」出す生き物マーカー（ポケGO風）。GBIF実観測点に種マーカーを配置し、観測点へ広く散らす。
-// ① 表示数はユーザー可変。★一覧(nearCap)と地図アイコン(creatureCap)は上限を分ける：
-//   一覧は軽い（facet 1本＋行は見えたぶんだけ遅延解決）ので広い範囲で多く見せられる。実測で GBIFは
-//   東京1000km圏に637種いて facet は約0.5〜1.5秒。→ 一覧の上限は半径依存で最大 100/200/300。
+// ① 表示数はユーザー可変。★一覧の行数＝地図アイコン数を同数に揃える（「表示した数分だけ」）。
+//   実測(GBIF)：座標つき別種は 1000kmで~290 / 100kmで~180 / 10kmで~90、総観測点は数千。
+//   →「別種」を優先で並べ、足りない分は同一種を別の実観測地点にも出して指定数まで埋める（fillRepeats）。
 const NEARCAP_MIN=8, NEARCAP_DEF=24;
-function capMax(r){ return r>=1000 ? 300 : r>=500 ? 200 : 100; }   // 一覧の表示数上限（半径が広いほど多く）
-//   一方 地図アイコンは HTMLマーカーを多数置くとパン/ズームが重く、occurrence から拾える distinct 種も
-//   1000km圏で ~160 で頭打ち（実測）。→ アイコンは別枠で低めに抑える（滑らかさ優先）。
-function markerCeil(r){ return r>=1000 ? 90 : r>=300 ? 72 : r>=100 ? 56 : 44; }
+function capMax(r){ return r>=1000 ? 300 : r>=500 ? 200 : 100; }   // 表示数の上限（半径が広いほど多く）＝一覧・地図アイコン共通
 // nearCapWish＝ユーザーが選んだ希望表示数（localStorage）。nearCap＝それを現在の半径上限に収めた実効値。
 //   希望値を別に持つことで、1000kmで300→100kmで100に下がっても、1000kmへ戻せば300に復元できる（非対称クランプの喪失を防ぐ）。
 let nearCapWish=Math.max(NEARCAP_MIN,Math.min(300,+(localStorage.getItem('biosphere_nearcap'))||NEARCAP_DEF));
-let nearCap=nearCapWish;   // 近くモードの一覧表示数（実効値・8〜半径依存）
-function creatureCap(r){ return Math.min(nearCap, markerCeil(r)); }   // 地図アイコンは nearCap と markerCeil の小さい方
-const CREATURE_POOL=120;  // ③ 候補プール上限（アイコン上限90より多め＝再訪ごとに重み付きランダムで別の顔ぶれ）
+let nearCap=nearCapWish;   // 近くモードの表示数（一覧の行数＝地図アイコン数の両方に効く・8〜半径依存）
+const CREATURE_POOL=120;   // キャッシュに保存する候補種の上限（再訪の抽選母数）。1種あたりの保存点数は書込時に絞る（localStorage節約）。
 // ② 広く散らす：farthest-point sampling。候補点のうち既存マーカーから最も遠い点を返す（円内をまんべんなく埋める）。
 function distSq(a,b){ const dx=a[0]-b[0], dy=a[1]-b[1]; return dx*dx+dy*dy; }
 function spreadPoint(pts, placed){ if(!pts||!pts.length) return null; if(!placed||!placed.length) return pts[0];
   let best=pts[0], bestMin=-1; for(const p of pts){ let m=Infinity; for(const q of placed){ const d=distSq(p,q); if(d<m){ m=d; if(m<=bestMin) break; } } if(m>bestMin){ bestMin=m; best=p; } } return best; }
-// 1種の観測点群を「重心付近＋広がる数点」に間引く（散らし用の候補＝キャッシュも小さく保つ）。
-function thinPoints(list){ if(!list||!list.length) return []; if(list.length<=5) return list.slice();
-  const out=[medoid(list)]; while(out.length<5){ const p=spreadPoint(list,out); if(!p||out.some(q=>q[0]===p[0]&&q[1]===p[1])) break; out.push(p); } return out; }
+// 1種の観測点群を「重心付近＋広がる数点」に間引く（散らし用の候補）。max=保持点数（repeatで散らす材料。既定5）。
+function thinPoints(list,max){ max=max||5; if(!list||!list.length) return []; if(list.length<=max) return list.slice();
+  const out=[medoid(list)]; while(out.length<max){ const p=spreadPoint(list,out); if(!p||out.some(q=>q[0]===p[0]&&q[1]===p[1])) break; out.push(p); } return out; }
 // 昆虫の写真差し替え前プレースホルダは 🦋（芋虫🐛でなくちょうちょ＝親しみやすさ優先）。
 const CLASS_EMOJI={Aves:'🐦',Mammalia:'🐾',Reptilia:'🦎',Amphibia:'🐸',Actinopterygii:'🐟',Chondrichthyes:'🦈',Fish:'🐟',Teleostei:'🐟',Elasmobranchii:'🦈',Insecta:'🦋',Arachnida:'🕷️',Mollusca:'🐚'};
 function classEmoji(cls){ return CLASS_EMOJI[cls]||'🐾'; }
@@ -1666,7 +1662,7 @@ function setNearCap(n){ const mx=capMax(nearState?nearState.radius:100); n=Math.
   if(nearState){ queryNear(); loadNearCreatures(nearState.lat,nearState.lng,nearState.radius,true); } else renderNearList&&nearRows&&renderNearList(); }
 // スライダードラッグ中の即時ラベル更新（refetchはonchangeのsetNearCapで）。
 function capLive(n){ const el=document.querySelector('.capnum b'); if(el) el.textContent=Math.round(+n); }
-let creatureMarkers=[], creatureTimer=null, creaturesKey=null, threatToastShown=false, creatureGen=0, queryGen=0, _placedPts=[];   // Gen=単調増加の世代トークン（同一丸め座標への素早い出戻りA→B→Aでも古いin-flightバッチを確実に破棄）
+let creatureMarkers=[], creatureTimer=null, creatureFillTimer=null, creaturesKey=null, threatToastShown=false, creatureGen=0, queryGen=0;   // Gen=単調増加の世代トークン（同一丸め座標への素早い出戻りA→B→Aでも古いin-flightバッチを確実に破棄）
 function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
 function inatGet(s){ try{const o=JSON.parse(localStorage.getItem(LS_INAT+s)||'null'); if(o&&(Date.now()-o.t)<2592e6)return o.v;}catch(e){} return null; }
@@ -1680,6 +1676,11 @@ function creatureCacheSet(k,c){ try{localStorage.setItem(LS_CRT+k,JSON.stringify
 let inatQueue=[], inatBusy=0;
 function inatEnqueue(fn){ inatQueue.push(fn); pumpInat(); }
 function pumpInat(){ while(inatBusy<3 && inatQueue.length){ const fn=inatQueue.shift(); inatBusy++; Promise.resolve(fn()).catch(()=>{}).finally(()=>{ inatBusy--; setTimeout(pumpInat,120); }); } }
+// GBIF（マーカーの絶滅危惧判定 resolveIucn 等）も throttle。表示数を最大300にしたので、cold cache では別種~290ぶんの
+// species/match＋IUCN が一気に飛びうる→バースト/429を避けるため同時5でならす（dedupeで同一種は1本・成功はキャッシュ）。
+let gbifQueue=[], gbifBusy=0;
+function gbifEnqueue(fn){ gbifQueue.push(fn); pumpGbif(); }
+function pumpGbif(){ while(gbifBusy<5 && gbifQueue.length){ const fn=gbifQueue.shift(); gbifBusy++; Promise.resolve(fn()).catch(()=>{}).finally(()=>{ gbifBusy--; setTimeout(pumpGbif,60); }); } }
 // 同一種の同時解決を1本にまとめる（一覧と生き物マーカーで同じ種を二重取得しない＝リクエスト数を削減）。
 const _inflight={};
 function dedupe(key,fn){ if(_inflight[key]) return _inflight[key];
@@ -1948,7 +1949,7 @@ function nearControlsHTML(){
   const schips=[['count','記録の多い順'],['name','名前順'],['cls','分類ごと'],['threat','絶滅危機順']]
     .map(([v,l])=>`<button class="cchip${nearSort===v?' on':''}" onclick="setNearSort('${v}')">${l}</button>`).join('');
   // 表示数コントロール：PC=スライダー／スマホ=チップ。右に「いま表示中／上限」を表示。
-  //   上限は半径依存（capMax）＝広い範囲では一覧を最大300まで。地図アイコンは別枠(markerCeil)で滑らかさ優先。
+  //   上限は半径依存（capMax）＝広い範囲では最大300まで。地図アイコンも同数（表示した数分だけ）。
   const found=(nearRows&&nearRows.length)||0;
   const capmx=capMax(nearState?nearState.radius:100);
   const capchips=[['少なめ',12],['標準',24],['多め',Math.min(50,capmx)],['最多',capmx]]
@@ -1962,7 +1963,7 @@ function nearControlsHTML(){
       <div class="ctlrow"><span class="ctll">表示数</span><div class="capctl">
         <input class="caprange pc-only" type="range" min="${NEARCAP_MIN}" max="${capmx}" step="2" value="${Math.min(nearCap,capmx)}" oninput="capLive(this.value)" onchange="setNearCap(this.value)" aria-label="近くの一覧の表示数（最大${capmx}）">
         <div class="capchips mob-only">${capchips}</div>
-        <span class="capnum" title="いま一覧に出ている種数 / 表示上限（地図アイコンは別枠で最大${markerCeil(nearState?nearState.radius:100)}）">🐾 ${found}<span class="capsep">/</span><b>${nearCap}</b></span>
+        <span class="capnum" title="いま一覧に出ている種数（🐾）／表示数の上限（右）／地図アイコン数（🗺️）">🐾 ${found}<span class="capsep">/</span><b>${nearCap}</b><span class="capmap" id="capMapCount"></span></span>
       </div></div>
     </div>
     <div class="ctlrow ctlbtns"><button class="nbtn" onclick="openAddrSearch()">🔍 住所で移動</button><button class="nbtn" onclick="recenterCurrent()">📍 現在地</button><button class="nbtn" onclick="armNearPick()">📌 タップで移動</button><button class="nbtn" onclick="shareNearCard(this)">📤 シェア</button></div>
@@ -1971,7 +1972,7 @@ function nearControlsHTML(){
 function renderNearList(overrideInner){
   if(!nearState)return;
   const controls=nearControlsHTML();
-  if(overrideInner){ renderNearShell(nearState.label+'の近く', controls+overrideInner); openPanel(); return; }
+  if(overrideInner){ renderNearShell(nearState.label+'の近く', controls+overrideInner); openPanel(); updateCreatureCount(); return; }
   nearSortRows();   // ⑤ 並び替え（既定＝記録の多い順）
   const rows=nearRows.map((c,i)=>{const sci=c.name, e=encodeURIComponent(sci);
     const cat=animalBySci(sci); const nja=(cat&&cat.nameJa)||c.ja||'…';   // ② 図鑑収録種は図鑑の和名で統一（未解決の非図鑑種は「…」）
@@ -1984,7 +1985,7 @@ function renderNearList(overrideInner){
     controls+
     `<div class="nearsum" id="nearsum">このあたりで見つかる生きもの <b>${nearRows.length}種</b><br><span style="color:#9fb0bd">半径${nearState.radius}km・数字は観測された記録の数（多いほど身近）／タップで詳細・📖は図鑑収録</span></div>
      <div class="locsp" id="nearlist">${rows}</div>`);
-  openPanel(); resolveAllRows();
+  openPanel(); resolveAllRows(); updateCreatureCount();   // 一覧の再描画で作り直された #capMapCount を今のマーカー数で埋め直す（🗺️が並び替え等で消えないように）
 }
 // ④ 重さ対策：一覧が出た瞬間に全行(最大45)のiNat/IUCNを一斉解決しない。IntersectionObserverで
 //   「見えている行だけ」を遅延解決し、applyNearFilterはrAFでデバウンス（解決ごとのO(n^2)再走査を回避）。
@@ -2297,7 +2298,9 @@ async function toggleNearPoints(sci,btn,wide){
    GBIFの実観測点を1回取得→種ごとに代表座標へ集計→頻度順に上限18種だけ配置（多い時の間引き＝1種1マーカー）。
    絵文字で即出現（有限CSSアニメ）→iNat写真サムネに差し替え／絶滅危惧はレア度カラーで発光。タップで詳細。
    永続rAFは使わない（アニメはCSS有限）。 */
-function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); creatureMarkers=[]; _placedPts=[]; }   // ★_placedPtsも必ずクリア＝地点/半径を変えても前の画面座標が残って過剰間引きしない（敵対レビュー確定）
+// 表示数コントロールの「🗺️ N」＝いま地図に出ているアイコン数（指定した数分だけ出ているかの確認・任意要素）。
+function updateCreatureCount(){ const el=document.getElementById('capMapCount'); if(el) el.textContent=creatureMarkers.length?(' 🗺️'+creatureMarkers.length):''; }
+function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); creatureMarkers=[]; updateCreatureCount(); }
 /* ---------- 世界(概観)ビューのランダム浮遊アイコン（③）----------
    地球儀/世界地図のとき、図鑑の種を毎回ちがう顔ぶれで数体“浮遊”表示＝ぐるっと見て回る楽しさ。
    近くはローカルGBIF依存だが世界は図鑑ANIMALSの focus 座標に配置。タップで種カードへ。永続rAFは使わない。 */
@@ -2355,84 +2358,113 @@ function weightedSample(items, n){
   }
   return out;
 }
-function collectPicks(per, perGroup){
-  const picks=[]; perGroup=perGroup||10;   // 1グループから拾う種数（単一クラス時はcapまで＝魚だけ等でもマーカーが埋まる）
-  per.forEach(({g,res})=>{
-    const freq={}, pts={}, cls={};
-    (res||[]).forEach(o=>{ let sp=(o.species||'').trim();
-      if(!sp){ const p=(o.scientificName||o.acceptedScientificName||'').trim().split(/\s+/); if(p.length>=2&&/^[A-Z][a-zé-]+$/.test(p[0])&&/^[a-zé-]+$/.test(p[1])) sp=p[0]+' '+p[1]; }
-      if(!sp || o.decimalLatitude==null || o.decimalLongitude==null) return;
-      freq[sp]=(freq[sp]||0)+1; (pts[sp]||(pts[sp]=[])).push([o.decimalLongitude,o.decimalLatitude]); if(!cls[sp]) cls[sp]=o.class||''; });
-    const cand=Object.keys(freq).map(sp=>({sci:sp,pts:thinPoints(pts[sp]),cls:CLASS_EMOJI[cls[sp]]?cls[sp]:g.c,n:freq[sp]}));   // 各種の散らし用に数点を保持（重心＋広がる点）
-    weightedSample(cand, perGroup).forEach(p=>{ if(p.pts&&p.pts.length) picks.push(p); });   // 重み付きランダムで perGroup 種
-  });
-  return picks;
+// 重み付き1件抽出（非破壊＝同じ種を何度も選べる・repeat配置用）。weight=頻度n。
+function weightedPick(pool){ if(!pool||!pool.length) return null; let tot=0; for(const it of pool) tot+=Math.max(1,it.n||1);
+  let r=Math.random()*tot; for(let i=0;i<pool.length;i++){ r-=Math.max(1,pool[i].n||1); if(r<=0) return pool[i]; } return pool[pool.length-1]; }
+// 候補点群から「既存マーカーから最も遠い点」を取り出し、その点を候補から除く（次は別地点＝同一点の重複配置を防ぐ）。
+function spreadTake(pts, placed){ const c=spreadPoint(pts, placed); if(!c) return null;
+  const i=pts.findIndex(p=>p[0]===c[0]&&p[1]===c[1]); if(i>=0) pts.splice(i,1); return c; }
+// Promiseにタイムアウト（遅い外部API＝OBISの巨大bbox等で群が固まって最終処理が走らないのを防ぐ）。超過時は fb を返す。
+function pTimeout(p, ms, fb){ return Promise.race([p, new Promise(res=>setTimeout(()=>res(fb), ms))]); }
+// occurrence群→種ごとの{頻度・観測点・クラス}に集計（o.species無しも scientificName を二名化して拾う＝取りこぼし減）。
+function tallyOcc(res, gcls){
+  const freq={}, pts={}, cls={};
+  (res||[]).forEach(o=>{ let sp=(o.species||'').trim();
+    if(!sp){ const p=(o.scientificName||o.acceptedScientificName||'').trim().split(/\s+/); if(p.length>=2&&/^[A-Z][a-zé-]+$/.test(p[0])&&/^[a-zé-]+$/.test(p[1])) sp=p[0]+' '+p[1]; }
+    if(!sp || o.decimalLatitude==null || o.decimalLongitude==null) return;
+    freq[sp]=(freq[sp]||0)+1; (pts[sp]||(pts[sp]=[])).push([o.decimalLongitude,o.decimalLatitude]); if(!cls[sp]) cls[sp]=o.class||''; });
+  return {freq,pts,cls,gcls};
 }
 function loadNearCreatures(lat,lng,radius,immediate){
   removeCreatures(); threatToastShown=false;   // 地点/半径ごとに「近所に絶滅危惧種！」トーストを一度だけ
   const k=nearKey(lat,lng,radius)+'|'+nearClsKey(); creaturesKey=k; const gen=++creatureGen;   // gen=この呼び出しの世代（座標/半径/クラスの切替でも旧バッチを破棄）
   const groups=nearGroups();   // 未選択＝脊椎5クラス／種別選択時＝その選択クラス群（複数可・🦋虫は明示選択時だけ）
-  const cap=creatureCap(radius);   // ① 半径連動のマーカー上限（cached/run 両経路で使用）
-  clearTimeout(creatureTimer);
-  const shown=new Set();      // 既に表示した種（小文字）＝クラス間・キャッシュとの重複防止
-  const pool=[];              // 候補プール（表示上限より多めに貯めてキャッシュ＝再訪ごとに別の顔ぶれを抽選）③
-  const addPool=(p)=>{ const key=p.sci.toLowerCase(); if(!pool.some(q=>q.sci.toLowerCase()===key)) pool.push(p); };
+  const cap=nearCap;           // ★アイコン数＝一覧の表示数（表示した数分だけ・cached/run 両経路で使用）
+  clearTimeout(creatureTimer); clearTimeout(creatureFillTimer);
+  const POOL_PTS=24;           // 1種あたり保持する観測点数（repeatで別地点に散らす材料）
+  const shown=new Set();       // 既に「別種」として置いた種（小文字）。repeat配置はshownを無視して同一種を別地点に出す。
+  const speciesPool=new Map(); // sci(lower)→{sci,cls,n,pts[],cachePts[]}＝別種配置＋repeat＋キャッシュの母数。pts は使うたび減る／cachePts は不変（保存用）。
+  const addSpecies=(sci,cls,n,pts)=>{ const kk=sci.toLowerCase(); const e=speciesPool.get(kk);
+    if(e){ e.n=Math.max(e.n,n); for(const p of pts){ if(e.pts.length>=POOL_PTS) break; e.pts.push(p); } for(const p of pts){ if(e.cachePts.length>=6) break; e.cachePts.push(p); } }
+    else speciesPool.set(kk,{sci,cls,n,pts:pts.slice(0,POOL_PTS),cachePts:pts.slice(0,6)}); };
   const placedOf=()=>creatureMarkers.map(m=>{const o=m.getLngLat();return [o.lng,o.lat];});   // 既存マーカー座標（散らしの基準）
-  // ⑤+③ 直近に見た地点はキャッシュのプールから重み付きランダムで即マーカー化（往復ゼロ＋毎回ちがう顔ぶれ）。裏で最新を取得しプール更新。
+  // ⑤ 直近に見た地点はキャッシュのプールから即マーカー化（往復ゼロ＋毎回ちがう顔ぶれ）。裏で最新を取得しプール更新。
   const cached=creatureCacheGet(k);
-  if(cached&&cached.length){ const cpool=cached.filter(p=>p&&p.sci&&(Array.isArray(p.pts)||Array.isArray(p.c))); cpool.forEach(addPool);
+  if(cached&&cached.length){ cached.filter(p=>p&&p.sci&&Array.isArray(p.pts)&&p.pts.length).forEach(p=>addSpecies(p.sci,p.cls,p.n,p.pts));
     const placed=[], cp=[];
-    for(const p of weightedSample(cpool, cap)){ const c=spreadPoint(p.pts||[p.c], placed); if(!c) continue; cp.push({sci:p.sci,cls:p.cls,n:p.n,c}); placed.push(c); }
+    for(const e of weightedSample([...speciesPool.values()], cap)){ const c=spreadPoint(e.pts, placed); if(!c) continue; cp.push({sci:e.sci,cls:e.cls,n:e.n,c}); placed.push(c); }
     cp.forEach(p=>shown.add(p.sci.toLowerCase())); if(cp.length) spawnCreatures(cp,false,gen); }
   const run=()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
     const stale=()=> gen!==creatureGen || creaturesKey!==k || !currentMode || currentMode.type!=='near';   // 世代/地点が変わった応答は破棄（A→B→Aの重複積み増しを防ぐ）
     let widened=false;
-    // ★段階描画：クラス別 occurrence を Promise.all で束ねず、返ってきたクラスから即マーカー化。
-    //   最速クラスの速度で初アイコンが出る（応答が最も遅い鳥を待たない）。空きスロット分だけ随時追加。
-    const single=groups.length===1;                // クラス選択時は1グループ＝取得件数を厚めにして散らす母数を確保
-    // occurrence取得件数：アイコン上限(cap)が高いほど多くの記録を引いて distinct 種を確保する（記録は普通種が重複するため）。
-    const occS=Math.min(300,Math.max(140,cap*2));   // 単一クラス選択時（1クラスから多くの distinct を拾う）
+    // ★段階描画：クラス別 occurrence を Promise.all で束ねず、返ってきたクラスから即「別種」を配置（最速クラスで初アイコン・鳥待ちしない）。
+    const single=groups.length===1;
+    const occS=Math.min(300,Math.max(140,cap+40));                                  // 単一クラス選択時の取得件数
+    const perGrp=single?occS:Math.min(300,Math.max(90,Math.round(cap*1.2)));        // すべて時の各群取得件数（capが高いほど厚く＝別種と点を確保。既定cap24なら90＝従来と同等）
+    const distinctBudget=single?cap:Math.ceil(cap/groups.length)+4;                 // 段階描画の別種は各群 均等配分（鳥偏重を防ぐ）。余りは下の fillRepeats で。
+    // ★指定数まで埋める：まず未表示の別種を全部（多様性優先）→それでも足りなければ同一種の別の実観測地点（repeat）。Q1=repeats・Q2=strict（間引かない）。
+    const fillRepeats=()=>{ let room=cap-creatureMarkers.length; if(room<=0) return;
+      const placed=placedOf(); const add=[];
+      const fresh=[...speciesPool.values()].filter(e=>!shown.has(e.sci.toLowerCase()) && e.pts&&e.pts.length);   // 段階描画の配分で置けなかった別種
+      for(const e of weightedSample(fresh, room)){ if(room<=0) break; const c=spreadTake(e.pts, placed); if(!c) continue; add.push({sci:e.sci,cls:e.cls,n:e.n,c}); placed.push(c); shown.add(e.sci.toLowerCase()); room--; }
+      let pool=[...speciesPool.values()].filter(e=>e.pts&&e.pts.length); let guard=0;   // repeat（同一種の別地点）
+      while(room>0 && pool.length && guard<cap*30){ guard++;
+        const e=weightedPick(pool); if(!e) break;                                   // 頻度重み＝多い種ほど repeat 出やすい（実際その辺に何羽もいる＝リアル）
+        const c=spreadTake(e.pts, placed);
+        if(!e.pts.length){ const i=pool.indexOf(e); if(i>=0) pool.splice(i,1); }     // 点を使い切った種はプールから外す
+        if(!c) continue;
+        add.push({sci:e.sci,cls:e.cls,n:e.n,c}); placed.push(c); room--; }
+      if(add.length) spawnCreatures(add,true,gen);
+    };
+    // ★最終処理（fillRepeats＋キャッシュ）＝一度だけ。全群settle か、遅い群のフォールバックタイマーのどちらか早い方で走る。
+    let finalized=false;
+    const finalize=()=>{ if(finalized||stale()) return; finalized=true; clearTimeout(creatureFillTimer);
+      fillRepeats();   // 別種で足りない分を同一種の別地点で cap まで埋める
+      if(speciesPool.size) creatureCacheSet(k, [...speciesPool.values()].slice(0,CREATURE_POOL).map(e=>({sci:e.sci,cls:e.cls,n:e.n,pts:(e.cachePts&&e.cachePts.length?e.cachePts:e.pts||[]).slice(0,6)})));   // 種プールをキャッシュ（点は6まで＝localStorage節約・cachePtsは配置で消費されない不変コピー）
+    };
     const grab=(r)=>{
       let settled=0;
       groups.forEach(g=>{
-        const isFish=g.c==='Fish';   // ① 魚は GBIF(縛り緩和)＋OBIS(海洋)を併合＝外洋/海でもマーカーが出る
+        const isFish=g.c==='Fish';   // ① 魚は GBIF(縛り緩和)＋OBIS(海洋)を併合＝外洋/海でもマーカーが出る。OBISは巨大bboxで遅い→6秒で打ち切り（魚GBIF分は活かす）。
         const op=isFish
-          ? Promise.all([gbifOccByGroup(lat,lng,r,g.keys,single?Math.min(240,occS):80,y1,y2,false), obisOcc(lat,lng,r,single?220:120)]).then(([a,b])=>a.concat(b))
-          : gbifOccByGroup(lat,lng,r,g.keys,single?occS:(g.c==='Aves'?60:90),y1,y2,true);
+          ? Promise.all([gbifOccByGroup(lat,lng,r,g.keys,single?Math.min(240,occS):perGrp,y1,y2,false), pTimeout(obisOcc(lat,lng,r,single?220:140),6000,[])]).then(([a,b])=>a.concat(b))
+          : gbifOccByGroup(lat,lng,r,g.keys,perGrp,y1,y2,true);
         op
           .then(res=>{ if(stale()) return;
-            const fresh=collectPicks([{g,res}], single?cap:Math.ceil(cap/groups.length)+3).filter(p=>!shown.has(p.sci.toLowerCase()));
-            fresh.forEach(addPool);   // プールには全候補を貯める（次回キャッシュ抽選の母数＝再訪の多様性）
-            const room=cap-creatureMarkers.length; if(room<=0) return;
-            // ② 広く散らす：各種を重心1点でなく、既存マーカーから最も遠い観測点へ置く（円内を埋める）
-            const placed=placedOf();
-            const add=[];
-            for(const p of fresh){ if(add.length>=room) break; const c=spreadPoint(p.pts, placed); if(!c) continue; add.push({sci:p.sci,cls:p.cls,n:p.n,c}); placed.push(c); shown.add(p.sci.toLowerCase()); }
-            if(add.length) spawnCreatures(add,true,gen);   // 既存を消さず追加（append）＝返った順に積む
+            const t=tallyOcc(res, g.c);
+            Object.keys(t.freq).forEach(sp=>{ const cls=CLASS_EMOJI[t.cls[sp]]?t.cls[sp]:g.c; addSpecies(sp,cls,t.freq[sp],thinPoints(t.pts[sp],POOL_PTS)); });   // 種プールへ蓄積（repeat/キャッシュの母数）
+            // 別種優先で新規種を配置（このグループ配分＝distinctBudget まで・段階描画）
+            const gRoom=Math.min(cap-creatureMarkers.length, distinctBudget); if(gRoom>0){
+              const cand=[...speciesPool.values()].filter(e=>t.freq[e.sci]!=null && !shown.has(e.sci.toLowerCase()) && e.pts.length);   // このグループの応答にある未表示種
+              const placed=placedOf(); const add=[];
+              for(const e of weightedSample(cand, gRoom)){ if(add.length>=gRoom) break; const c=spreadTake(e.pts, placed); if(!c) continue; add.push({sci:e.sci,cls:e.cls,n:e.n,c}); placed.push(c); shown.add(e.sci.toLowerCase()); }
+              if(add.length) spawnCreatures(add,true,gen);   // 既存を消さず追加（append）＝返った順に積む
+            }
           })
           .catch(()=>{})
           .finally(()=>{ settled++;
             if(settled!==groups.length) return;
             // 全クラス出そろって過疎/近すぎ＝初回描画の後ろで1段だけ半径拡大（確実にアイコン）。3倍・最大100km。
-            if(!widened && !stale() && creatureMarkers.length<4 && r<80){ widened=true; grab(Math.min(r*3,100)); return; }
-            if(!stale() && pool.length) creatureCacheSet(k, pool.slice(0,CREATURE_POOL));   // 候補プールを保存＝次回は別の顔ぶれを抽選
+            //   8秒フォールバックで既に finalize 済みでも、widen分を fill/キャッシュへ反映するため finalized を解除して再 finalize させる。
+            if(!widened && !stale() && creatureMarkers.length<4 && r<80){ widened=true; finalized=false; grab(Math.min(r*3,100)); return; }
+            finalize();
           });
       });
     };
     grab(radius);
+    // ★フォールバック：どれかの群が遅い/固まっても、8秒後には現状のプールで fillRepeats を確実に走らせる（指定数まで埋める）。
+    creatureFillTimer=setTimeout(()=>{ if(!stale()) finalize(); }, 8000);
   };
   if(immediate) run(); else creatureTimer=setTimeout(run,260);   // ★初回(地点確定)は即・半径連打はデバウンス
 }
 function spawnCreatures(list,append,gen){
-  if(!mapReady) return; if(!append){ removeCreatures(); _placedPts=[]; }   // append=段階描画で既存を消さず積み増す
+  if(!mapReady) return; if(!append){ removeCreatures(); }   // append=段階描画で既存を消さず積み増す
   const myKey=creaturesKey, myGen=(gen==null?creatureGen:gen);   // この生成バッチの世代。地点/半径/世代を切替えたら古いバッチの後処理はスキップ。
   const base=append?creatureMarkers.length:0;   // append時はstaggerを既存マーカー数から継続（順次出現を維持）
+  // ★Q2=「指定数を厳密に」＝画面座標デクラッタ(間引き)はしない。散らしは配置側(spreadPoint/spreadTake)が実観測点へ広げて担う。
   list.forEach((it,idx)=>{
-    // 画面座標デクラッタ：すでに置いたマーカーと46px未満で重なるものは間引く（近くマップの「団子」を根本から防ぐ）
-    let sp=null; try{ sp=map.project(it.c); }catch(e){}
-    if(sp){ for(const q of _placedPts){ if(Math.abs(sp.x-q.x)<46 && Math.abs(sp.y-q.y)<46) return; } }
-    const el=document.createElement('div'); el.className='cmk-wrap'; el.style.setProperty('--d',((base+idx)*60)+'ms');   // 出現stagger＝wrapに置き .cmk pop と .cmk-lab peek の両方に継承させる
+    const el=document.createElement('div'); el.className='cmk-wrap'; el.style.setProperty('--d',Math.min((base+idx)*30,1400)+'ms');   // 出現stagger（多数でも約1.4秒で出そろうよう頭打ち）＝wrapに置き .cmk pop と .cmk-lab peek に継承
     const cja=(animalBySci(it.sci)||{}).nameJa||'';   // ② 図鑑収録種は図鑑の和名を優先（iNat和名との食い違いを解消）
     const bub=document.createElement('div'); bub.className='cmk'; bub.textContent=classEmoji(it.cls);
     const lab=document.createElement('div'); lab.className='cmk-lab'; lab.innerHTML=cja?`<b>${esc(cja)}</b>`:`<i>${esc(it.sci)}</i>`;   // 名前ラベル（自動ピークは先頭数体だけ＝下のpeek。残りはタップ/ホバーで表示）
@@ -2440,7 +2472,6 @@ function spawnCreatures(list,append,gen){
     el.appendChild(bub); el.appendChild(lab);
     el.addEventListener('click',(e)=>{ e.stopPropagation(); document.querySelectorAll('.cmk-wrap.sel').forEach(x=>x.classList.remove('sel')); el.classList.add('sel'); openCreature(it.sci,it.n,it.cls); });
     let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(it.c).addTo(map); }catch(e){ return; }
-    if(sp) _placedPts.push(sp);   // 実際に置けたものだけ記録（次マーカーの重なり判定に使う）
     creatureMarkers.push(mk);
     // 写真サムネに差し替え＆ホバーラベル更新（iNat・キャッシュ/throttle 共有）。鮮度ガード＝古い世代/撤去済みは何もしない。
     inatEnqueue(async()=>{ if(myGen!==creatureGen||creaturesKey!==myKey||!bub.isConnected) return; const v=await inatResolve(it.sci);
@@ -2448,10 +2479,12 @@ function spawnCreatures(list,append,gen){
       const clsLab=NEAR_ICONIC[v.ic]||'', nm=cja||v.ja;   // 図鑑名 > iNat名
       if(nm||clsLab) lab.innerHTML=(nm?`<b>${esc(nm)}</b>`:`<i>${esc(it.sci)}</i>`)+(clsLab?` <span class="cl">${clsLab}</span>`:'');
       if(v&&v.ph&&!bub.querySelector('img')){ const img=document.createElement('img'); img.src=v.ph; img.alt=''; img.onload=()=>img.classList.add('on'); bub.appendChild(img); } });
-    // 近くの絶滅危惧種を強調（「近所にコレ!?」）＋ラベルにも保全状況
-    resolveIucn(it.sci).then(code=>{ if(myGen!==creatureGen||creaturesKey!==myKey||!bub.isConnected) return; if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); lab.classList.add('th'); lab.insertAdjacentHTML('afterbegin',`<span class="w">⚠${code}</span> `);
+    // 近くの絶滅危惧種を強調（「近所にコレ!?」）＋ラベルにも保全状況。★throttle（gbifEnqueue・同時5）で最多300時のGBIFバーストを避ける。
+    gbifEnqueue(async()=>{ if(myGen!==creatureGen||creaturesKey!==myKey||!bub.isConnected) return; const code=await resolveIucn(it.sci);
+      if(myGen!==creatureGen||creaturesKey!==myKey||!bub.isConnected) return; if(code&&THREAT_CATS.has(code)&&RARITY[code]){ bub.classList.add('threat'); bub.style.setProperty('--tc',RARITY[code].color); lab.classList.add('th'); lab.insertAdjacentHTML('afterbegin',`<span class="w">⚠${code}</span> `);
       if(!threatToastShown){ const nm=inatGet(it.sci); const ja=cja||(nm&&nm.ja); if(ja){ threatToastShown=true; toast('⚠','近くに絶滅危惧の「'+esc(ja)+'」がいるかも',3800); } } } });   // 和名はiNat由来＝escでXSS防止／「近所にコレ!?」を1地点1回（敵対レビュー確定）
   });
+  updateCreatureCount();   // 表示数コントロールの「🗺️ N」を今のアイコン数に更新
 }
 function openCreature(sci,cnt,cls){
   const i=nearRows.findIndex(r=>(r.name||'').toLowerCase()===String(sci).toLowerCase());
