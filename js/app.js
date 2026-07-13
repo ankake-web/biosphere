@@ -1642,6 +1642,7 @@ function mergeCounts(...lists){ const m=new Map();   // 複数の[{name,count,oc
 }
 let nearState=null;                 // {lat,lng,radius,label}
 let nearMarker=null, nearPick=false, nearTimer=null, nearClasses=[], nearThreatOnly=false, nearRows=[], nearPtsOn=false, nearSort='count';
+let nearAvail=0;   // この範囲＋絞り込みで実際にいる別種数（facetで算出・capMaxまで）＝表示数インジケータの分母（例「100/50」の50）
 // ⑤ 一覧の並び替え（既定＝記録の多い順＝その範囲の生息数のめやす）。名前/分類/絶滅危機に切替可。
 const NEAR_CLS_ORDER=['Mammalia','Aves','Reptilia','Amphibia','Fish','Teleostei','Elasmobranchii','Actinopterygii','Chondrichthyes','Insecta'];
 function nearClsRank(c){ const i=NEAR_CLS_ORDER.indexOf(c.gcls||c.ic||''); return i<0?99:i; }
@@ -1661,7 +1662,7 @@ function setNearCap(n){ const mx=capMax(nearState?nearState.radius:100); n=Math.
   if(n===nearCap){ return; } nearCap=n; nearCapWish=n; try{ localStorage.setItem('biosphere_nearcap',n); }catch(e){}   // 希望値も更新（この半径での明示選択）
   if(nearState){ queryNear(); loadNearCreatures(nearState.lat,nearState.lng,nearState.radius,true); } else renderNearList&&nearRows&&renderNearList(); }
 // スライダードラッグ中の即時ラベル更新（refetchはonchangeのsetNearCapで）。
-function capLive(n){ const el=document.querySelector('.capnum b'); if(el) el.textContent=Math.round(+n); }
+function capLive(n){ const el=document.querySelector('#capMapCount .capn'); if(el) el.textContent=Math.round(+n); }   // スライダードラッグ中は分子(表示予定数)をプレビュー（refetchはonchangeのsetNearCap）
 let creatureMarkers=[], creatureTimer=null, creatureFillTimer=null, creaturesKey=null, threatToastShown=false, creatureGen=0, queryGen=0;   // Gen=単調増加の世代トークン（同一丸め座標への素早い出戻りA→B→Aでも古いin-flightバッチを確実に破棄）
 function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
@@ -1808,11 +1809,14 @@ function recenterCurrent(){
 // 未選択＝脊椎5クラスを段階描画／種別を選ぶと選択クラス群（1つでも複数でも）を同じ段階描画ロジックで取得。
 function queryNear(immediate){
   const {lat,lng,radius}=nearState, clsKey=nearClsKey(), k=nearKey(lat,lng,radius)+'|'+clsKey, cached=nearCacheGet(k), gen=++queryGen;
-  if(cached&&cached.length){ nearRows=cached.slice(0,nearCap).map(c=>({name:c.name,count:c.count,gcls:c.gcls,ocls:c.ocls||''})); renderNearList(); }   // 現 nearCap で頭切り（表示数を下げた直後に found>cap の矛盾表示を出さない）
-  else { nearRows=[]; renderNearList('<div class="nearsum">🛰️ 周辺の記録を集めています…</div>'); }
+  const capmx0=capMax(radius);
+  if(cached&&cached.length){ nearAvail=Math.min(capmx0, cached.length);   // 再訪：キャッシュは全distinct（capMaxまで）を保存済み＝分母を即復元
+    nearRows=cached.slice(0,nearCap).map(c=>({name:c.name,count:c.count,gcls:c.gcls,ocls:c.ocls||''})); renderNearList(); }   // 現 nearCap で頭切り（表示数を下げた直後に found>cap の矛盾表示を出さない）
+  else { nearAvail=0; nearRows=[]; renderNearList('<div class="nearsum">🛰️ 周辺の記録を集めています…</div>'); }   // 未取得中は分母を「…」に
   clearTimeout(nearTimer);
   const run=()=>{
     const y2=new Date().getFullYear(), y1=y2-10;
+    const capmx=capMax(radius);         // 表示数の上限＝availの上限（この範囲でこれ以上は表示対象にしない）
     const groups=nearGroups();          // 未選択＝脊椎5クラス／選択時＝そのクラス群（複数可）
     const single=groups.length===1;     // 1クラスだけなら厚めに取得（facet 45）
     const stale=()=> gen!==queryGen||!currentMode||currentMode.type!=='near'||(nearKey(currentMode.lat,currentMode.lng,nearState.radius)+'|'+clsKey)!==k;
@@ -1821,32 +1825,32 @@ function queryNear(immediate){
     //   行は name キーでオブジェクトを使い回すので、再描画で iNat解決済み(和名/写真/保全)を失わない。
     const groupRows=new Array(groups.length).fill(null), rowObj=new Map();
     let firstPainted=!!(cached&&cached.length), settled=0;   // キャッシュ表示済みなら中間描画を省いてチラつき回避
-    const rebuild=()=>{   // 現在返っているクラスをラウンドロビンでインターリーブ（先頭からクラスが交互＝1クラスに偏って見えない）
+    const rebuild=()=>{   // 現在返っているクラスをラウンドロビンでインターリーブ（先頭からクラスが交互＝1クラスに偏って見えない）。全distinct（capMaxまで）を返す。
       const merged=[], seen=new Set(), maxLen=Math.max(0,...groupRows.map(r=>r?r.length:0));
       for(let i=0;i<maxLen;i++) for(let gi=0;gi<groupRows.length;gi++){ const rr=groupRows[gi], c=rr&&rr[i]; if(!c) continue;
         const key=c.name.toLowerCase(); if(seen.has(key)) continue; seen.add(key);
         let obj=rowObj.get(key); if(!obj){ obj={name:c.name,count:c.count,gcls:c.gcls,ocls:c.ocls||''}; rowObj.set(key,obj); } else obj.count=Math.max(obj.count,c.count);
         merged.push(obj); }
-      return merged.slice(0,nearCap);   // 一覧件数は表示数コントロール連動
+      nearAvail=Math.min(capmx, merged.length);   // ★その範囲＋絞り込みにいる別種数（表示できる上限＝インジケータの分母「/50」）
+      return merged;   // 表示行は呼び出し側で nearCap に切る（一覧件数は表示数コントロール連動）
     };
     groups.forEach((g,gi)=>{
       const isFish=g.c==='Fish';   // ① 魚グループは GBIF facet ＋ OBIS checklist を併合（外洋の魚も一覧に）
-      // facetLimit は表示数(nearCap)に追従＝100や300を選んでも一覧が埋まり、並び替えが全件に効く。
-      // 複数クラスはラウンドロビンで合算後に nearCap で切るので、鳥偏重でも各クラスが nearCap まで供給できるよう同値。
-      const flim=Math.min(300, Math.max(20, nearCap));
+      // facetLimit は capMax まで＝「その範囲に何種いるか(avail)」を capMax まで数えられる（分母表示・並び替えが全件に効く）。
+      const flim=capmx;
       const fp=isFish
         ? Promise.all([gbifFacetNear(lat,lng,radius,g.keys,flim,y1,y2,false), obisChecklist(lat,lng,radius)]).then(([a,b])=>mergeCounts(a,b))
         : gbifFacetNear(lat,lng,radius,g.keys,flim,y1,y2,true);
       fp
         .then(rows=>{ if(stale()) return;
-          groupRows[gi]=rows.slice(0,Math.max(g.cap,nearCap)).map(c=>({name:c.name,count:c.count,gcls:g.c,ocls:c.ocls||''}));   // 単一クラス時も表示数まで拾えるよう g.cap と nearCap の大きい方。ocls=OBIS由来の実クラス（クジラを魚扱いしない）
-          if(!firstPainted){ const merged=rebuild(); if(merged.length){ nearRows=merged; renderNearList(); firstPainted=true; } }   // 最速クラスで一覧を即出す
+          groupRows[gi]=rows.slice(0,capmx).map(c=>({name:c.name,count:c.count,gcls:g.c,ocls:c.ocls||''}));   // 各クラスから capMax まで保持（avail集計と表示の母数）。ocls=OBIS由来の実クラス（クジラを魚扱いしない）
+          if(!firstPainted){ const merged=rebuild(); if(merged.length){ nearRows=merged.slice(0,nearCap); renderNearList(); firstPainted=true; } }   // 最速クラスで一覧を即出す
         })
         .catch(()=>{})
         .finally(()=>{ settled++; if(settled!==groups.length || stale()) return;   // 全クラス出そろい＝確定描画＋キャッシュ
           const merged=rebuild();
           if(!merged.length){ noneMsg(); }
-          else { nearCacheSet(k,merged.map(c=>({name:c.name,count:c.count,gcls:c.gcls,ocls:c.ocls||''}))); nearRows=merged; renderNearList(); }
+          else { nearCacheSet(k,merged.map(c=>({name:c.name,count:c.count,gcls:c.gcls,ocls:c.ocls||''}))); nearRows=merged.slice(0,nearCap); renderNearList(); }   // キャッシュは全distinct（再訪でavail即復元）／表示は nearCap
         });
     });
   };
@@ -1948,9 +1952,8 @@ function nearControlsHTML(){
   // 並びはプルダウンでなくチップ式（半径/種別と操作感を統一）。
   const schips=[['count','記録の多い順'],['name','名前順'],['cls','分類ごと'],['threat','絶滅危機順']]
     .map(([v,l])=>`<button class="cchip${nearSort===v?' on':''}" onclick="setNearSort('${v}')">${l}</button>`).join('');
-  // 表示数コントロール：PC=スライダー／スマホ=チップ。右に「いま表示中／上限」を表示。
-  //   上限は半径依存（capMax）＝広い範囲では最大300まで。地図アイコンも同数（表示した数分だけ）。
-  const found=(nearRows&&nearRows.length)||0;
+  // 表示数コントロール：PC=スライダー／スマホ=チップ。右に「いま地図に出ているアイコン数 / この範囲にいる種数」を表示。
+  //   分母(nearAvail)はその範囲＋絞り込みにいる別種数（capMaxまで）。分子は表示アイコン数（種数を上げると同じ種も別地点に出て種数を超えられる＝例「100/50」）。
   const capmx=capMax(nearState?nearState.radius:100);
   const capchips=[['少なめ',12],['標準',24],['多め',Math.min(50,capmx)],['最多',capmx]]
     .map(([l,n])=>`<button class="cchip${nearCap===n?' on':''}" onclick="setNearCap(${n})">${l}<span class="chn">${n}</span></button>`).join('');
@@ -1963,7 +1966,7 @@ function nearControlsHTML(){
       <div class="ctlrow"><span class="ctll">表示数</span><div class="capctl">
         <input class="caprange pc-only" type="range" min="${NEARCAP_MIN}" max="${capmx}" step="2" value="${Math.min(nearCap,capmx)}" oninput="capLive(this.value)" onchange="setNearCap(this.value)" aria-label="近くの一覧の表示数（最大${capmx}）">
         <div class="capchips mob-only">${capchips}</div>
-        <span class="capnum" title="いま一覧に出ている種数（🐾）／表示数の上限（右）／地図アイコン数（🗺️）">🐾 ${found}<span class="capsep">/</span><b>${nearCap}</b><span class="capmap" id="capMapCount"></span></span>
+        <span class="capnum" id="capMapCount" title="いま地図に出ている生きものアイコン数 ／ この範囲・絞り込みにいる種数（数字を上げると、同じ種も別の場所に出て種数より多く表示できます）">🐾 <span class="capn">${creatureMarkers.length}</span><span class="capsep">/</span><b>${nearAvail>0?nearAvail:'…'}</b></span>
       </div></div>
     </div>
     <div class="ctlrow ctlbtns"><button class="nbtn" onclick="openAddrSearch()">🔍 住所で移動</button><button class="nbtn" onclick="recenterCurrent()">📍 現在地</button><button class="nbtn" onclick="armNearPick()">📌 タップで移動</button><button class="nbtn" onclick="shareNearCard(this)">📤 シェア</button></div>
@@ -2299,7 +2302,11 @@ async function toggleNearPoints(sci,btn,wide){
    絵文字で即出現（有限CSSアニメ）→iNat写真サムネに差し替え／絶滅危惧はレア度カラーで発光。タップで詳細。
    永続rAFは使わない（アニメはCSS有限）。 */
 // 表示数コントロールの「🗺️ N」＝いま地図に出ているアイコン数（指定した数分だけ出ているかの確認・任意要素）。
-function updateCreatureCount(){ const el=document.getElementById('capMapCount'); if(el) el.textContent=creatureMarkers.length?(' 🗺️'+creatureMarkers.length):''; }
+function updateCreatureCount(){ const el=document.getElementById('capMapCount'); if(!el) return;
+  const n=el.querySelector('.capn'), a=el.querySelector('b');
+  if(n) n.textContent=creatureMarkers.length;               // 分子＝いま地図に出ているアイコン数
+  if(a) a.textContent=nearAvail>0?nearAvail:'…';            // 分母＝この範囲・絞り込みにいる種数（未取得中は…）
+}
 function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); creatureMarkers=[]; updateCreatureCount(); }
 /* ---------- 世界(概観)ビューのランダム浮遊アイコン（③）----------
    地球儀/世界地図のとき、図鑑の種を毎回ちがう顔ぶれで数体“浮遊”表示＝ぐるっと見て回る楽しさ。

@@ -504,7 +504,10 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .nearctl{padding:0 16px 8px;display:flex;flex-direction:column;gap:7px;}
 .nearfilters{display:flex;flex-direction:column;gap:7px;}   /* シンプル化⑤b：近くの細かい操作を畳む（既定10km・全種で即開く・docs/design/11-B） */
 .nearfilters[hidden]{display:none;}
-.nearfiltoggle{align-self:flex-start;font-size:12px;padding:5px 11px;}
+/* 絞り込みトグルは見つけやすく＝アクセント全幅ボタン（開くと控えめに） */
+.nearfiltoggle{align-self:stretch;font-size:13px;font-weight:800;padding:9px 13px;background:linear-gradient(180deg,rgba(52,216,198,.26),rgba(52,216,198,.15));border:1.5px solid rgba(52,216,198,.65);color:#eafffb;box-shadow:0 2px 10px rgba(52,216,198,.2);letter-spacing:.01em;}
+.nearfiltoggle:hover{background:rgba(52,216,198,.33);}
+.nearfiltoggle[aria-expanded="true"]{background:rgba(52,216,198,.13);box-shadow:none;}
 .ctlrow{display:flex;align-items:center;gap:8px;}
 .ctll{font-size:11px;color:var(--muted);width:30px;flex:0 0 auto;}
 .rchips,.cchips{display:flex;flex-wrap:wrap;gap:5px;flex:1;}
@@ -523,9 +526,9 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .caprange{flex:1;min-width:80px;accent-color:#34d8c6;cursor:pointer;height:20px;}
 .capchips{display:flex;gap:5px;flex-wrap:wrap;flex:1;}
 .capnum{flex:0 0 auto;font-size:11px;color:var(--muted);white-space:nowrap;}
-.capnum b{color:#34d8c6;font-size:12.5px;}
+.capnum .capn{color:#34d8c6;font-weight:800;font-size:13px;}   /* 分子＝いま表示中のアイコン数（強調） */
+.capnum b{color:#9fb0bd;font-size:12px;font-weight:700;}        /* 分母＝この範囲にいる種数（控えめ） */
 .capsep{opacity:.5;margin:0 2px;}
-.capmap{color:#7fd39a;margin-left:5px;font-weight:700;}
 .mob-only{display:none;}                 /* スマホ専用（チップ）はPCで隠す＝スライダー表示 */
 @media(max-width:860px){
   .pc-only{display:none;} .mob-only{display:flex;}   /* スマホ＝スライダー隠しチップ表示 */
