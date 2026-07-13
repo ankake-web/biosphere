@@ -1659,7 +1659,7 @@ function nearSortRows(){
 function setNearSort(v){ nearSort=v; if(v==='name'||v==='threat') resolveRemainingRows(); renderNearList(); }
 // 表示数（アイコン＋一覧の上限）をユーザーが変更。localStorage保存＋一覧/マーカーを取り直し。
 function setNearCap(n){ const mx=capMax(nearState?nearState.radius:100); n=Math.max(NEARCAP_MIN,Math.min(mx,Math.round(+n)||NEARCAP_DEF));
-  if(n===nearCap){ return; } nearCap=n; nearCapWish=n; try{ localStorage.setItem('biosphere_nearcap',n); }catch(e){}   // 希望値も更新（この半径での明示選択）
+  if(n===nearCap){ updateCreatureCount(); return; } nearCap=n; nearCapWish=n; try{ localStorage.setItem('biosphere_nearcap',n); }catch(e){}   // 値が変わらない操作（no-opドラッグ/同じチップ）でも分子(.capn)を実アイコン数へ戻す（capLiveのプレビュー残留を消す）／希望値も更新
   if(nearState){ queryNear(); loadNearCreatures(nearState.lat,nearState.lng,nearState.radius,true); } else renderNearList&&nearRows&&renderNearList(); }
 // スライダードラッグ中の即時ラベル更新（refetchはonchangeのsetNearCapで）。
 function capLive(n){ const el=document.querySelector('#capMapCount .capn'); if(el) el.textContent=Math.round(+n); }   // スライダードラッグ中は分子(表示予定数)をプレビュー（refetchはonchangeのsetNearCap）
@@ -1964,7 +1964,7 @@ function nearControlsHTML(){
       <div class="ctlrow"><span class="ctll">種別</span><div class="cchips">${cchips}</div></div>
       <div class="ctlrow"><span class="ctll">並び</span><div class="cchips">${schips}</div></div>
       <div class="ctlrow"><span class="ctll">表示数</span><div class="capctl">
-        <input class="caprange pc-only" type="range" min="${NEARCAP_MIN}" max="${capmx}" step="2" value="${Math.min(nearCap,capmx)}" oninput="capLive(this.value)" onchange="setNearCap(this.value)" aria-label="近くの一覧の表示数（最大${capmx}）">
+        <input class="caprange pc-only" type="range" min="${NEARCAP_MIN}" max="${capmx}" step="2" value="${Math.min(nearCap,capmx)}" oninput="capLive(this.value)" onchange="setNearCap(this.value)" onpointerup="setNearCap(this.value)" aria-label="近くの一覧の表示数（最大${capmx}）">
         <div class="capchips mob-only">${capchips}</div>
         <span class="capnum" id="capMapCount" title="いま地図に出ている生きものアイコン数 ／ この範囲・絞り込みにいる種数（数字を上げると、同じ種も別の場所に出て種数より多く表示できます）">🐾 <span class="capn">${creatureMarkers.length}</span><span class="capsep">/</span><b>${nearAvail>0?nearAvail:'…'}</b></span>
       </div></div>
