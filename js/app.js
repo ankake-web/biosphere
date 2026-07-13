@@ -1785,7 +1785,7 @@ const ZOOM_BY_R={1:13.2,3:11.9,5:11,10:10,30:8.4,50:7.6,100:6.6,300:5.2,500:4.5,
 const NEAR_DEFAULT_R=10;
 const NEAR_PRESETS=[['東京',35.68,139.76],['大阪',34.69,135.50],['札幌',43.06,141.35],['那覇',26.21,127.68],['ニューヨーク',40.71,-74.01],['ロンドン',51.51,-0.13],['シンガポール',1.35,103.82],['シドニー',-33.87,151.21],['ナイロビ',-1.29,36.82],['リオデジャネイロ',-22.91,-43.17]];
 const NEAR_ICONIC={Aves:'鳥類',Mammalia:'哺乳類',Reptilia:'爬虫類',Amphibia:'両生類',Actinopterygii:'魚類',Chondrichthyes:'魚類（軟骨魚）',Teleostei:'魚類',Elasmobranchii:'魚類（軟骨魚）',Insecta:'昆虫',Arachnida:'クモ類'};
-// 🦋虫は既定OFF（「すべて」に含めない＝苦手な人に配慮）。明示的に🦋虫チップを選んだ時だけ昆虫を出す。
+// 種別チップ。「すべて」＝脊椎5クラス＋🦋昆虫を全部（ユーザー要望）。個別クラス（🦋虫含む）を選べばそのクラスだけに絞る。
 const NEAR_CLASSES=[['','すべて'],['Aves','🐦鳥'],['Mammalia','🦫哺乳'],['Reptilia','🦎爬虫'],['Amphibia','🐸両生'],['Fish','🐟魚'],['Insecta','🦋虫']];
 const LS_NEAR='biosphere_near_', LS_INAT='biosphere_inat_', LS_SKEY='biosphere_skey_', LS_IUCN='biosphere_iucn_', LS_CRT='biosphere_crt_';
 const THREAT_CATS=new Set(['VU','EN','CR']);   // 絶滅危惧（Threatened）
@@ -1831,9 +1831,11 @@ const GBIF_VERT_GROUPS=[
   {c:'Fish',     keys:[204,121],           cap:12},
 ];
 const NEAR_CLASS_KEYS={Aves:[212],Mammalia:[359],Reptilia:[11592253,11418114],Amphibia:[131],Fish:[204,121],Insecta:[216]};
-// 近くマーカー/一覧の取得グループ。種別を1つ以上選ぶとその選択クラスだけ（🦋虫も明示選択で有効・複数選択可）／未選択＝「すべて」は脊椎動物のみ。
+// ★「すべて」は脊椎5クラス＋昆虫（🦋）も含める（ユーザー要望＝すべて＝全部出す）。個別クラスを選べば従来どおりそのクラスだけ。
+const GBIF_ALL_GROUPS=GBIF_VERT_GROUPS.concat([{c:'Insecta',keys:[216],cap:12}]);
+// 近くマーカー/一覧の取得グループ。種別を1つ以上選ぶとその選択クラスだけ（複数選択可）／未選択＝「すべて」は脊椎5＋昆虫。
 function nearGroups(){
-  if(!nearClasses.length) return GBIF_VERT_GROUPS;
+  if(!nearClasses.length) return GBIF_ALL_GROUPS;
   const cap = nearClasses.length===1 ? 45 : Math.max(12, Math.ceil(45/nearClasses.length));   // 一覧の1グループあたり取得上限（合算後に45で切る）
   return nearClasses.filter(c=>NEAR_CLASS_KEYS[c]).map(c=>({c, keys:NEAR_CLASS_KEYS[c], cap}));
 }
@@ -1915,7 +1917,8 @@ function setNearCap(n){ const mx=capMax(nearState?nearState.radius:100); n=Math.
   if(nearState){ queryNear(); loadNearCreatures(nearState.lat,nearState.lng,nearState.radius,true); } else renderNearList&&nearRows&&renderNearList(); }
 // スライダードラッグ中の即時ラベル更新（refetchはonchangeのsetNearCapで）。
 function capLive(n){ const el=document.querySelector('#capMapCount .capn'); if(el) el.textContent=Math.round(+n); }   // スライダードラッグ中は分子(表示予定数)をプレビュー（refetchはonchangeのsetNearCap）
-let creatureMarkers=[], creatureTimer=null, creatureFillTimer=null, creaturesKey=null, threatToastShown=false, creatureGen=0, queryGen=0;   // Gen=単調増加の世代トークン（同一丸め座標への素早い出戻りA→B→Aでも古いin-flightバッチを確実に破棄）
+let creatureMarkers=[], creatureTimer=null, creatureFillTimer=null, creaturesKey=null, threatToastShown=false, creatureGen=0, queryGen=0, _placedScreen=[];   // Gen=単調増加の世代トークン（同一丸め座標への素早い出戻りA→B→Aでも古いin-flightバッチを確実に破棄）／_placedScreen=配置済みマーカーの画面座標（真上のかぶりを避けて少しずらす用）
+const JIT_MIN=24, JIT_STEP=20;   // マーカー同士の最小画面間隔(px)＝これ未満に重なる時だけ実観測点付近へずらす（40pxアイコンが真上に完全重複しない・多少の重なりは許容）
 function nearKey(lat,lng,r){ return lat.toFixed(2)+','+lng.toFixed(2)+'@'+r; }
 // iNat学名キャッシュ（30日）／近傍ファセットキャッシュ（1日）
 function inatGet(s){ try{const o=JSON.parse(localStorage.getItem(LS_INAT+s)||'null'); if(o&&(Date.now()-o.t)<2592e6)return o.v;}catch(e){} return null; }
@@ -2072,7 +2075,7 @@ function queryNear(immediate){
     const groups=nearGroups();          // 未選択＝脊椎5クラス／選択時＝そのクラス群（複数可）
     const single=groups.length===1;     // 1クラスだけなら厚めに取得（facet 45）
     const stale=()=> gen!==queryGen||!currentMode||currentMode.type!=='near'||(nearKey(currentMode.lat,currentMode.lng,nearState.radius)+'|'+clsKey)!==k;
-    const noneMsg=()=>{ const lab=nearClasses.length?nearClassLabel():'脊椎動物'; nearRows=[]; renderNearList('<div class="nearsum">この範囲の'+esc(lab)+'の記録は見つかりませんでした。半径を広げるか場所を変えてみてください。</div>'); };
+    const noneMsg=()=>{ const lab=nearClasses.length?nearClassLabel():'生きもの'; nearRows=[]; renderNearList('<div class="nearsum">この範囲の'+esc(lab)+'の記録は見つかりませんでした。半径を広げるか場所を変えてみてください。</div>'); };
     // ★段階描画：クラス別 facet を Promise.all で束ねず、最初に返ったクラスで一覧を即描画→出そろい時に確定。
     //   行は name キーでオブジェクトを使い回すので、再描画で iNat解決済み(和名/写真/保全)を失わない。
     const groupRows=new Array(groups.length).fill(null), rowObj=new Map();
@@ -2559,7 +2562,7 @@ function updateCreatureCount(){ const el=document.getElementById('capMapCount');
   if(n) n.textContent=creatureMarkers.length;               // 分子＝いま地図に出ているアイコン数
   if(a) a.textContent=nearAvail>0?nearAvail:'…';            // 分母＝この範囲・絞り込みにいる種数（未取得中は…）
 }
-function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); creatureMarkers=[]; updateCreatureCount(); }
+function removeCreatures(){ creatureMarkers.forEach(m=>{try{m.remove();}catch(e){}}); creatureMarkers=[]; _placedScreen=[]; updateCreatureCount(); }
 /* ---------- 世界(概観)ビューのランダム浮遊アイコン（③）----------
    地球儀/世界地図のとき、図鑑の種を毎回ちがう顔ぶれで数体“浮遊”表示＝ぐるっと見て回る楽しさ。
    近くはローカルGBIF依存だが世界は図鑑ANIMALSの focus 座標に配置。タップで種カードへ。永続rAFは使わない。 */
@@ -2721,8 +2724,16 @@ function spawnCreatures(list,append,gen){
   if(!mapReady) return; if(!append){ removeCreatures(); }   // append=段階描画で既存を消さず積み増す
   const myKey=creaturesKey, myGen=(gen==null?creatureGen:gen);   // この生成バッチの世代。地点/半径/世代を切替えたら古いバッチの後処理はスキップ。
   const base=append?creatureMarkers.length:0;   // append時はstaggerを既存マーカー数から継続（順次出現を維持）
-  // ★Q2=「指定数を厳密に」＝画面座標デクラッタ(間引き)はしない。散らしは配置側(spreadPoint/spreadTake)が実観測点へ広げて担う。
+  // ★指定数は厳密に出す（間引かない）が、真上に完全重複するアイコンだけは実観測点付近へ少しずらす（_placedScreen＋フィボナッチ螺旋）。
   list.forEach((it,idx)=>{
+    let c=it.c, sp=null; try{ sp=map.project(c); }catch(e){}
+    if(sp){   // 既存マーカーと JIT_MIN 未満で重なるなら、螺旋状に少しずらした点へ（unprojectで実観測点付近の座標に戻す）
+      let cur={x:sp.x,y:sp.y}, t=0;
+      const hit=p=>_placedScreen.some(q=>{const dx=p.x-q.x,dy=p.y-q.y;return dx*dx+dy*dy < JIT_MIN*JIT_MIN;});
+      while(hit(cur) && t<16){ t++; const a=t*2.399963267, r=JIT_STEP*Math.sqrt(t); cur={x:sp.x+Math.cos(a)*r, y:sp.y+Math.sin(a)*r}; }
+      if(t>0){ try{ const ll=map.unproject([cur.x,cur.y]); c=[ll.lng,ll.lat]; }catch(e){} }   // 重なった時だけ座標を微調整
+      _placedScreen.push(cur);
+    }
     const el=document.createElement('div'); el.className='cmk-wrap'; el.style.setProperty('--d',Math.min((base+idx)*30,1400)+'ms');   // 出現stagger（多数でも約1.4秒で出そろうよう頭打ち）＝wrapに置き .cmk pop と .cmk-lab peek に継承
     const cja=(animalBySci(it.sci)||{}).nameJa||'';   // ② 図鑑収録種は図鑑の和名を優先（iNat和名との食い違いを解消）
     const bub=document.createElement('div'); bub.className='cmk'; bub.textContent=classEmoji(it.cls);
@@ -2730,7 +2741,7 @@ function spawnCreatures(list,append,gen){
     if(creatureMarkers.length<6) lab.classList.add('peek');   // 全同時ピークをやめ団子を防ぐ
     el.appendChild(bub); el.appendChild(lab);
     el.addEventListener('click',(e)=>{ e.stopPropagation(); document.querySelectorAll('.cmk-wrap.sel').forEach(x=>x.classList.remove('sel')); el.classList.add('sel'); openCreature(it.sci,it.n,it.cls); });
-    let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(it.c).addTo(map); }catch(e){ return; }
+    let mk; try{ mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat(c).addTo(map); }catch(e){ return; }
     creatureMarkers.push(mk);
     // 写真サムネに差し替え＆ホバーラベル更新（iNat・キャッシュ/throttle 共有）。鮮度ガード＝古い世代/撤去済みは何もしない。
     inatEnqueue(async()=>{ if(myGen!==creatureGen||creaturesKey!==myKey||!bub.isConnected) return; const v=await inatResolve(it.sci);
@@ -2919,7 +2930,7 @@ async function buildShareCanvas(o){
     x.fillStyle='#cdd9df';x.font='30px sans-serif';x.fillText('この近くで '+sp.count+'件 記録',62,952);
     if(sp.th&&sp.band){ x.fillStyle=sp.bandColor||'#ffb02e'; rrect(x,640,912,382,56,14); x.fill(); x.fillStyle='#06231f';x.font='bold 32px sans-serif';x.fillText('⚠ 絶滅危惧 '+sp.band,660,950); }
   } else {
-    x.fillStyle='#cdd9df';x.font='30px sans-serif';x.fillText('周辺 半径'+o.radius+'km ・ 脊椎動物 '+o.total+'種',58,286);
+    x.fillStyle='#cdd9df';x.font='30px sans-serif';x.fillText('周辺 半径'+o.radius+'km ・ 生きもの '+o.total+'種',58,286);
     if(o.threatened>0){ x.fillStyle='#ffd089';x.font='bold 31px sans-serif';x.fillText('⚠ うち絶滅危惧 '+o.threatened+'種',58,330); }
     let y=378; for(const sp of o.species.slice(0,5)){ const im=await loadImg(sp.ph);
       drawCover(x,im,58,y,120,120,18);
@@ -2961,7 +2972,7 @@ async function shareNearCard(btn){
       .map(c=>({ja:c.ja,sci:c.name,ph:c.ph.replace('/square.','/medium.'),count:fmtN(c.count),th:THREAT_CATS.has(c.st2),band:c.st2,bandColor:RARITY[c.st2]?RARITY[c.st2].color:'#888'}));
     const threatened=nearRows.filter(c=>THREAT_CATS.has(c.st2)).length;
     const cv=await buildShareCanvas({place,species:pick,radius:nearState.radius,total:nearRows.length,threatened});
-    const text=`📍${place}の近くにいる脊椎動物 ${nearRows.length}種`+(threatened?`（うち絶滅危惧${threatened}種）`:'')+' #Faunaut';
+    const text=`📍${place}の近くにいる生きもの ${nearRows.length}種`+(threatened?`（うち絶滅危惧${threatened}種）`:'')+' #Faunaut';
     const nurl=location.origin+location.pathname+'#@'+nearState.lat+','+nearState.lng+(nearState.radius?(','+nearState.radius):'');   // 受け手がその場所に着地できる地点ディープリンク
     doShare(cv,'faunaut-near.png',text,nurl);
   }catch(e){ toast('📤','シェアカードを作成できませんでした',2200); }
