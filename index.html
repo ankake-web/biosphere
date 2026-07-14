@@ -44,7 +44,7 @@
   --bg:#070b11; --bg2:#0a1019;
   --glass:rgba(13,19,28,.72); --glass-strong:rgba(11,16,24,.86);
   --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.16);
-  --ink:#eef4f7; --muted:#8497a7; --muted-2:#5c6e7c;
+  --ink:#eef4f7; --muted:#8497a7; --muted-2:#7d90a1;
   --gold:#f2c14e; --teal:#34d8c6;
   --shadow:0 18px 50px -12px rgba(0,0,0,.7); --r:18px;
 }
@@ -222,8 +222,8 @@ button{font-family:inherit;cursor:pointer;}
 }
 .panel::-webkit-scrollbar{width:6px;}
 .panel::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px;}
-.pclose{position:absolute;top:12px;right:12px;z-index:4;width:32px;height:32px;border-radius:9px;
-  background:rgba(0,0,0,.4);border:1px solid var(--line);color:var(--ink);font-size:15px;display:grid;place-items:center;backdrop-filter:blur(6px);}
+.pclose{position:absolute;top:11px;right:11px;z-index:4;width:40px;height:40px;border-radius:10px;
+  background:rgba(0,0,0,.4);border:1px solid var(--line);color:var(--ink);font-size:16px;display:grid;place-items:center;backdrop-filter:blur(6px);}
 .pclose:hover{background:rgba(0,0,0,.6);}
 
 .hero{position:relative;height:200px;display:flex;align-items:flex-end;padding:16px;overflow:hidden;}
@@ -396,9 +396,9 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .gbifnote{margin-top:14px;font-size:11px;color:var(--muted-2);line-height:1.6;display:flex;align-items:center;gap:6px;}
 .gbifnote b{color:#ffb02e;}
 
-.cc-head{padding:18px 16px 6px;}
+.cc-head{padding:18px 52px 6px 16px;}   /* 右は✕ボタンの逃げ＝長い地名タイトルが重ならない */
 .cc-head .lbl{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);font-weight:600;}
-.cc-head .cname{font-size:24px;font-weight:800;margin-top:3px;display:flex;align-items:center;gap:10px;}
+.cc-head .cname{font-size:24px;font-weight:800;margin-top:3px;display:flex;align-items:center;gap:10px;overflow-wrap:anywhere;}
 .cc-head .cflag{font-size:26px;}
 .cc-head .cnt{font-size:12.5px;color:var(--muted);margin-top:5px;}
 .cc-list{padding:8px 12px 18px;display:flex;flex-direction:column;gap:8px;}
@@ -432,6 +432,13 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .nearrow .nsci{font-size:11px;font-style:italic;color:#9fb0bd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
 .nearrow{background:rgba(52,216,198,.06);border-color:rgba(52,216,198,.2);cursor:pointer;text-align:left;width:100%;font:inherit;}
 .nearrow:hover{background:rgba(52,216,198,.14);border-color:rgba(52,216,198,.45);}
+.nearrow .nsci.nsci-load{font-style:normal;color:var(--muted-2);opacity:.85;}   /* 名前未解決の行＝学名を太字＋「照合中…」（「…」だけの空振り表示を回避） */
+.nqseen{flex:0 0 auto;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:14px;background:rgba(52,216,198,.12);border:1px solid rgba(52,216,198,.32);color:#bdeee7;cursor:pointer;}
+.nqseen:hover{background:rgba(52,216,198,.28);border-color:#34d8c6;}
+.near-minileg{display:none;}   /* 近くの1行凡例。PCは左下の固定凡例があるのでモバイルだけ表示（重なり回避） */
+@media(max-width:860px){.near-minileg{display:flex;flex-wrap:wrap;gap:4px 12px;padding:0 16px 9px;font-size:11px;color:var(--muted-2);align-items:center;}}
+.near-minileg .lgi{display:inline-flex;align-items:center;gap:5px;}
+.near-minileg .sw{width:10px;height:10px;border-radius:3px;flex:0 0 auto;}
 .nbhint{font-size:12.5px;color:#9fb0bd;margin:8px 16px 6px;}
 .nbchips{display:flex;flex-wrap:wrap;gap:7px;padding:2px 16px 6px;}
 .nbchip{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;color:#e7eef2;font-size:12.5px;padding:6px 12px;cursor:pointer;}
@@ -528,14 +535,15 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .nearfiltoggle:hover{background:rgba(52,216,198,.33);}
 .nearfiltoggle[aria-expanded="true"]{background:rgba(52,216,198,.13);box-shadow:none;}
 .ctlrow{display:flex;align-items:center;gap:8px;}
-.ctll{font-size:11px;color:var(--muted);width:30px;flex:0 0 auto;}
+.ctll{font-size:11px;color:var(--muted);width:40px;flex:0 0 auto;white-space:nowrap;}   /* 「表示数」(3字)が2行折返しせず左ラベルが揃う */
 .rchips,.cchips{display:flex;flex-wrap:wrap;gap:5px;flex:1;}
 .rchip,.cchip{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;color:#cdd9df;font-size:11.5px;padding:4px 9px;cursor:pointer;}
 .rchip.on,.cchip.on{background:#34d8c6;border-color:#34d8c6;color:#04201d;font-weight:700;}
 .cchip .chn{opacity:.6;font-size:10px;margin-left:3px;}
 .cchip.on .chn{opacity:.85;}
 .rchip:hover,.cchip:hover{border-color:#34d8c6;}
-.ctlbtns{gap:6px;margin-top:1px;}
+.ctlbtns{gap:6px;margin-top:1px;flex-wrap:wrap;}   /* 4ボタンが幅に収まらなければ単語を割らず次行へ */
+.ctlbtns .nbtn{white-space:nowrap;flex:1 1 auto;text-align:center;}   /* ボタン内テキストの中途改行（「現/在地」等）を防ぐ。全幅の .nbtn.wide には効かせない */
 .nbtn{background:rgba(52,216,198,.1);border:1px solid rgba(52,216,198,.35);border-radius:9px;color:#bdeee7;font-size:12px;padding:6px 10px;cursor:pointer;}
 .nbtn:hover{background:rgba(52,216,198,.2);}
 .nbtn.wide{display:block;width:calc(100% - 32px);margin:10px 16px 2px;text-align:center;padding:9px;}
@@ -729,7 +737,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   </div>
   <div class="search">
     <span class="ic">🔍</span>
-    <input id="search" type="search" placeholder="動物・学名・環境で検索…" autocomplete="off" aria-label="動物を検索" />
+    <input id="search" type="search" placeholder="いきもの・学名・環境で検索…" autocomplete="off" aria-label="いきものを検索" />
   </div>
   <div class="tools">
     <button class="tbtn near lbl" id="nearBtn" aria-label="近くの生き物を探す" title="近くにいる生き物を探す">📍<span class="tl">近く</span></button>
@@ -777,7 +785,7 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
         <select id="sortSel" class="sf" aria-label="並び替え"></select>
         <select id="facetSel" class="sf" aria-label="絞り込み"></select>
       </div>
-      <div class="chips" id="chips" role="group" aria-label="動物を選ぶ"><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div></div>
+      <div class="chips" id="chips" role="group" aria-label="いきものを選ぶ"><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div><div class="chip sk"></div></div>
     </div>
   </div>
 </div>
