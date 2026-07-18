@@ -288,8 +288,13 @@ function openSeen(id){
       <div class="seen-sp"><span class="seen-em">${a.emoji}</span><div><b>${esc(a.nameJa)}</b><span class="seen-sci">${esc(a.nameSci)}</span></div></div>
       <label class="seen-lb" for="seenNote">ひとことメモ（任意）</label>
       <input id="seenNote" class="seen-in" type="text" maxlength="80" placeholder="どこで・どんな様子だった？">
-      <label class="seen-lb" for="seenPhoto">写真（任意・つけると＋ボーナス）</label>
-      <input id="seenPhoto" class="seen-file" type="file" accept="image/*" onchange="seenPreview(this)">
+      <label class="seen-lb">📷 写真をとって"自分だけの図鑑"に残そう（＋ボーナス）</label>
+      <div class="seen-cam">
+        <label class="seen-cam-btn primary" for="seenPhotoCam">📷 その場で撮る</label>
+        <label class="seen-cam-btn" for="seenPhoto">🖼️ 選ぶ</label>
+      </div>
+      <input id="seenPhotoCam" type="file" accept="image/*" capture="environment" onchange="seenPreview(this)" hidden>
+      <input id="seenPhoto" type="file" accept="image/*" onchange="seenPreview(this)" hidden>
       <div id="seenPrev" class="seen-prev" hidden><img alt=""></div>
       <label class="seen-chk"><input id="seenMaybe" type="checkbox"> 自信なし（たぶん）で記録</label>
       <div class="seen-row"><button class="nbtn wide seen-go" onclick="submitSeen('${a.id}')">ずかんに記録する</button></div>
@@ -346,6 +351,8 @@ function openMyDex(silent){
       <span class="myd-th"${(!s.photo&&s.photo_path)?` data-pp="${esc(s.photo_path)}"`:''}>${s.photo?`<img src="${s.photo}" alt="">`:em}</span>
       <span class="myd-mid"><b>${esc(nm)}</b><span class="myd-sub">${cf} ${ds}${s.note?' · '+esc(s.note):''}</span></span></button>`;
   }).join('')||'<div class="myd-empty">まだ記録がありません。近くの生きものや図鑑カードで「👀見た！」を押してみよう。</div>';
+  const myphotos=USER.all().filter(s=>s.photo).reverse();
+  const gallery=myphotos.length?`<h3>📸 撮った写真（${myphotos.length}）＝あなただけの図鑑</h3><div class="myd-gallery">${myphotos.map(s=>{const pa=ANIMALS.find(x=>x.id===s.id);const pn=pa?pa.nameJa:(s.sci||s.id);return `<button class="myd-ph" onclick="openPhotoView(${s.at})"><img src="${s.photo}" alt="${esc(pn)}" loading="lazy"><span class="myd-ph-nm">${esc(pn)}</span></button>`;}).join('')}</div>`:'';
   const m=document.createElement('div'); m.className='modal'; m.id='myDexModal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
   m.innerHTML=`<div class="modal-bg" onclick="closeMyDex()"></div>
     <div class="modal-card myd-card">
@@ -360,6 +367,7 @@ function openMyDex(silent){
         <div class="myd-st"><b>${xp}</b><span>XP</span></div>
         <div class="myd-st"><b>${st}日</b><span>連続記録</span></div>
       </div>
+      ${gallery}
       <h3>🏅 クエスト（${QDONE.size}/${QUESTS.length} 達成）</h3>
       <div class="q-list">${qrows}</div>
       <h3>さいきん見た</h3>
@@ -369,6 +377,43 @@ function openMyDex(silent){
   hydratePhotos(m);   // 他端末からpullした写真（photo_pathのみ）を署名URLで遅延表示
 }
 function closeMyDex(){ const m=document.getElementById('myDexModal'); if(m)m.remove(); }
+// 📸 撮った写真ビューア（大きく表示・保存・共有）＝"自分だけの図鑑"の1枚
+function openPhotoView(at){
+  const s=USER.all().find(x=>x.at===at); if(!s||!s.photo)return;
+  const a=ANIMALS.find(x=>x.id===s.id); const nm=a?a.nameJa:(s.sci||s.id);
+  const d=new Date(s.at); const ds=(d.getMonth()+1)+'/'+d.getDate();
+  closePhotoView();
+  const m=document.createElement('div'); m.className='modal'; m.id='photoViewModal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
+  m.innerHTML=`<div class="modal-bg" onclick="closePhotoView()"></div>
+    <div class="modal-card pv-card">
+      <button class="pclose" onclick="closePhotoView()" aria-label="閉じる">✕</button>
+      <div class="pv-img"><img src="${s.photo}" alt="${esc(nm)}"></div>
+      <div class="pv-meta"><b>${esc(nm)}</b><span>${ds}${s.note?' · '+esc(s.note):''}</span></div>
+      <div class="pv-actions">
+        <button class="nbtn pv-btn" onclick="sharePhoto(${at})">🔗 共有する</button>
+        <button class="nbtn pv-btn" onclick="savePhoto(${at})">⬇️ 保存する</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m); focusTrap(m);
+}
+function closePhotoView(){ const m=document.getElementById('photoViewModal'); if(m)m.remove(); }
+function photoFileName(s){ const a=ANIMALS.find(x=>x.id===s.id); const nm=(a?a.nameJa:s.id).replace(/[^\w\u3040-\u30ff\u4e00-\u9fff-]/g,''); return 'faunaut_'+nm+'_'+s.at+'.jpg'; }
+function savePhoto(at){ const s=USER.all().find(x=>x.at===at); if(!s||!s.photo)return;
+  const a=document.createElement('a'); a.href=s.photo; a.download=photoFileName(s); document.body.appendChild(a); a.click(); a.remove();
+  if(typeof ANALYTICS!=='undefined')ANALYTICS.track('photo_saved'); }
+async function sharePhoto(at){ const s=USER.all().find(x=>x.at===at); if(!s||!s.photo)return;
+  const a=ANIMALS.find(x=>x.id===s.id); const nm=a?a.nameJa:(s.sci||s.id);
+  try{
+    const blob=await (await fetch(s.photo)).blob();
+    const file=new File([blob], photoFileName(s), {type:blob.type||'image/jpeg'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:'Faunaut', text:`${nm} を見つけて記録！ https://faunaut.com`});
+      if(typeof ANALYTICS!=='undefined')ANALYTICS.track('photo_shared');
+    } else if(navigator.share){
+      await navigator.share({title:'Faunaut', text:`${nm} を見つけて記録！`, url:'https://faunaut.com'}); savePhoto(at);
+    } else { savePhoto(at); toast('⬇️','この端末は共有に非対応なので写真を保存しました',2600); }
+  }catch(e){ if(e&&e.name==='AbortError')return; savePhoto(at); }
+}
 // ===== クエスト（criteria + 汎用エンジン1本・進捗はsightingsから算出・達成時のみ記録／docs/design/03）=====
 const QSEV={LC:1,NT:2,VU:3,EN:4,CR:5,DD:0,NE:0};   // 保全/レア度の段階（危機が高い順）＝RARITYを解禁して使う
 function rarityTier(status){ return QSEV[status]||0; }
@@ -3137,4 +3182,4 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, openStats, closeStats, onboardSeen, onboardWorld, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters, openAccount, closeAccount, acctSendEmail, acctGoogle, acctSignOut })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, openStats, closeStats, onboardSeen, onboardWorld, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters, openAccount, closeAccount, acctSendEmail, acctGoogle, acctSignOut, openPhotoView, closePhotoView, savePhoto, sharePhoto })

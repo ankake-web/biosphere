@@ -229,6 +229,10 @@ button{font-family:inherit;cursor:pointer;}
   .panel.sheet-mid{max-height:46dvh;}   /* 近くの一覧/詳細は低め＝上に地図＋生き物を広く見せる */
   .grab{width:42px;height:4px;border-radius:99px;background:var(--line-2);margin:9px auto 2px;}
 }
+/* タブレット幅：種カード（近くの一覧=sheet-midは除く）を全幅にせず適度な幅で中央に＝写真が大きくなりすぎず全体が見える */
+@media(min-width:641px) and (max-width:860px){
+  .panel:not(.sheet-mid){max-width:440px;margin-inline:auto;}
+}
 .panel::-webkit-scrollbar{width:6px;}
 .panel::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px;}
 .pclose{position:absolute;top:11px;right:11px;z-index:4;width:40px;height:40px;border-radius:10px;
@@ -718,6 +722,55 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   .dockbody{display:none;}
   .dock.open .dockbody{display:flex;}
 }
+
+/* 📸 カメラ撮影を前面に＋Myずかんの写真ギャラリー＋写真ビューア（自分だけの図鑑） */
+.seen-cam{display:flex;gap:8px;margin:2px 0 8px;}
+.seen-cam-btn{flex:1;text-align:center;padding:12px 10px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);font-size:13.5px;font-weight:700;cursor:pointer;transition:filter .15s;}
+.seen-cam-btn.primary{background:linear-gradient(135deg,var(--teal),#2ba898);border-color:transparent;color:#04201c;}
+.seen-cam-btn:hover{filter:brightness(1.08);}
+.myd-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;margin-bottom:8px;}
+.myd-ph{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:rgba(255,255,255,.05);cursor:pointer;padding:0;}
+.myd-ph img{width:100%;height:100%;object-fit:cover;display:block;}
+.myd-ph-nm{position:absolute;left:0;right:0;bottom:0;padding:5px 6px;font-size:10px;font-weight:700;color:#fff;background:linear-gradient(180deg,transparent,rgba(0,0,0,.74));text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pv-card{max-width:min(92vw,460px);}
+.pv-img{border-radius:12px;overflow:hidden;background:#0b0f16;margin-bottom:10px;}
+.pv-img img{display:block;width:100%;height:auto;max-height:58vh;object-fit:contain;}
+.pv-meta{margin-bottom:12px;}.pv-meta b{font-size:16px;}.pv-meta span{display:block;font-size:12px;color:var(--muted-2);margin-top:2px;}
+.pv-actions{display:flex;gap:8px;}.pv-btn{flex:1;}
+
+/* ===== UI磨き込み（多レンズ監査→敵対検証の確定分）===== */
+/* [4] 押下感：主要ボタン/チップに:active（タッチで反応を感じる） */
+.nbtn:active,.bm:active,.chip:active,.rchip:active,.cch:active,.sf:active,.seen-go:active,.seen-cam-btn:active,.myd-acct-b:active,.pv-btn:active,.nqseen:active,.addrgo:active,.myd-ph:active{transform:scale(.96);}
+/* [13] ツールバーを全幅で44pxのタップ領域に統一 */
+.tbtn{width:44px;height:44px;}
+/* [6][8] 図鑑チップ：選択中を枠＋淡ティール地でホバーと明確に区別 */
+.chip[aria-pressed="true"]{border-color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal);background:rgba(52,216,198,.14);}
+/* [7][10] 環境チップ：選択中を読めるティール地＋濃字に */
+.bm[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#06201d;font-weight:700;}
+/* [16][21] モーダル見出し：本文より弱すぎ＋CJK字間過多を是正 */
+.modal-card h3{font-size:12.5px;letter-spacing:.04em;color:var(--muted);}
+/* [17] 種カードCTAの二重インデント解消（本文の16pxレールに揃える） */
+.pbody .nbtn.wide{width:100%;margin:8px 0;}
+.pbody .nbtn.wide.moretoggle{margin:16px 0 2px;}
+/* [11] Myずかんのメモ行を省略表示（長文で行が肥大化しない） */
+.myd-mid{min-width:0;}
+.myd-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* [22] ヒーロー和名：長い名の折返し時に行が詰まらない */
+.hero .htext .nm{line-height:1.12;}
+/* [24] 同一画面のリスト行間を8pxに統一 */
+.myd-list{gap:8px;}
+/* [25]+[24] 近くリスト：左端レール16px＋行間8px */
+.locsp{gap:8px;padding-left:16px;padding-right:16px;}
+/* [25] 土地カードのリスト左端も16pxレールに */
+.cc-list{padding-left:16px;padding-right:16px;}
+/* [14] 近くのクイック記録ボタンを押しやすく */
+.nqseen{width:38px;height:38px;}
+/* [12] 近くの操作ボタンを押しやすく（タップ領域拡大） */
+.nbtn{padding:8px 12px;font-size:12.5px;}
+/* [23] 並び替え/絞り込みselectを押しやすく */
+.sf{padding:8px 10px;font-size:12.5px;}
+/* [15] ボトムシートのsafe-area対応（ホームインジケータにCTAが潜らない） */
+@media(max-width:860px){ .panel{padding-bottom:env(safe-area-inset-bottom);} }
 </style>
 </head>
 <body>
