@@ -872,7 +872,7 @@ map.on('load', async ()=>{
   countryGeo.features.forEach(f=>{const p=f.properties;const a3=p[CODE_PROP];const a2=p.ISO_A2||p.ISO_A2_EH;if(a3&&a2&&a2!=='-99')A3toA2[a3]=a2;});
 
   map.addSource('countries',{type:'geojson',data:countryGeo});
-  map.addLayer({id:'c-fill',type:'fill',source:'countries',paint:{'fill-color':'rgba(0,0,0,0)','fill-opacity':.72}});
+  map.addLayer({id:'c-fill',type:'fill',source:'countries',paint:{'fill-color':'rgba(0,0,0,0)','fill-opacity':['interpolate',['linear'],['zoom'],3.5,.72,5.5,0]}});   // 国の色分けはズームで消す：引き（世界規模）は塗り、寄ると地図情報を主役にフェード
   map.addLayer({id:'c-glow',type:'line',source:'countries',layout:{'line-join':'round'},paint:{'line-color':'#34d8c6','line-width':7,'line-blur':6,'line-opacity':0}});
   map.addLayer({id:'c-active',type:'line',source:'countries',paint:{'line-color':'#34d8c6','line-width':1.4,'line-opacity':0}});
   map.addLayer({id:'c-hover',type:'line',source:'countries',paint:{'line-color':'#ffffff','line-width':1.1,'line-opacity':.55},filter:['==',['get',CODE_PROP],'__none__']});
