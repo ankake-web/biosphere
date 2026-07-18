@@ -784,6 +784,25 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
   .grab{width:64px;height:22px;margin:4px auto 0;padding:0;background:none;border-radius:0;cursor:ns-resize;position:relative;touch-action:none;}
   .grab::before{content:'';position:absolute;left:50%;top:9px;transform:translateX(-50%);width:44px;height:5px;border-radius:99px;background:var(--line-2);}
 }
+
+/* ===== v3: マイページ（プロフィール・自分だけの図鑑） ===== */
+.myp-hero{display:flex;align-items:center;gap:14px;padding:16px;margin:2px 0 14px;border-radius:16px;background:linear-gradient(135deg,rgba(52,216,198,.20),rgba(52,216,198,.03));border:1px solid rgba(52,216,198,.22);}
+.myp-av{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-size:26px;background:linear-gradient(135deg,var(--teal),#2ba898);color:#04201c;font-weight:800;flex:0 0 auto;box-shadow:0 4px 16px rgba(52,216,198,.32);}
+.myp-id{min-width:0;}
+.myp-id b{font-size:19px;font-weight:800;display:block;line-height:1.15;}
+.myp-id span{font-size:12.5px;color:var(--muted-2);}
+.myp-menu{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+.myp-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:13px 14px;cursor:pointer;color:inherit;transition:background .15s;font:inherit;}
+.myp-item:hover{background:rgba(255,255,255,.07);}
+.myp-item:active{transform:scale(.98);}
+.myp-ic{font-size:20px;flex:0 0 auto;width:26px;text-align:center;}
+.myp-tx{flex:1;min-width:0;}
+.myp-tx b{display:block;font-size:14px;font-weight:700;}
+.myp-tx span{font-size:11.5px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.myp-ch{color:var(--muted);font-size:22px;flex:0 0 auto;line-height:1;}
+.myp-back{display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--teal);font-size:13px;font-weight:700;cursor:pointer;padding:2px 0 10px;font-family:inherit;}
+.myp-back:active{transform:scale(.97);}
+.myp-galempty{font-size:12px;color:var(--muted-2);background:rgba(255,255,255,.03);border:1px dashed var(--line-2);border-radius:12px;padding:14px;margin-bottom:6px;text-align:center;line-height:1.5;}
 </style>
 </head>
 <body>

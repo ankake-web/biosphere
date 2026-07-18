@@ -329,13 +329,51 @@ function submitSeen(id){
   if(onboarding && fromOnboard) welcomeCelebrate();   // オンボの身近な種タップ由来の記録だけ祝福（通常のカード/近く記録は不変・誤発火しない）
 }
 // 📔 Myずかん（自分が見た記録・レベル・連続記録）
+// 📔 Myずかん＝マイページ（プロフィール／自分だけの図鑑）。クエスト・記録はタップでサブ画面へ。
 function openMyDex(silent){
-  silent=silent===true;   // ★#myDexBtnのclickリスナはMouseEventを渡す→明示的なtrue（refreshAfterSyncの同期由来の再描画）だけをsilent扱いに
+  silent=silent===true;   // 同期由来の再描画(refreshAfterSync)は明示true＝track/演出を出さない
   closeMyDex();
-  if(!silent){ ANALYTICS.track('mydex_opened'); checkQuests(); }   // ユーザー操作の入口のみ副作用（同期由来の再描画=silentは track/演出を出さない）
-  const base=USER.xp(), qx=questXp(), xp=base+qx;   // 総XP＝記録XP＋クエストボーナス
+  if(!silent){ ANALYTICS.track('mydex_opened'); checkQuests(); }
+  const m=document.createElement('div'); m.className='modal'; m.id='myDexModal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
+  m.innerHTML=`<div class="modal-bg" onclick="closeMyDex()"></div><div class="modal-card myd-card" id="mydCard"></div>`;
+  document.body.appendChild(m);
+  myDexView('home');
+  focusTrap(m);
+}
+function myDexView(view){
+  const card=document.getElementById('mydCard'); if(!card)return;
+  card.innerHTML = view==='quests' ? myDexQuestsHTML() : view==='recent' ? myDexRecentHTML() : myDexHomeHTML();
+  hydratePhotos(card);   // pull由来の写真(photo_pathのみ)を署名URLで遅延表示
+  card.scrollTop=0;
+}
+function myDexHomeHTML(){
+  const base=USER.xp(), qx=questXp(), xp=base+qx;
   const lv=Math.floor(Math.sqrt(xp/50))+1, sc=USER.speciesCount(), st=USER.streak();
-  const qsorted=[...QUESTS].sort((a,b)=>(QDONE.has(a.id)?1:0)-(QDONE.has(b.id)?1:0));   // 未達成を上に
+  const myphotos=USER.all().filter(s=>s.photo).reverse();
+  const gallery=myphotos.length?`<h3>📸 撮った写真（${myphotos.length}）＝あなただけの図鑑</h3><div class="myd-gallery">${myphotos.map(s=>{const pa=ANIMALS.find(x=>x.id===s.id);const pn=pa?pa.nameJa:(s.sci||s.id);return `<button class="myd-ph" onclick="openPhotoView(${s.at})"><img src="${s.photo}" alt="${esc(pn)}" loading="lazy"><span class="myd-ph-nm">${esc(pn)}</span></button>`;}).join('')}</div>`:'<div class="myp-galempty">📸 「👀見た！」で写真をつけると、ここに“自分だけの図鑑”がたまっていくよ</div>';
+  const nm=authUser?(accountName()||'あなた'):'ゲスト';
+  const av=authUser?esc(([...nm][0]||'A').toUpperCase()):'🐾';
+  const recN=USER.all().length;
+  return `<button class="pclose" onclick="closeMyDex()" aria-label="閉じる">✕</button>
+    <div class="myp-hero">
+      <div class="myp-av">${av}</div>
+      <div class="myp-id"><b>${esc(nm)}</b><span>Lv.${lv}・${sc}種を記録${authUser?'':'（ゲスト）'}</span></div>
+    </div>
+    <div class="myd-stats">
+      <div class="myd-st"><b>Lv.${lv}</b><span>レベル</span></div>
+      <div class="myd-st"><b>${sc}</b><span>見た種</span></div>
+      <div class="myd-st"><b>${xp}</b><span>XP</span></div>
+      <div class="myd-st"><b>${st}日</b><span>連続記録</span></div>
+    </div>
+    ${gallery}
+    <div class="myp-menu">
+      <button class="myp-item" onclick="myDexView('quests')"><span class="myp-ic">🏅</span><span class="myp-tx"><b>クエスト</b><span>${QDONE.size}/${QUESTS.length} 達成</span></span><span class="myp-ch">›</span></button>
+      <button class="myp-item" onclick="myDexView('recent')"><span class="myp-ic">🐾</span><span class="myp-tx"><b>さいきん見た記録</b><span>${recN}件</span></span><span class="myp-ch">›</span></button>
+      <button class="myp-item" onclick="closeMyDex();openAccount()"><span class="myp-ic">☁️</span><span class="myp-tx"><b>${authUser?'アカウント・同期':'ログイン / アカウント作成'}</b><span>${authUser?'同期ON・別の端末でも残る':'別の端末でも記録を残す（無料）'}</span></span><span class="myp-ch">›</span></button>
+    </div>`;
+}
+function myDexQuestsHTML(){
+  const qsorted=[...QUESTS].sort((a,b)=>(QDONE.has(a.id)?1:0)-(QDONE.has(b.id)?1:0));
   const qrows=qsorted.map(q=>{ const e=evalQuest(q), done=QDONE.has(q.id)||e.done, pct=Math.round(100*e.progress/e.need);
     const unit=q.metric==='streak'?'日':'種';
     return `<div class="q-row${done?' done':''}">
@@ -344,37 +382,23 @@ function openMyDex(silent){
       <div class="q-bar"><span style="width:${done?100:pct}%"></span></div>
       <div class="q-prog">${e.progress}/${e.need}${unit}${done?' ・ 達成！':''}</div>
     </div>`; }).join('');
-  const rows=USER.recent(50).map(s=>{ const a=ANIMALS.find(x=>x.id===s.id);
+  return `<button class="pclose" onclick="closeMyDex()" aria-label="閉じる">✕</button>
+    <button class="myp-back" onclick="myDexView('home')">‹ マイページ</button>
+    <h2>🏅 クエスト（${QDONE.size}/${QUESTS.length}）</h2>
+    <div class="q-list">${qrows}</div>`;
+}
+function myDexRecentHTML(){
+  const rows=USER.recent(80).map(s=>{ const a=ANIMALS.find(x=>x.id===s.id);
     const nm=a?a.nameJa:(s.sci||s.id), em=a?a.emoji:'🐾', d=new Date(s.at), ds=(d.getMonth()+1)+'/'+d.getDate();
     const cf=s.confidence==='photo'?'📷':(s.confidence==='maybe'?'❓':'👀');
     return `<button class="myd-row" onclick="closeMyDex();selectAnimal('${s.id}')">
       <span class="myd-th"${(!s.photo&&s.photo_path)?` data-pp="${esc(s.photo_path)}"`:''}>${s.photo?`<img src="${s.photo}" alt="">`:em}</span>
       <span class="myd-mid"><b>${esc(nm)}</b><span class="myd-sub">${cf} ${ds}${s.note?' · '+esc(s.note):''}</span></span></button>`;
   }).join('')||'<div class="myd-empty">まだ記録がありません。近くの生きものや図鑑カードで「👀見た！」を押してみよう。</div>';
-  const myphotos=USER.all().filter(s=>s.photo).reverse();
-  const gallery=myphotos.length?`<h3>📸 撮った写真（${myphotos.length}）＝あなただけの図鑑</h3><div class="myd-gallery">${myphotos.map(s=>{const pa=ANIMALS.find(x=>x.id===s.id);const pn=pa?pa.nameJa:(s.sci||s.id);return `<button class="myd-ph" onclick="openPhotoView(${s.at})"><img src="${s.photo}" alt="${esc(pn)}" loading="lazy"><span class="myd-ph-nm">${esc(pn)}</span></button>`;}).join('')}</div>`:'';
-  const m=document.createElement('div'); m.className='modal'; m.id='myDexModal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
-  m.innerHTML=`<div class="modal-bg" onclick="closeMyDex()"></div>
-    <div class="modal-card myd-card">
-      <button class="pclose" onclick="closeMyDex()" aria-label="閉じる">✕</button>
-      <h2>📔 Myずかん</h2>
-      <div class="myd-acct${authUser?' in':''}">${authUser
-        ? `<span class="myd-acct-ic">☁️</span><span class="myd-acct-tx"><b>${esc(accountName()||'ログイン中')}</b><span class="myd-acct-s">同期ON・別の端末でも残ります</span></span><button class="myd-acct-b" onclick="closeMyDex();openAccount()">アカウント</button>`
-        : `<span class="myd-acct-ic">☁️</span><span class="myd-acct-tx"><b>ログインで記録を守る</b><span class="myd-acct-s">アカウントを作ると別の端末でも消えません</span></span><button class="myd-acct-b" onclick="closeMyDex();openAccount()">ログイン / 作成</button>`}</div>
-      <div class="myd-stats">
-        <div class="myd-st"><b>Lv.${lv}</b><span>レベル</span></div>
-        <div class="myd-st"><b>${sc}</b><span>見た種</span></div>
-        <div class="myd-st"><b>${xp}</b><span>XP</span></div>
-        <div class="myd-st"><b>${st}日</b><span>連続記録</span></div>
-      </div>
-      ${gallery}
-      <h3>🏅 クエスト（${QDONE.size}/${QUESTS.length} 達成）</h3>
-      <div class="q-list">${qrows}</div>
-      <h3>さいきん見た</h3>
-      <div class="myd-list">${rows}</div>
-    </div>`;
-  document.body.appendChild(m);
-  hydratePhotos(m);   // 他端末からpullした写真（photo_pathのみ）を署名URLで遅延表示
+  return `<button class="pclose" onclick="closeMyDex()" aria-label="閉じる">✕</button>
+    <button class="myp-back" onclick="myDexView('home')">‹ マイページ</button>
+    <h2>🐾 さいきん見た記録</h2>
+    <div class="myd-list">${rows}</div>`;
 }
 function closeMyDex(){ const m=document.getElementById('myDexModal'); if(m)m.remove(); }
 // 📸 撮った写真ビューア（大きく表示・保存・共有）＝"自分だけの図鑑"の1枚
@@ -3182,7 +3206,7 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, openStats, closeStats, onboardSeen, onboardWorld, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters, openAccount, closeAccount, acctSendEmail, acctGoogle, acctSignOut, openPhotoView, closePhotoView, savePhoto, sharePhoto })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, myDexView, openStats, closeStats, onboardSeen, onboardWorld, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters, openAccount, closeAccount, acctSendEmail, acctGoogle, acctSignOut, openPhotoView, closePhotoView, savePhoto, sharePhoto })
 
 
 /* ── v2: ボトムシートのつまみをドラッグで自由に高さ変更／ロゴタップで世界へ戻る ── */
