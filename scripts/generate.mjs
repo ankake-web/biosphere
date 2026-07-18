@@ -137,6 +137,10 @@ const HEAD = (title, desc, canon, img, extra = '') => `<!doctype html><html lang
 ${extra}<link rel="stylesheet" href="${canon.includes('/species/') ? '../static.css' : 'static.css'}">
 </head><body>`;
 
+// ヒーロー写真・図鑑サムネは Wikimedia(upload.wikimedia.org) からのクロスオリジン取得。
+// 接続(DNS+TCP+TLS)を先に温めておくと、ページ最大要素(ヒーロー画像=LCP)の表示が1往復ぶん速くなる。
+const WIKI_PRECONNECT = '<link rel="preconnect" href="https://upload.wikimedia.org" crossorigin>\n';
+
 const SITEHEAD = base => `<header class="site"><a href="${base}"><b>🐾 Faunaut</b></a> <span style="color:#8497a7;font-size:13px">いきもの分布アトラス</span></header>`;
 const SITEFOOT = base => `<footer class="site">
 データ出典：分布=<a href="https://www.gbif.org/">GBIF</a>／保全状況・生息数=<a href="https://www.iucnredlist.org/">IUCN レッドリスト</a>等を参考に編集（数値は推定）／写真=<a href="https://commons.wikimedia.org/">Wikimedia Commons</a>（各写真の撮影者・ライセンスは表記）／地図=<a href="https://carto.com/attributions">CARTO</a>・<a href="https://www.naturalearthdata.com/">Natural Earth</a>・<a href="https://www.esri.com/">Esri</a>／<a href="https://maplibre.org/">MapLibre</a>。
@@ -160,8 +164,8 @@ function speciesPage(a, prev, next) {
     { "@type": "ListItem", "position": 1, "name": "Faunaut", "item": SITE + "/" },
     { "@type": "ListItem", "position": 2, "name": "図鑑インデックス", "item": SITE + "/zukan.html" },
     { "@type": "ListItem", "position": 3, "name": a.nameJa, "item": canon }] })}</script>\n`;
-  return HEAD(title, desc, canon, a.photo, ld) + SITEHEAD('../') + `<main class="wrap">
-<img class="hero" src="${a.photo}" alt="${esc(a.nameJa)}の写真" loading="lazy">
+  return HEAD(title, desc, canon, a.photo, WIKI_PRECONNECT + ld) + SITEHEAD('../') + `<main class="wrap">
+<img class="hero" src="${a.photo}" alt="${esc(a.nameJa)}の写真" fetchpriority="high" decoding="async">
 <p class="cred">📷 ${esc(credOf(a))}（Wikimedia Commons）</p>
 <h1>${esc(a.nameJa)}<span class="sci">${esc(a.nameSci)}</span></h1>
 <div class="tags"><span class="tag">🧬 ${esc(cls)}・${esc(a.taxon)}</span><span class="tag">${BIOMES[a.biome].e} ${esc(a.biome)}</span><span class="tag" style="color:${r.color}">${esc(r.jp)}（${a.status}）</span></div>
@@ -198,7 +202,7 @@ function zukanPage() {
     });
     body += '</div>';
   });
-  return HEAD(title, desc, SITE + '/zukan.html', OG_IMAGE) + SITEHEAD('./') + `<main class="wrap">
+  return HEAD(title, desc, SITE + '/zukan.html', OG_IMAGE, WIKI_PRECONNECT) + SITEHEAD('./') + `<main class="wrap">
 <h1>図鑑インデックス<span class="sci">世界のいきもの ${ANIMALS.length}種</span></h1>
 <p>各種をクリックすると分布・生態・保全状況の詳細ページへ。<a href="./">3D地球儀アトラス</a>では実際の観測分布を地球儀で旅できます。</p>
 ${body}
