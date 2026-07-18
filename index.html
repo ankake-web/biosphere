@@ -230,8 +230,8 @@ button{font-family:inherit;cursor:pointer;}
   .grab{width:42px;height:4px;border-radius:99px;background:var(--line-2);margin:9px auto 2px;}
 }
 /* タブレット幅：種カード（近くの一覧=sheet-midは除く）を全幅にせず適度な幅で中央に＝写真が大きくなりすぎず全体が見える */
-@media(min-width:641px) and (max-width:860px){
-  .panel:not(.sheet-mid){max-width:440px;margin-inline:auto;}
+@media(min-width:426px) and (max-width:860px){
+  .panel{left:12px;right:auto;bottom:12px;width:440px;max-width:440px;border-radius:16px;}
 }
 .panel::-webkit-scrollbar{width:6px;}
 .panel::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px;}
@@ -771,6 +771,19 @@ button.iucn{appearance:none;background:none;border:0;font:inherit;cursor:pointer
 .sf{padding:8px 10px;font-size:12.5px;}
 /* [15] ボトムシートのsafe-area対応（ホームインジケータにCTAが潜らない） */
 @media(max-width:860px){ .panel{padding-bottom:env(safe-area-inset-bottom);} }
+
+/* ===== v2: 地図カーソル/スマホでホーム省略/シートつまみリサイズ ===== */
+/* [#6] 地図カーソルを既定の矢印に（Google Map風・手のマークは掴んでいる時だけ） */
+.maplibregl-map .maplibregl-canvas-container.maplibregl-interactive{cursor:default;}
+.maplibregl-map .maplibregl-canvas-container.maplibregl-interactive:active{cursor:grabbing;}
+/* [#1] スマホでは⌂ホームを省略（上部バーの重なり回避／ロゴタップで世界へ戻れる） */
+@media(max-width:640px){ #homeBtn{display:none;} }
+.brand{cursor:pointer;}
+/* [#3] ボトムシートのつまみを掴みやすく（ドラッグで高さ変更） */
+@media(max-width:860px){
+  .grab{width:64px;height:22px;margin:4px auto 0;padding:0;background:none;border-radius:0;cursor:ns-resize;position:relative;touch-action:none;}
+  .grab::before{content:'';position:absolute;left:50%;top:9px;transform:translateX(-50%);width:44px;height:5px;border-radius:99px;background:var(--line-2);}
+}
 </style>
 </head>
 <body>

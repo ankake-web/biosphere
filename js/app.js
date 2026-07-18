@@ -896,7 +896,7 @@ const map = window.map = new maplibregl.Map({
       tileSize:256, attribution:'© OpenStreetMap © CARTO'}},
     layers:[{id:'bg',type:'background',paint:{'background-color':'#070b11'}},
       {id:'carto',type:'raster',source:'carto',paint:{'raster-opacity':.9,'raster-saturation':-.1,'raster-contrast':.05}}]},
-  center:[18,16], zoom:1.45, minZoom:.7, maxZoom:16, attributionControl:false, dragRotate:true, pitchWithRotate:false
+  center:[18,16], zoom:1.45, minZoom:.7, maxZoom:16, attributionControl:false, dragRotate:true, pitchWithRotate:true
 });
 map.addControl(new maplibregl.AttributionControl({compact:true, customAttribution:'観測点: GBIF.org'}), 'bottom-right');
 map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'bottom-right');
@@ -1510,7 +1510,7 @@ const panelEl=$('#panel');
 function openPanel(){ panelEl.classList.add('open'); document.body.classList.add('panel-open'); }   // panel-open＝モバイルで下部シート表示中→ドックを隠して被り防止
 function closePanel(){ panelEl.classList.remove('open'); document.body.classList.remove('panel-open'); }
 // モバイルのシート高さ：近くの一覧/詳細は中間（地図＋生き物を上に見せる）、種/国カードは通常（full）。
-function panelSheet(mid){ panelEl.classList.toggle('sheet-mid', !!mid); }
+function panelSheet(mid){ panelEl.style.height=''; panelEl.style.maxHeight=''; panelEl.classList.toggle('sheet-mid', !!mid); }
 // head を渡すと（近くの生き物→📖図鑑タブ経由）上部にタブ＋分布メッシュトグルを差し込む。通常の種選択では head 無し＝従来どおり。
 function renderAnimalCard(a, head){
   const r=RARITY[a.status], g=BIOMES[a.biome]?BIOMES[a.biome].g:['#1b3a43','#0d1b22'], tm=TREND_META[trendOf(a)];
@@ -3183,3 +3183,26 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
 Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, openStats, closeStats, onboardSeen, onboardWorld, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters, openAccount, closeAccount, acctSendEmail, acctGoogle, acctSignOut, openPhotoView, closePhotoView, savePhoto, sharePhoto })
+
+
+/* ── v2: ボトムシートのつまみをドラッグで自由に高さ変更／ロゴタップで世界へ戻る ── */
+;(function(){
+  let pd=null;
+  addEventListener('pointerdown',function(e){
+    var g=e.target.closest&&e.target.closest('.grab'); if(!g)return;
+    var p=g.closest('.panel'); if(!p||window.innerWidth>860)return;
+    e.preventDefault();
+    pd={p:p,y:e.clientY,h:p.getBoundingClientRect().height};
+    try{g.setPointerCapture(e.pointerId);}catch(_){}
+    p.style.transition='none';
+  });
+  addEventListener('pointermove',function(e){ if(!pd)return;
+    var vh=window.innerHeight, h=pd.h+(pd.y-e.clientY);
+    h=Math.max(vh*0.24,Math.min(vh*0.92,h));
+    pd.p.style.height=h+'px'; pd.p.style.maxHeight=h+'px';
+  });
+  function endDrag(){ if(pd){ pd.p.style.transition=''; pd=null; } }
+  addEventListener('pointerup',endDrag); addEventListener('pointercancel',endDrag);
+  function wireLogo(){ var b=document.querySelector('.brand'); if(b&&!b._homeWired){ b._homeWired=1; b.addEventListener('click',function(){ if(typeof resetAll==='function')resetAll(); }); } }
+  if(document.readyState==='loading') addEventListener('DOMContentLoaded',wireLogo); else wireLogo();
+})();
