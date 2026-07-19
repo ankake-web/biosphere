@@ -3206,7 +3206,7 @@ addEventListener('resize',()=>{ if(typeof chipsBuilt!=='undefined' && !chipsBuil
 // └───────────────────────────────────────── /app.js ─────────────────────────────────────────┘
 
 // ==== インラインハンドラ(onclick等)用の window 公開（モジュールスコープの外から呼ぶため） ====
-Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, myDexView, openStats, closeStats, onboardSeen, onboardWorld, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters, openAccount, closeAccount, acctSendEmail, acctGoogle, acctSignOut, openPhotoView, closePhotoView, savePhoto, sharePhoto })
+Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, closeAddrSearch, closePanel, closeRedlist, esc, filterStatus, filterThreat, flyCountry, openAddrSearch, openNearDetail, openRedlist, pickAddr, playFigureSound, playNearSound, recenterCurrent, requestLocalGeo, resetAll, sciKey, searchNearAddr, selectAnimal, setNearCap, capLive, setNearClass, setNearPin, setNearRadius, setNearSort, shareAnimal, shareFigureCard, shareNearCard, shareSpeciesCard, showCountry, showFigTab, toggleFigDist, toggleNearPoints, toggleNearThreat, openSeen, closeSeen, seenPreview, submitSeen, openMyDex, closeMyDex, myDexView, openStats, closeStats, onboardSeen, onboardWorld, toggleAnimalDist, toggleCardMore, toggleSortFilter, toggleNearFilters, openAccount, closeAccount, acctSendEmail, acctGoogle, acctSignOut, openPhotoView, closePhotoView, savePhoto, sharePhoto, openAiCam, closeAiCam, aiPhotoPicked, aiPick, aiShowSearch })
 
 
 /* ── v2: ボトムシートのつまみをドラッグで自由に高さ変更／ロゴタップで世界へ戻る ── */
@@ -3230,3 +3230,93 @@ Object.assign(window, { $, NEAR_DEFAULT_R, armNearPick, backToNear, closeAbout, 
   function wireLogo(){ var b=document.querySelector('.brand'); if(b&&!b._homeWired){ b._homeWired=1; b.addEventListener('click',function(){ if(typeof resetAll==='function')resetAll(); }); } }
   if(document.readyState==='loading') addEventListener('DOMContentLoaded',wireLogo); else wireLogo();
 })();
+
+
+/* ===== 📷 撮ってAIで調べる（端末内AI・TensorFlow.js MobileNet／写真は外部に送らない） ===== */
+let AI_LABELMAP=null, _tfLoading=null, _mobilenet=null, aiPhoto=null, aiCands=[];
+async function aiLoadMap(){ if(AI_LABELMAP)return AI_LABELMAP; try{ AI_LABELMAP=await (await fetch('data/ai-labelmap.json')).json(); }catch(e){ AI_LABELMAP={}; } return AI_LABELMAP; }
+function _aiScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('load '+src)); document.head.appendChild(s); }); }
+async function aiEnsureModel(){
+  if(_mobilenet)return _mobilenet;
+  if(!_tfLoading){ _tfLoading=(async()=>{
+    if(!window.tf) await _aiScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js');
+    if(!window.mobilenet) await _aiScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js');
+    _mobilenet=await window.mobilenet.load({version:2,alpha:1.0});
+    return _mobilenet;
+  })(); }
+  return _tfLoading;
+}
+function openAiCam(){
+  closeAiCam();
+  const m=document.createElement('div'); m.className='modal'; m.id='aiCamModal'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
+  m.innerHTML=`<div class="modal-bg" onclick="closeAiCam()"></div>
+    <div class="modal-card ai-card">
+      <button class="pclose" onclick="closeAiCam()" aria-label="閉じる">✕</button>
+      <h2>📷 撮って生きものを調べる</h2>
+      <p class="ai-lead">写真をとると、AIが「たぶんこれ」を提案。ちがえば候補や手動でえらべます。写真はこの端末だけで判定＝外部に送りません。</p>
+      <div id="aiBody">
+        <div class="ai-cam">
+          <label class="ai-cam-btn primary" for="aiCamInput">📷 その場で撮る</label>
+          <label class="ai-cam-btn" for="aiCamFile">🖼️ 選ぶ</label>
+        </div>
+        <input id="aiCamInput" type="file" accept="image/*" capture="environment" onchange="aiPhotoPicked(this)" hidden>
+        <input id="aiCamFile" type="file" accept="image/*" onchange="aiPhotoPicked(this)" hidden>
+      </div>
+    </div>`;
+  document.body.appendChild(m); focusTrap(m);
+  if(typeof ANALYTICS!=='undefined') ANALYTICS.track('aicam_open');
+}
+function closeAiCam(){ const m=document.getElementById('aiCamModal'); if(m)m.remove(); aiPhoto=null; aiCands=[]; }
+async function aiPhotoPicked(inp){
+  const f=inp.files&&inp.files[0]; if(!f)return;
+  aiPhoto=await downscalePhoto(f,640);
+  const body=document.getElementById('aiBody'); if(!body||!aiPhoto)return;
+  body.innerHTML=`<div class="ai-photo"><img src="${aiPhoto}" alt=""></div><div class="ai-analyzing"><span class="ai-spin"></span> AIが調べています…</div>`;
+  try{
+    const model=await aiEnsureModel();
+    const map=await aiLoadMap();
+    const img=new Image(); img.src=aiPhoto; try{ await img.decode(); }catch(e){ await new Promise(r=>{img.onload=r;img.onerror=r;}); }
+    const preds=await model.classify(img,10);
+    const seen=new Set(); aiCands=[];
+    for(const p of preds){ const hit=map[p.className]; if(hit && !seen.has(hit.id)){ seen.add(hit.id); aiCands.push({id:hit.id, ja:hit.ja, prob:p.probability}); } }
+    renderAiResults();
+  }catch(e){ renderAiError(); }
+}
+function renderAiResults(){
+  const body=document.getElementById('aiBody'); if(!body)return;
+  if(!aiCands.length){ body.innerHTML=`<div class="ai-photo"><img src="${aiPhoto}" alt=""></div>
+    <div class="ai-none">🤔 はっきり判定できませんでした。名前でさがして記録してね。</div>${aiSearchHTML(true)}`; wireAiSearch(); return; }
+  const top=aiCands[0];
+  const others=aiCands.slice(1,5).map(c=>`<button class="ai-alt" onclick="aiPick('${c.id}')">${esc(c.ja)}<span>${Math.round(c.prob*100)}%</span></button>`).join('');
+  body.innerHTML=`<div class="ai-photo"><img src="${aiPhoto}" alt=""></div>
+    <div class="ai-top"><span class="ai-top-lb">たぶん…</span><b>${esc(top.ja)}</b><span class="ai-conf">自信 ${Math.round(top.prob*100)}%</span></div>
+    <button class="nbtn wide ai-go" onclick="aiPick('${top.id}')">📔 「${esc(top.ja)}」で記録する</button>
+    ${others?`<div class="ai-alt-lb">ちがう？ ほかの候補：</div><div class="ai-alts">${others}</div>`:''}
+    <button class="ai-manual" onclick="aiShowSearch()">🔍 候補にない・名前でさがす</button>
+    <div id="aiSearchWrap" hidden>${aiSearchHTML(false)}</div>`;
+}
+function renderAiError(){ const body=document.getElementById('aiBody'); if(body){ body.innerHTML=`<div class="ai-photo"><img src="${aiPhoto}" alt=""></div><div class="ai-none">⚠️ AIの読み込みに失敗（通信環境かも）。名前でさがして記録できます。</div>${aiSearchHTML(true)}`; wireAiSearch(); } }
+function aiShowSearch(){ const w=document.getElementById('aiSearchWrap'); if(w){ w.hidden=false; wireAiSearch(); const i=document.getElementById('aiSearchIn'); if(i)i.focus(); } }
+function aiSearchHTML(open){ return `<div class="ai-search">${open?'<div class="ai-search-lb">名前でさがす</div>':''}<input id="aiSearchIn" type="search" placeholder="生きもの名で検索（例：ハシブトガラス）" autocomplete="off"><div id="aiSearchRes" class="ai-search-res"></div></div>`; }
+function wireAiSearch(){ const i=document.getElementById('aiSearchIn'); if(!i||i._wired)return; i._wired=1;
+  i.addEventListener('input',()=>{ const q=i.value.trim(); const res=document.getElementById('aiSearchRes'); if(!res)return;
+    if(q.length<1){ res.innerHTML=''; return; }
+    const ql=q.toLowerCase(); const hits=ANIMALS.filter(a=>(a.nameJa||'').includes(q)||(a.nameSci||'').toLowerCase().includes(ql)).slice(0,10);
+    res.innerHTML=hits.map(a=>`<button class="ai-hit" onclick="aiPick('${a.id}')"><span>${esc(a.nameJa)}</span><i>${esc(a.nameSci)}</i></button>`).join('')||'<div class="ai-nohit">見つかりません</div>';
+  });
+}
+function aiPick(id){
+  const a=ANIMALS.find(x=>x.id===id); if(!a)return;
+  const loc=(typeof getLastLoc==='function')?getLastLoc():null;
+  const rec={ id:a.id, sci:a.nameSci, at:Date.now(), lat:loc?Math.round(loc.lat*100)/100:null, lng:loc?Math.round(loc.lng*100)/100:null, place:null, note:null, photo:aiPhoto, confidence:'photo', ai:true };
+  const first=!USER.hasSeen(id);
+  const res=USER.add(rec);
+  if(!res.ok){ toast('⚠️','端末の保存容量がいっぱいで記録できませんでした',3200); return; }
+  if(typeof pushSighting==='function') pushSighting(rec);
+  if(typeof ANALYTICS!=='undefined'){ ANALYTICS.track('sighting'); if(first)ANALYTICS.track('sighting_first'); ANALYTICS.track('sighting_photo'); ANALYTICS.track('aicam_record'); }
+  closeAiCam();
+  if(typeof updateSeenBtn==='function' && typeof currentAnimal!=='undefined' && currentAnimal && currentAnimal.id===id) updateSeenBtn(id);
+  toast('📸',`${a.nameJa} を${first?'はじめて':''}記録！${loc?' 📍場所も記録':''}`,2800);
+  if(typeof checkQuests==='function') checkQuests();
+  if(typeof confetti==='function' && first) confetti();
+}
