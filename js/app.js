@@ -2075,8 +2075,9 @@ function mergeBinomials(counts){
 }
 function renderNearShell(title,inner,full){
   panelSheet(!full);   // 既定=中間高さ(mid)＝近くの一覧/詳細で地図を上に見せる。full=true＝通常高さ(70dvh)＝ようこそ等の縦長コンテンツでCTAが折返しの下に隠れないように
+  const lbl=(title==='ようこそ'||title==='はじめの一歩')?'':'📍 あなたの近く';   // ようこそ/祝福は近くの見出しを流用しない（不一致解消）
   panelEl.innerHTML=`<button class="pclose" onclick="closePanel()" aria-label="閉じる">✕</button><div class="grab"></div>
-    <div class="cc-head"><div class="lbl">📍 あなたの近く</div><div class="cname">${esc(title)}</div></div>
+    <div class="cc-head">${lbl?`<div class="lbl">${lbl}</div>`:''}<div class="cname">${esc(title)}</div></div>
     <div class="nearbody">${inner}</div>`;
 }
 function openNearby(){
@@ -2301,7 +2302,7 @@ function nearControlsHTML(){
         <span class="capnum" id="capMapCount" title="いま地図に出ている生きものアイコン数 ／ この範囲・絞り込みにいる種数（数字を上げると、同じ種も別の場所に出て種数より多く表示できます）">🐾 <span class="capn">${creatureMarkers.length}</span><span class="capsep">/</span><b>${nearAvail>0?nearAvail:'…'}</b></span>
       </div></div>
     </div>
-    <div class="ctlrow ctlbtns"><button class="nbtn" onclick="openAddrSearch()">🔍 住所で移動</button><button class="nbtn" onclick="recenterCurrent()">📍 現在地</button><button class="nbtn" onclick="armNearPick()">📌 タップで移動</button><button class="nbtn" onclick="shareNearCard(this)">📤 シェア</button></div>
+    <div class="ctlrow ctlbtns"><button class="nbtn" onclick="openAddrSearch()">🔍 住所で移動</button><button class="nbtn" onclick="recenterCurrent()">📍 現在地</button><button class="nbtn nbtn-pick" onclick="armNearPick()">📌 タップで移動</button><button class="nbtn" onclick="shareNearCard(this)">📤 シェア</button></div>
   </div>`;
 }
 function renderNearList(overrideInner){
@@ -2318,7 +2319,7 @@ function renderNearList(overrideInner){
       <span class="cnt2">${fmtN(c.count)}件</span></button>`;}).join('');
   renderNearShell(nearState.label+'の近く',
     controls+
-    `<div class="nearsum" id="nearsum">このあたりで見つかる生きもの <b>${nearRows.length}種</b><br><span style="color:#9fb0bd">半径${nearState.radius}km・数字は観測された記録の数（多いほど身近）／タップで詳細・📖は図鑑収録</span></div>
+    `<div class="nearsum" id="nearsum">このあたりで見つかる生きもの <b>${nearRows.length}種</b><br><span class="nsnote">半径${nearState.radius}km・数字は観測された記録の数（多いほど身近）／タップで詳細・📖は図鑑収録</span></div>
      <div class="near-minileg"><span class="lgi"><span class="sw" style="background:#ff4d6d"></span>あなた</span><span class="lgi"><span class="sw" style="background:transparent;border:1.5px dashed #34d8c6"></span>この範囲</span><span class="lgi"><span class="sw" style="background:#ffb02e"></span>⚠絶滅危惧</span><span class="lgi">📖 図鑑収録</span></div>
      <div class="locsp" id="nearlist">${rows}</div>`);
   openPanel(); resolveAllRows(); updateCreatureCount();   // 一覧の再描画で作り直された #capMapCount を今のマーカー数で埋め直す（🗺️が並び替え等で消えないように）
@@ -2378,7 +2379,7 @@ function applyNearFilter(){
   if(nearThreatOnly) head=`この範囲の<b>絶滅危惧</b> <b>${vis}種</b>`;
   else if(nearClasses.length){ head=`<b>${nearClassLabel()}</b>でしぼり込み <b>${vis}種</b>`; }
   else head=`このあたりで見つかる生きもの <b>${nearRows.length}種</b>`;
-  sum.innerHTML=`${head}<br>${thChip?thChip+'<br>':''}<span style="color:#9fb0bd">半径${nearState.radius}km・数字は観測された記録の数（多いほど身近）／タップで詳細・📖は図鑑収録</span>`;
+  sum.innerHTML=`${head}<br>${thChip?thChip+'<br>':''}<span class="nsnote">半径${nearState.radius}km・数字は観測された記録の数（多いほど身近）／タップで詳細・📖は図鑑収録</span>`;
 }
 /* ==== 近くの生き物 詳細（上部タブ：📍近く / 📖図鑑）====
    近くのアイコン/一覧から開く詳細パネル。図鑑収録種は上部タブで「近く情報」と
