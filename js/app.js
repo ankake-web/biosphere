@@ -1534,7 +1534,7 @@ const panelEl=$('#panel');
 function openPanel(){ panelEl.classList.add('open'); document.body.classList.add('panel-open'); }   // panel-open＝モバイルで下部シート表示中→ドックを隠して被り防止
 function closePanel(){ panelEl.classList.remove('open'); document.body.classList.remove('panel-open'); }
 // モバイルのシート高さ：近くの一覧/詳細は中間（地図＋生き物を上に見せる）、種/国カードは通常（full）。
-function panelSheet(mid){ panelEl.style.height=''; panelEl.style.maxHeight=''; panelEl.classList.toggle('sheet-mid', !!mid); }
+function panelSheet(mid){ panelEl.style.height=''; panelEl.style.maxHeight=''; panelEl.classList.remove('card-sheet'); panelEl.classList.toggle('sheet-mid', !!mid); }
 // head を渡すと（近くの生き物→📖図鑑タブ経由）上部にタブ＋分布メッシュトグルを差し込む。通常の種選択では head 無し＝従来どおり。
 function renderAnimalCard(a, head){
   const r=RARITY[a.status], g=BIOMES[a.biome]?BIOMES[a.biome].g:['#1b3a43','#0d1b22'], tm=TREND_META[trendOf(a)];
@@ -1584,7 +1584,7 @@ function renderAnimalCard(a, head){
         ${MIGRATION[a.id]?`<div class="gbifnote mignote">🧭 <b>季節移動</b>：${MIGRATION[a.id].note}。地図に<span style="color:#ffd45e;font-weight:700">繁殖↔越冬の経路</span>（模式）を表示中。</div>`:''}
       </div>
     </div>`;
-  panelSheet(false); openPanel();
+  panelSheet(false); if(!head)panelEl.classList.add('card-sheet'); openPanel();
   fillFlavor(a);
 }
 // 図鑑ドックの「⚙ 並び替え・絞り込み」＝多段の並び替え(生息数順/絶滅危機順/分類…)＋絞り込みを開閉（既定は畳む＝No順・docs/design/11-B）。
@@ -1697,7 +1697,7 @@ function renderCountryCard(code,animals){
     <div class="cc-list">${rows}</div>
     <div class="seclab" style="margin:8px 16px 9px">🛰️ GBIF実データ：この国で多く記録される生きもの <span class="ln"></span></div>
     <div id="localspecies" class="locsp">実データを取得中…</div>`;
-  panelSheet(false); openPanel();
+  panelSheet(false); panelEl.classList.add('card-sheet'); openPanel();
 }
 function shareAnimal(id){
   const url = location.origin + location.pathname + '#' + id;

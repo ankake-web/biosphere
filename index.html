@@ -230,8 +230,8 @@ button{font-family:inherit;cursor:pointer;}
   .grab{width:42px;height:4px;border-radius:99px;background:var(--line-2);margin:9px auto 2px;}
 }
 /* タブレット幅：種カード（近くの一覧=sheet-midは除く）を全幅にせず適度な幅で中央に＝写真が大きくなりすぎず全体が見える */
-@media(min-width:426px) and (max-width:860px){
-  .panel{left:12px;right:auto;bottom:12px;width:440px;max-width:440px;border-radius:16px;}
+@media(max-width:860px){
+  .panel.card-sheet{max-height:48dvh;}   /* 種/土地カードは既定ピーク高さ＝地図を広く残す。つまみを引き上げて拡大できる */
 }
 .panel::-webkit-scrollbar{width:6px;}
 .panel::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px;}
